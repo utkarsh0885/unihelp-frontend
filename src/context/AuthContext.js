@@ -14,6 +14,7 @@ import {
   updateProfile,
   loginWithGoogle,  // Google OAuth — stores JWT + user from callback
 } from '../services/authService';
+import { updateUserPresence as updatePresenceAPI } from '../services/dataService';
 
 const AuthContext = createContext(null);
 
@@ -102,6 +103,16 @@ export const AuthProvider = ({ children }) => {
     return updated;
   }, [user]);
 
+  // ── Update Presence ──
+  const updateUserPresence = useCallback(async (isOnline) => {
+    if (!user?.id) return;
+    try {
+      await updatePresenceAPI(user.id, isOnline);
+    } catch (err) {
+      console.error('[AuthContext] Presence update failed:', err);
+    }
+  }, [user?.id]);
+
   const value = useMemo(() => ({
     user,
     loading,
@@ -109,9 +120,10 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateUser,
+    updateUserPresence,
     googleLogin,          // Exposed for GoogleAuthCallbackScreen
     isAuthenticated: !!user,
-  }), [user, loading, login, signup, logout, updateUser, googleLogin]);
+  }), [user, loading, login, signup, logout, updateUser, updateUserPresence, googleLogin]);
 
   return (
     <AuthContext.Provider value={value}>

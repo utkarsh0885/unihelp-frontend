@@ -11,7 +11,6 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { DataProvider } from './src/context/DataContext';
 import { ToastProvider, useToast } from './src/context/ToastContext';
-import { updateUserPresence } from './src/services/dataService';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -41,7 +40,7 @@ const linking = {
 
 const AppContent = () => {
   const { isDark, colors } = useTheme();
-  const { user } = useAuth();
+  const { user, updateUserPresence } = useAuth();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -63,16 +62,22 @@ const AppContent = () => {
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       const isOnline = nextAppState === 'active';
-      updateUserPresence(user.id, isOnline);
+      if (typeof updateUserPresence === 'function') {
+        updateUserPresence(isOnline);
+      }
     });
 
-    updateUserPresence(user.id, true);
+    if (typeof updateUserPresence === 'function') {
+      updateUserPresence(true);
+    }
 
     return () => {
       subscription.remove();
-      updateUserPresence(user.id, false);
+      if (typeof updateUserPresence === 'function') {
+        updateUserPresence(false);
+      }
     };
-  }, [user?.id]);
+  }, [user?.id, updateUserPresence]);
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),

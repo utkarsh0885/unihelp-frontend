@@ -119,6 +119,21 @@ export const subscribeToChats = (callback) => {
 
 // Other services can be added as needed following the same pattern
 export const initSeedData = async () => {};
+
+/**
+ * Update user online/offline status
+ */
+export const updateUserPresence = async (userId, isOnline) => {
+  try {
+    if (!userId) return;
+    const response = await apiClient.put(`/api/users/${userId}/presence`, { isOnline });
+    return response.data;
+  } catch (error) {
+    console.error('[DataService] Error updating user presence:', error);
+    return null;
+  }
+};
+
 export const subscribeToActiveUsersCount = (callback) => {
   // Placeholder
   callback(1);
