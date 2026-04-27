@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "UNIHELP",
+    "slug": "unihelp",
+    "scheme": "unihelp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F5FA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.utkarsh.unihelp",
+      "infoPlist": {
+        "UIStatusBarStyle": "UIStatusBarStyleDefault"
+      }
+    },
+    "android": {
+      "package": "com.utkarsh.unihelp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F5FA"
+      },
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "navigationBarColor": "#F5F5FA",
+      "navigationBarStyle": "light"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-splash-screen",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
+    ]
+  }
+}
