@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 const KEYS = {
   USERS: '@unihelp_users',
   SESSION: 'unihelp_secure_session', // Key for SecureStore (email/password session)
-  TOKEN:   'unihelp_access_token',   // JWT access token (from backend, incl. Google OAuth)
+  TOKEN: 'unihelp_access_token',   // JWT access token (from backend, incl. Google OAuth)
 };
 
 import { updateUserPresence } from './dataService';
@@ -114,35 +114,88 @@ export const loginUser = async (email, password) => {
 /**
  * Get current session (auto-login).
  * On web, expo-secure-store is unavailable so we fall back to localStorage.
+ * The Google OAuth callback stores the token under "token"; email/password
+ * login stores the user profile under "unihelp_secure_session". We check both.
  */
 export const getSession = async () => {
+  console.log('[getSession] Checking for existing session...');
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      // Web: use localStorage
+      // Web: Google OAuth path — a raw JWT is stored under "token"
+      const token = localStorage.getItem('token');
+      console.log('[getSession] Web - token from localStorage:', token ? 'exists' : 'null');
+      
+      if (token) {
+        // Decode the JWT payload (base64) to extract user info without a library
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          console.log('[getSession] Web - decoded token payload:', payload ? 'success' : 'failed');
+          if (payload) {
+            return {
+              id: payload.id || payload.sub || null,
+              name: payload.name || payload.email || 'User',
+              email: payload.email || null,
+              role: payload.role || null,
+            };
+          }
+        } catch (e) {
+          console.warn('[getSession] Web - failed to decode token:', e.message);
+          // Malformed JWT — fall through to legacy session
+        }
+      }
+      // Email/password login path — full user object stored in session key
       const raw = localStorage.getItem('unihelp_secure_session');
+      console.log('[getSession] Web - unihelp_secure_session from localStorage:', raw ? 'exists' : 'null');
       return raw ? JSON.parse(raw) : null;
     }
+    
+    console.log('[getSession] Native - checking SecureStore');
     const raw = await SecureStore.getItemAsync(KEYS.SESSION);
     return raw ? JSON.parse(raw) : null;
-  } catch {
+  } catch (err) {
+    console.warn('[getSession] Error getting session:', err.message);
     return null;
   }
 };
 
 /**
  * Log out – clear session.
+ * On web, clears ALL auth-related localStorage keys (including "token" used
+ * by Google OAuth callback) then hard-redirects to /login so that React state
+ * is fully reset and the user cannot navigate back without re-authenticating.
  */
 export const logoutUser = async (userId) => {
   if (userId) {
-    await updateUserPresence(userId, false);
+    try {
+      await updateUserPresence(userId, false);
+    } catch (e) {
+      console.warn('[logoutUser] Failed to update presence:', e);
+    }
   }
+
   if (typeof window !== 'undefined' && window.localStorage) {
-    // Web: clear localStorage tokens
+    console.log('[logoutUser] Clearing web localStorage...');
+    console.log('Before:', { ...window.localStorage }); // Clone to log current state
+
+    // Remove every specific key
+    localStorage.removeItem('token');
     localStorage.removeItem('unihelp_secure_session');
     localStorage.removeItem('unihelp_access_token');
     localStorage.removeItem('unihelp_refresh_token');
-  } else {
+
+    // Also completely clear the storage to guarantee no stale data 
+    // (e.g. from React Navigation or Expo caches) remains.
+    localStorage.clear();
+
+    console.log('After:', { ...window.localStorage });
+  }
+
+  // Also clear SecureStore just in case we are on native or it's polyfilled
+  try {
     await SecureStore.deleteItemAsync(KEYS.SESSION);
+    await SecureStore.deleteItemAsync(KEYS.TOKEN);
+  } catch (e) {
+    console.warn('[logoutUser] SecureStore delete failed or not available:', e);
   }
 };
 
@@ -164,9 +217,9 @@ export const updateProfile = async (id, data) => {
   // Update session if it's the current user
   const session = await getSession();
   if (session && session.id === id) {
-    const safeUser = { 
-      id: updatedUser.id, 
-      name: updatedUser.name, 
+    const safeUser = {
+      id: updatedUser.id,
+      name: updatedUser.name,
       email: updatedUser.email,
       specialisation: updatedUser.specialisation,
       avatar: updatedUser.avatar,
@@ -199,10 +252,10 @@ export const loginWithGoogle = async (accessToken, refreshToken, user) => {
   // Store the user profile in the same session key so AuthContext.getSession()
   // restores it on next app launch — no changes needed in AuthContext.
   const safeUser = {
-    id:    user.id,
-    name:  user.name,
+    id: user.id,
+    name: user.name,
     email: user.email,
-    role:  user.role,
+    role: user.role,
   };
   await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
 

@@ -14,6 +14,7 @@ import {
   ScrollView,
   Alert,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,7 +48,20 @@ const ProfileScreen = ({ navigation }) => {
   const onLogoutPressIn = () => Animated.spring(logoutScale, { toValue: 0.95, useNativeDriver: true, tension: 120, friction: 10 }).start();
   const onLogoutPressOut = () => Animated.spring(logoutScale, { toValue: 1, useNativeDriver: true, tension: 120, friction: 10 }).start();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // ── Web: Execute logout directly without prompt to ensure it fires ──
+    if (Platform.OS === 'web') {
+      try {
+        console.log('[ProfileScreen] LOGOUT CLICKED');
+        await logout();
+      } catch (err) {
+        console.error('[ProfileScreen] Error during web logout:', err);
+        window.location.replace('/login'); // Fallback redirect if something throws
+      }
+      return;
+    }
+
+    // ── Native: use Alert.alert ───────────────────────────────────────────────
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -56,7 +70,13 @@ const ProfileScreen = ({ navigation }) => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => logout(),
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (err) {
+              console.error('[Logout] Native logout error:', err);
+            }
+          },
         },
       ],
     );

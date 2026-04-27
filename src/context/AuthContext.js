@@ -63,13 +63,26 @@ export const AuthProvider = ({ children }) => {
 
   // ── Logout ──
   const logout = useCallback(async () => {
-    if (user?.id) {
-      await logoutUser(user.id);
-    } else {
+    try {
+      console.log("[AuthContext] Logging out...");
+
+      // 🔥 DO NOT PASS user.id
       await logoutUser();
+
+      console.log("[AuthContext] Storage cleared");
+
+    } catch (err) {
+      console.warn("[AuthContext] Logout error:", err);
+    } finally {
+      // 🔥 Clear state AFTER storage
+      setUser(null);
+
+      // 🔥 HARD RESET
+      if (typeof window !== "undefined") {
+        window.location.replace("/login");
+      }
     }
-    setUser(null);
-  }, [user]);
+  }, []);
 
   // ── Update User ──
   const updateUser = useCallback(async (data) => {
