@@ -12,6 +12,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { DataProvider } from './src/context/DataContext';
 import { ToastProvider, useToast } from './src/context/ToastContext';
 import { updateUserPresence } from './src/services/dataService';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -44,12 +45,16 @@ const AppContent = () => {
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       const handleAuthExpired = () => {
         showToast('Your session has expired. Please log in again.', 'error');
       };
       window.addEventListener('auth-expired', handleAuthExpired);
-      return () => window.removeEventListener('auth-expired', handleAuthExpired);
+      return () => {
+        if (typeof window.removeEventListener === 'function') {
+          window.removeEventListener('auth-expired', handleAuthExpired);
+        }
+      };
     }
   }, [showToast]);
 
@@ -113,18 +118,20 @@ export default function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <SafeAreaProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <ThemeProvider>
-              <DataProvider>
-                <AppContent />
-              </DataProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </ToastProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <SafeAreaProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <ThemeProvider>
+                <DataProvider>
+                  <AppContent />
+                </DataProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

@@ -27,6 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
+import { storeAuthData } from '../services/tokenService';
 
 const GoogleAuthCallbackScreen = ({ navigation, route }) => {
   const { googleLogin } = useAuth();
@@ -52,11 +53,7 @@ const GoogleAuthCallbackScreen = ({ navigation, route }) => {
           }
 
           // Store tokens
-          localStorage.setItem('unihelp_access_token', accessToken);
-          localStorage.setItem('token', accessToken);
-          if (refreshToken) {
-            localStorage.setItem('unihelp_refresh_token', refreshToken);
-          }
+          await storeAuthData(accessToken, refreshToken, null); // We'll reconstruct user below
 
           let userObj;
           if (userStr) {

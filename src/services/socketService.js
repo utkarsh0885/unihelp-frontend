@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
-import { getStoredToken } from './authService';
+import { getStoredToken } from './tokenService';
+import { Platform } from 'react-native';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unihelp-backend-a5f3.onrender.com';
 
 class SocketService {
   constructor() {
@@ -15,9 +16,14 @@ class SocketService {
     const token = await getStoredToken();
     if (!token) return;
 
+    console.log('[SocketService] Connecting to:', SOCKET_URL);
+
     this.socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket'], // Faster and avoids CORS issues sometimes
+      transports: ['websocket'],
+      // Increase timeout for slow connections (Render spin-up)
+      timeout: 20000,
+      reconnectionAttempts: 5,
     });
 
     this.socket.on('connect', () => {

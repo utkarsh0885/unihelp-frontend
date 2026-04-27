@@ -1,19 +1,18 @@
 /**
- * Auth Service – Self-Contained Local Auth
+ * Auth Service – Centralized Authentication
  * ─────────────────────────────────────────────
- * Uses AsyncStorage to store users and sessions.
- * No backend server required.
+ * Handles login, signup, logout, and session management.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-
-const KEYS = {
-  USERS: '@unihelp_users',
-  SESSION: 'unihelp_secure_session', // Key for SecureStore (email/password session)
-  TOKEN: 'unihelp_access_token',   // JWT access token (from backend, incl. Google OAuth)
-};
-
+import { Platform } from 'react-native';
+import apiClient from './apiClient';
+import { 
+  storeAuthData, 
+  getStoredToken, 
+  getStoredRefreshToken, 
+  getStoredSession, 
+  clearAuthData 
+} from './tokenService';
 import { updateUserPresence } from './dataService';
 
 // ── Validation helpers ──
@@ -26,8 +25,6 @@ export const isValidPassword = (password) => {
   return password && password.length >= 6;
 };
 
-import apiClient from './apiClient';
-
 /**
  * Sign up a new user via Backend.
  */
@@ -36,19 +33,14 @@ export const signupUser = async (name, email, password) => {
     const response = await apiClient.post('/api/auth/signup', { name, email, password });
     const { token, user, refreshToken } = response.data;
     
-    // Store tokens and session
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('unihelp_access_token', token);
-      if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
-      localStorage.setItem('unihelp_secure_session', JSON.stringify(user));
-    } else {
-      await SecureStore.setItemAsync(KEYS.TOKEN, token);
-      if (refreshToken) await SecureStore.setItemAsync('unihelp_refresh_token', refreshToken);
-      await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(user));
-    }
+    await storeAuthData(token, refreshToken, user);
 
-    // Sync Presence (if still needed locally)
-    await updateUserPresence(user.id, true);
+    // Sync Presence
+    try {
+      await updateUserPresence(user.id, true);
+    } catch (e) {
+      console.warn('[signupUser] Presence sync failed:', e);
+    }
 
     return { success: true, user };
   } catch (error) {
@@ -65,19 +57,14 @@ export const loginUser = async (email, password) => {
     const response = await apiClient.post('/api/auth/login', { email, password });
     const { token, user, refreshToken } = response.data;
 
-    // Store tokens and session
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('unihelp_access_token', token);
-      if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
-      localStorage.setItem('unihelp_secure_session', JSON.stringify(user));
-    } else {
-      await SecureStore.setItemAsync(KEYS.TOKEN, token);
-      if (refreshToken) await SecureStore.setItemAsync('unihelp_refresh_token', refreshToken);
-      await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(user));
-    }
+    await storeAuthData(token, refreshToken, user);
 
     // Sync Presence
-    await updateUserPresence(user.id, true);
+    try {
+      await updateUserPresence(user.id, true);
+    } catch (e) {
+      console.warn('[loginUser] Presence sync failed:', e);
+    }
 
     return { success: true, user };
   } catch (error) {
@@ -87,100 +74,79 @@ export const loginUser = async (email, password) => {
 };
 
 /**
- * Get current session (auto-login).
- * On web, expo-secure-store is unavailable so we fall back to localStorage.
- * The Google OAuth callback stores the token under "token"; email/password
- * login stores the user profile under "unihelp_secure_session". We check both.
+ * Decode JWT without atob (Native safe)
  */
-/**
- * Check if a JWT token is expired.
- * @param {string} token 
- * @returns {boolean}
- */
-export const isTokenExpired = (token) => {
-  if (!token) return true;
+const decodeJWT = (token) => {
+  if (!token) return null;
   try {
-    const base64Url = token.split('.')[1];
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+    
+    let jsonPayload;
+    if (Platform.OS === 'web') {
+      jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    const payload = JSON.parse(jsonPayload);
+      }).join(''));
+    } else {
+      // On Native, we can use a simpler approach or just use the base64 string
+      // For basic decoding in RN without extra libs:
+      const buffer = require('buffer').Buffer;
+      jsonPayload = buffer.from(base64, 'base64').toString('utf8');
+    }
     
-    if (!payload.exp) return false;
-    
-    const currentTime = Math.floor(Date.now() / 1000);
-    return payload.exp < currentTime;
+    return JSON.parse(jsonPayload);
   } catch (e) {
-    return true; 
+    console.warn('[decodeJWT] Error:', e.message);
+    return null;
   }
 };
 
 /**
+ * Check if a JWT token is expired.
+ */
+export const isTokenExpired = (token) => {
+  const payload = decodeJWT(token);
+  if (!payload || !payload.exp) return true;
+  
+  const currentTime = Math.floor(Date.now() / 1000);
+  return payload.exp < currentTime;
+};
+
+/**
  * Get current session (auto-login).
- * On web, expo-secure-store is unavailable so we fall back to localStorage.
- * The Google OAuth callback stores the token under "token"; email/password
- * login stores the user profile under "unihelp_secure_session". We check both.
  */
 export const getSession = async () => {
-  console.log('[getSession] Checking for existing session...');
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      // Web: Google OAuth path — a raw JWT is stored under "token"
-      const token = localStorage.getItem('token') || localStorage.getItem('unihelp_access_token');
-      console.log('[getSession] Web - token from localStorage:', token ? 'exists' : 'null');
-      
-      if (token) {
-        // CHECK EXPIRY
-        if (isTokenExpired(token)) {
-          console.warn('[getSession] Web - Token expired, clearing session');
-          localStorage.clear();
-          return null;
-        }
+    const token = await getStoredToken();
+    const session = await getStoredSession();
 
-        // Decode the JWT payload robustly
-        try {
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          
-          const payload = JSON.parse(jsonPayload);
-          console.log('[getSession] Web - decoded token payload:', payload ? 'success' : 'failed');
-          if (payload) {
-            return {
-              id: payload.id || payload.sub || null,
-              name: payload.name || payload.email || 'User',
-              email: payload.email || null,
-              role: payload.role || null,
-            };
-          }
-        } catch (e) {
-          console.warn('[getSession] Web - failed to decode token:', e.message);
-          // Malformed JWT — fall through to legacy session
+    if (token) {
+      if (isTokenExpired(token)) {
+        console.warn('[getSession] Token expired, clearing data');
+        await clearAuthData();
+        return null;
+      }
+
+      // If we have a token but no session object, reconstruct from JWT
+      if (!session) {
+        const payload = decodeJWT(token);
+        if (payload) {
+          return {
+            id: payload.id || payload.sub,
+            name: payload.name || payload.email || 'User',
+            email: payload.email,
+            role: payload.role,
+          };
         }
       }
-      // Email/password login path — full user object stored in session key
-      const raw = localStorage.getItem('unihelp_secure_session');
-      console.log('[getSession] Web - unihelp_secure_session from localStorage:', raw ? 'exists' : 'null');
-      return raw ? JSON.parse(raw) : null;
-    }
-    
-    console.log('[getSession] Native - checking SecureStore');
-    const raw = await SecureStore.getItemAsync(KEYS.SESSION);
-    const token = await SecureStore.getItemAsync(KEYS.TOKEN);
-
-    if (token && isTokenExpired(token)) {
-      console.warn('[getSession] Native - Token expired, clearing session');
-      await SecureStore.deleteItemAsync(KEYS.SESSION);
-      await SecureStore.deleteItemAsync(KEYS.TOKEN);
-      return null;
     }
 
-    return raw ? JSON.parse(raw) : null;
+    return session;
   } catch (err) {
-    console.warn('[getSession] Error getting session:', err.message);
+    console.warn('[getSession] Error:', err.message);
     return null;
   }
 };
@@ -197,130 +163,31 @@ export const logoutUser = async (userId) => {
     }
   }
   
-  // Call backend to invalidate refresh token
   try {
-    let refreshToken;
-    if (typeof window !== 'undefined' && window.localStorage) {
-      refreshToken = localStorage.getItem('unihelp_refresh_token');
-    } else {
-      refreshToken = await SecureStore.getItemAsync('unihelp_refresh_token');
-    }
-    
+    const refreshToken = await getStoredRefreshToken();
     if (refreshToken) {
-      // Don't await strictly, we just want to fire and forget the logout to backend
-      apiClient.post('/api/auth/logout', { refreshToken }).catch(console.warn);
+      // Fire and forget
+      apiClient.post('/api/auth/logout', { refreshToken }).catch(() => {});
     }
   } catch (e) {
-    console.warn('[logoutUser] Error notifying backend:', e);
+    // Ignore
   }
 
-  if (typeof window !== 'undefined' && window.localStorage) {
-    console.log('[logoutUser] Clearing web localStorage...');
-    console.log('Before:', { ...window.localStorage });
-
-    localStorage.removeItem('token');
-    localStorage.removeItem('unihelp_secure_session');
-    localStorage.removeItem('unihelp_access_token');
-    localStorage.removeItem('unihelp_refresh_token');
-    localStorage.clear();
-
-    console.log('After:', { ...window.localStorage });
-  }
-
-  try {
-    await SecureStore.deleteItemAsync(KEYS.SESSION);
-    await SecureStore.deleteItemAsync(KEYS.TOKEN);
-    await SecureStore.deleteItemAsync('unihelp_refresh_token');
-  } catch (e) {
-    console.warn('[logoutUser] SecureStore delete failed or not available:', e);
-  }
+  await clearAuthData();
 };
 
 /**
- * Update user profile.
- */
-export const updateProfile = async (id, data) => {
-  const users = await getUsers();
-  const index = users.findIndex((u) => u.id === id);
-
-  if (index === -1) {
-    throw new Error('User not found.');
-  }
-
-  const updatedUser = { ...users[index], ...data };
-  users[index] = updatedUser;
-  await saveUsers(users);
-
-  // Update session if it's the current user
-  const session = await getSession();
-  if (session && session.id === id) {
-    const safeUser = {
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      specialisation: updatedUser.specialisation,
-      avatar: updatedUser.avatar,
-    };
-    await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
-    return safeUser;
-  }
-
-  return null;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Google OAuth helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * loginWithGoogle
- *
- * Called by GoogleAuthCallbackScreen after the backend redirects back with
- * the JWT tokens and user data as URL query parameters.
- *
- * Stores the user session in SecureStore (same slot as email/password login)
- * so the rest of the app (AuthContext.getSession) picks it up automatically.
- *
- * @param {string} accessToken  - Short-lived JWT from backend
- * @param {string} refreshToken - Long-lived JWT from backend
- * @param {object} user         - { id, email, name, role }
+ * Google OAuth Login callback
  */
 export const loginWithGoogle = async (accessToken, refreshToken, user) => {
-  const safeUser = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  };
-
-  if (typeof window !== 'undefined' && window.localStorage) {
-    // Web: persist to localStorage
-    localStorage.setItem('unihelp_secure_session', JSON.stringify(safeUser));
-    localStorage.setItem('unihelp_access_token', accessToken);
-    if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
-  } else {
-    // Native: use SecureStore
-    await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
-    await SecureStore.setItemAsync(KEYS.TOKEN, accessToken);
-  }
-
-  return { success: true, user: safeUser };
+  await storeAuthData(accessToken, refreshToken, user);
+  return { success: true, user };
 };
 
 /**
- * getStoredToken
- *
- * Returns the stored JWT access token, useful for attaching to API requests:
- *   headers: { Authorization: `Bearer ${await getStoredToken()}` }
+ * Update user profile. (Dummy for now as it needs backend endpoint)
  */
-export const getStoredToken = async () => {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return localStorage.getItem('unihelp_access_token') || localStorage.getItem('token');
-    }
-    return await SecureStore.getItemAsync(KEYS.TOKEN);
-  } catch {
-    return null;
-  }
+export const updateProfile = async (id, data) => {
+  // This would ideally call apiClient.put('/api/users/profile', data)
+  return null;
 };
-

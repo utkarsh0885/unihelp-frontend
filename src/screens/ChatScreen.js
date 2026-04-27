@@ -35,7 +35,7 @@ const ChatScreen = ({ navigation, route }) => {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
 
   const recipient = chat.participantIds?.find(p => p._id !== userId);
-  
+
   const flatListRef = useRef(null);
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
@@ -49,12 +49,12 @@ const ChatScreen = ({ navigation, route }) => {
       try {
         const history = await getChatMessages(chat._id || chat.id);
         setMessages(history);
-        
+
         // Mark as seen once history is loaded
         if (history.length > 0) {
-          socketService.socket.emit('message_seen', { 
-            chatId: chat._id || chat.id, 
-            senderId: recipient?._id 
+          socketService.socket.emit('message_seen', {
+            chatId: chat._id || chat.id,
+            senderId: recipient?._id
           });
         }
       } catch (err) {
@@ -70,9 +70,9 @@ const ChatScreen = ({ navigation, route }) => {
       if (msg.chatId === (chat._id || chat.id)) {
         setMessages(prev => [...prev, msg]);
         // Auto mark seen if we are in the chat
-        socketService.socket.emit('message_seen', { 
-          chatId: chat._id || chat.id, 
-          senderId: recipient?._id 
+        socketService.socket.emit('message_seen', {
+          chatId: chat._id || chat.id,
+          senderId: recipient?._id
         });
       }
     };
@@ -131,10 +131,10 @@ const ChatScreen = ({ navigation, route }) => {
     if (!inputText.trim()) return;
     const text = inputText.trim();
     setInputText('');
-    
+
     // Find recipient (the other participant)
     const recipientId = recipient?._id;
-    
+
     socketService.sendMessage(chat._id || chat.id, text, recipientId);
   }, [inputText, chat._id, chat.id, recipient?._id, userId]);
 
@@ -154,10 +154,10 @@ const ChatScreen = ({ navigation, route }) => {
               {new Date(item.createdAt || item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
             {isMe && (
-              <Ionicons 
-                name={item.status === 'seen' ? "checkmark-done" : "checkmark"} 
-                size={14} 
-                color={item.status === 'seen' ? "#4ade80" : "rgba(255,255,255,0.7)"} 
+              <Ionicons
+                name={item.status === 'seen' ? "checkmark-done" : "checkmark"}
+                size={14}
+                color={item.status === 'seen' ? "#4ade80" : "rgba(255,255,255,0.7)"}
                 style={{ marginLeft: 4 }}
               />
             )}
@@ -170,7 +170,7 @@ const ChatScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.mainContainer, { backgroundColor: isDark ? colors.background : '#F8FAFC' }]}>
       <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
-      
+
       <View style={styles.appBarContainer}>
         <LinearGradient
           colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
@@ -233,8 +233,8 @@ const ChatScreen = ({ navigation, route }) => {
             onChangeText={handleTextChange}
             multiline
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]} 
+          <TouchableOpacity
+            style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]}
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
@@ -261,13 +261,14 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
-  backBtn: { 
-    width: 36, height: 36, borderRadius: 10, 
-    backgroundColor: 'rgba(255,255,255,0.2)', 
-    alignItems: 'center', justifyContent: 'center' 
+  backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center'
   },
-    alignItems: 'center', justifyContent: 'center',
-  },
+  headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   itemPrice: { fontSize: 13, fontWeight: '900', color: colors.accentGreen },
@@ -277,38 +278,41 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   messageRow: { marginBottom: SIZES.md, maxWidth: '80%' },
   myMessageRow: { alignSelf: 'flex-end' },
   theirMessageRow: { alignSelf: 'flex-start', flexDirection: 'row', gap: 8 },
-  
-  avatar: { 
-    width: 32, height: 32, borderRadius: 16, 
-    backgroundColor: colors.primaryLight, 
-    alignItems: 'center', justifyContent: 'center' 
+
+  avatar: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center'
   },
   avatarText: { fontSize: 12, fontWeight: 'bold', color: colors.primary },
 
-  bubble: { 
+  bubble: {
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    ...shadows.small 
+    ...shadows.small
   },
-  myBubble: { 
-    backgroundColor: colors.primary, 
+  myBubble: {
+    backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
   },
-  theirBubble: { 
-    backgroundColor: colors.surfaceElevated, 
+  theirBubble: {
+    backgroundColor: colors.surfaceElevated,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  
+
   messageText: { fontSize: 15, lineHeight: 20 },
   myMessageText: { color: '#FFF' },
   theirMessageText: { color: colors.textPrimary },
-  
+
   timeText: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
   myTimeText: { color: 'rgba(255,255,255,0.7)' },
   theirTimeText: { color: colors.textTertiary },
 
-  inputGradient: { paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 0 : 20 },
+  inputGradient: {
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 0 : 20
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,25 +327,25 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     ...shadows.medium,
   },
   attachBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  input: { 
-    flex: 1, 
-    maxHeight: 100, 
+  input: {
+    flex: 1,
+    maxHeight: 100,
     minHeight: 44,
-    fontSize: 16, 
+    fontSize: 16,
     color: colors.textPrimary,
     paddingHorizontal: 8,
   },
   sendBtn: { marginLeft: 8 },
-  sendBtnGradient: { 
-    width: 40, height: 40, borderRadius: 20, 
+  sendBtnGradient: {
+    width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
     ...shadows.glow
   },
 
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyContainer: { 
-    flex: 1, alignItems: 'center', justifyContent: 'center', 
-    marginTop: 100, gap: 12 
+  emptyContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    marginTop: 100, gap: 12
   },
   emptyText: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   emptySubtext: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', paddingHorizontal: 40 },

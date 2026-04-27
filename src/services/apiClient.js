@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { getStoredToken, logoutUser } from './authService';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import { getStoredToken, getStoredRefreshToken, storeAuthData, clearAuthData } from './tokenService';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unihelp-backend-a5f3.onrender.com';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -41,13 +41,7 @@ apiClient.interceptors.response.use(
       try {
         console.log('[apiClient] 401 caught. Attempting token refresh...');
         
-        let refreshToken;
-        if (typeof window !== 'undefined' && window.localStorage) {
-          refreshToken = localStorage.getItem('unihelp_refresh_token');
-        } else {
-          // Native fallback if implemented
-          refreshToken = await SecureStore.getItemAsync('unihelp_refresh_token');
-        }
+        const refreshToken = await getStoredRefreshToken();
 
         if (!refreshToken) {
           throw new Error('No refresh token available');
@@ -61,13 +55,7 @@ apiClient.interceptors.response.use(
         const { accessToken, refreshToken: newRefreshToken } = response.data;
 
         // Store new tokens
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem('unihelp_access_token', accessToken);
-          localStorage.setItem('unihelp_refresh_token', newRefreshToken);
-        } else {
-          await SecureStore.setItemAsync('unihelp_access_token', accessToken);
-          await SecureStore.setItemAsync('unihelp_refresh_token', newRefreshToken);
-        }
+        await storeAuthData(accessToken, newRefreshToken);
 
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -75,11 +63,14 @@ apiClient.interceptors.response.use(
         
       } catch (refreshError) {
         console.warn('[apiClient] Token refresh failed. Forcing logout.', refreshError);
-        // Dispatch custom event for global error handler/toast
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-expired'));
+        
+        await clearAuthData();
+
+        // Redirect on web, or fire event
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.location.replace('/login');
         }
-        await logoutUser();
+        
         return Promise.reject(refreshError);
       }
     }

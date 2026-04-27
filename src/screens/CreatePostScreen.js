@@ -12,17 +12,17 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES, GRADIENTS } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import GradientButton from '../components/GradientButton';
