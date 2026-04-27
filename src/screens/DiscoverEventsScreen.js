@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -84,8 +84,8 @@ const DiscoverEventsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
+      <StatusBar style="light" />
       <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
-      <StatusBar barStyle="light-content" />
       <View style={styles.appBarContainer}>
         <LinearGradient
           colors={['#1E3A8A', '#2563EB']}

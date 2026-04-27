@@ -12,8 +12,8 @@ import {
   TouchableOpacity,
   FlatList,
   Animated,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -81,7 +81,7 @@ const NotificationsScreen = ({ navigation }) => {
   return (
     <View style={screenStyles.screen}>
       <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <View style={screenStyles.appBarContainer}>
         <LinearGradient
           colors={['#1E3A8A', '#2563EB']}

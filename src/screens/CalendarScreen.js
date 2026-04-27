@@ -14,8 +14,8 @@ import {
   ScrollView,
   Animated,
   Dimensions,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,7 +83,7 @@ const CalendarScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
       <ScrollView stickyHeaderIndices={[0]} showsVerticalScrollIndicator={false}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <View style={styles.appBarContainer}>
         <LinearGradient
           colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}

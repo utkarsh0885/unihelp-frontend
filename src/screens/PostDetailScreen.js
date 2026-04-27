@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
@@ -132,11 +132,8 @@ const PostDetailScreen = ({ route, navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-      />
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* Top Header */}
       <View style={styles.header}>
@@ -198,7 +195,7 @@ const PostDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

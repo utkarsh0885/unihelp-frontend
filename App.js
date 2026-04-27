@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useCallback, useEffect } from 'react';
-import { StatusBar, View, Text, AppState, Platform } from 'react-native';
+import { View, Text, AppState, Platform } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -126,15 +127,16 @@ export default function App() {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
         <SafeAreaProvider>
-          <ToastProvider>
+          <ThemeProvider>
             <AuthProvider>
-              <ThemeProvider>
-                <DataProvider>
+              <DataProvider>
+                <ToastProvider>
+                  <StatusBar style="auto" />
                   <AppContent />
-                </DataProvider>
-              </ThemeProvider>
+                </ToastProvider>
+              </DataProvider>
             </AuthProvider>
-          </ToastProvider>
+          </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

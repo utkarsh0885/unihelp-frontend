@@ -14,10 +14,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  StatusBar,
   TextInput,
   Platform,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -339,14 +339,14 @@ const ExploreScreen = ({ navigation }) => {
   }, [navigation]);
 
   return (
-    <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
-      <ScrollView 
-        style={{ flex: 1 }} 
-        contentContainerStyle={styles.content} 
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-      >
+    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
+        <StatusBar style="light" />
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={styles.content} 
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
         <View>
           {/* Premium Gradient Header Container */}
           <Animated.View style={[styles.appBarContainer, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
@@ -484,7 +484,7 @@ const ExploreScreen = ({ navigation }) => {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

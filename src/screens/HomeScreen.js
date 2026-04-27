@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { StatusBar } from 'expo-status-bar';
 // import { DrawerActions } from '@react-navigation/native';
 import AnimatedPostCard from '../components/AnimatedPostCard';
 import ExpandableFAB from '../components/ExpandableFAB';
@@ -579,7 +580,7 @@ const HomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
       <StatusBar
-        barStyle="light-content"
+        style="light"
         backgroundColor="transparent"
         translucent
       />

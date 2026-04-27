@@ -16,8 +16,8 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES, GRADIENTS } from '../constants/theme';
@@ -210,7 +210,7 @@ const BuySellScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
       <View style={styles.appBarContainer}>
         <LinearGradient
