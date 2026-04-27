@@ -25,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import AnimatedSwitch from '../components/AnimatedSwitch';
 import EditProfileModal from '../components/EditProfileModal';
+import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const Stat = ({ label, value, textColor, tertiaryColor }) => (
   <View style={{ alignItems: 'center', paddingHorizontal: SIZES.lg }}>
@@ -103,6 +104,7 @@ const ProfileScreen = ({ navigation }) => {
         contentContainerStyle={styles.content} 
         showsVerticalScrollIndicator={false}
       >
+      <ResponsiveContainer maxWidth={600} withCardStyle={true} noPadding={true}>
       {/* Gradient Header */}
       <LinearGradient
         colors={['#1E3A8A', '#2563EB']}
@@ -210,6 +212,7 @@ const ProfileScreen = ({ navigation }) => {
       </Animated.View>
 
       <Text style={styles.version}>UNIHELP v1.0.0</Text>
+      </ResponsiveContainer>
     </ScrollView>
     <EditProfileModal visible={isEditVisible} onClose={() => setIsEditVisible(false)} user={user} />
     </View>
@@ -223,9 +226,12 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     alignItems: 'center',
     paddingTop: SIZES.xl,
     paddingBottom: SIZES.xl,
+    borderTopLeftRadius: Platform.OS === 'web' ? 24 : 0,
+    borderTopRightRadius: Platform.OS === 'web' ? 24 : 0,
     borderBottomLeftRadius: SIZES.radiusXxl,
     borderBottomRightRadius: SIZES.radiusXxl,
     position: 'relative',
+    overflow: 'hidden',
   },
   backBtn: {
     position: 'absolute',

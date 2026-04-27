@@ -26,89 +26,94 @@ export const isValidPassword = (password) => {
   return password && password.length >= 6;
 };
 
-// ── Internal helpers ──
-const getUsers = async () => {
-  try {
-    const raw = await AsyncStorage.getItem(KEYS.USERS);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveUsers = async (users) => {
-  await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
-};
-
-// Simple hash for demo (NOT production crypto - fine for a portfolio app)
-const simpleHash = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return 'h_' + Math.abs(hash).toString(36) + '_' + str.length;
-};
+import apiClient from './apiClient';
 
 /**
- * Sign up a new user.
+ * Sign up a new user via Backend.
  */
 export const signupUser = async (name, email, password) => {
-  const normalizedEmail = email.toLowerCase().trim();
-  const users = await getUsers();
+  try {
+    const response = await apiClient.post('/api/auth/signup', { name, email, password });
+    const { token, user, refreshToken } = response.data;
+    
+    // Store tokens and session
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('unihelp_access_token', token);
+      if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
+      localStorage.setItem('unihelp_secure_session', JSON.stringify(user));
+    } else {
+      await SecureStore.setItemAsync(KEYS.TOKEN, token);
+      if (refreshToken) await SecureStore.setItemAsync('unihelp_refresh_token', refreshToken);
+      await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(user));
+    }
 
-  // Check if email already exists
-  const exists = users.find((u) => u.email === normalizedEmail);
-  if (exists) {
-    throw new Error('An account with this email already exists.');
+    // Sync Presence (if still needed locally)
+    await updateUserPresence(user.id, true);
+
+    return { success: true, user };
+  } catch (error) {
+    const message = error.response?.data?.error || 'Signup failed';
+    throw new Error(message);
   }
-
-  const newUser = {
-    id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-    name: name.trim(),
-    email: normalizedEmail,
-    passwordHash: simpleHash(password),
-    createdAt: new Date().toISOString(),
-  };
-
-  users.push(newUser);
-  await saveUsers(users);
-
-  // Create session
-  const safeUser = { id: newUser.id, name: newUser.name, email: newUser.email };
-  await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
-
-  // Sync Presence
-  await updateUserPresence(newUser.id, true);
-
-  return { success: true, user: safeUser };
 };
 
 /**
- * Log in an existing user.
+ * Log in an existing user via Backend.
  */
 export const loginUser = async (email, password) => {
-  const normalizedEmail = email.toLowerCase().trim();
-  const users = await getUsers();
+  try {
+    const response = await apiClient.post('/api/auth/login', { email, password });
+    const { token, user, refreshToken } = response.data;
 
-  const user = users.find((u) => u.email === normalizedEmail);
-  if (!user) {
-    throw new Error('Invalid email or password.');
+    // Store tokens and session
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('unihelp_access_token', token);
+      if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
+      localStorage.setItem('unihelp_secure_session', JSON.stringify(user));
+    } else {
+      await SecureStore.setItemAsync(KEYS.TOKEN, token);
+      if (refreshToken) await SecureStore.setItemAsync('unihelp_refresh_token', refreshToken);
+      await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(user));
+    }
+
+    // Sync Presence
+    await updateUserPresence(user.id, true);
+
+    return { success: true, user };
+  } catch (error) {
+    const message = error.response?.data?.error || 'Invalid email or password';
+    throw new Error(message);
   }
+};
 
-  if (user.passwordHash !== simpleHash(password)) {
-    throw new Error('Invalid email or password.');
+/**
+ * Get current session (auto-login).
+ * On web, expo-secure-store is unavailable so we fall back to localStorage.
+ * The Google OAuth callback stores the token under "token"; email/password
+ * login stores the user profile under "unihelp_secure_session". We check both.
+ */
+/**
+ * Check if a JWT token is expired.
+ * @param {string} token 
+ * @returns {boolean}
+ */
+export const isTokenExpired = (token) => {
+  if (!token) return true;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
+    
+    if (!payload.exp) return false;
+    
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp < currentTime;
+  } catch (e) {
+    return true; 
   }
-
-  // Create session
-  const safeUser = { id: user.id, name: user.name, email: user.email };
-  await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
-
-  // Sync Presence
-  await updateUserPresence(user.id, true);
-
-  return { success: true, user: safeUser };
 };
 
 /**
@@ -122,13 +127,26 @@ export const getSession = async () => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       // Web: Google OAuth path — a raw JWT is stored under "token"
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('unihelp_access_token');
       console.log('[getSession] Web - token from localStorage:', token ? 'exists' : 'null');
       
       if (token) {
-        // Decode the JWT payload (base64) to extract user info without a library
+        // CHECK EXPIRY
+        if (isTokenExpired(token)) {
+          console.warn('[getSession] Web - Token expired, clearing session');
+          localStorage.clear();
+          return null;
+        }
+
+        // Decode the JWT payload robustly
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          
+          const payload = JSON.parse(jsonPayload);
           console.log('[getSession] Web - decoded token payload:', payload ? 'success' : 'failed');
           if (payload) {
             return {
@@ -151,6 +169,15 @@ export const getSession = async () => {
     
     console.log('[getSession] Native - checking SecureStore');
     const raw = await SecureStore.getItemAsync(KEYS.SESSION);
+    const token = await SecureStore.getItemAsync(KEYS.TOKEN);
+
+    if (token && isTokenExpired(token)) {
+      console.warn('[getSession] Native - Token expired, clearing session');
+      await SecureStore.deleteItemAsync(KEYS.SESSION);
+      await SecureStore.deleteItemAsync(KEYS.TOKEN);
+      return null;
+    }
+
     return raw ? JSON.parse(raw) : null;
   } catch (err) {
     console.warn('[getSession] Error getting session:', err.message);
@@ -159,10 +186,7 @@ export const getSession = async () => {
 };
 
 /**
- * Log out – clear session.
- * On web, clears ALL auth-related localStorage keys (including "token" used
- * by Google OAuth callback) then hard-redirects to /login so that React state
- * is fully reset and the user cannot navigate back without re-authenticating.
+ * Log out – clear session and notify backend.
  */
 export const logoutUser = async (userId) => {
   if (userId) {
@@ -172,28 +196,41 @@ export const logoutUser = async (userId) => {
       console.warn('[logoutUser] Failed to update presence:', e);
     }
   }
+  
+  // Call backend to invalidate refresh token
+  try {
+    let refreshToken;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      refreshToken = localStorage.getItem('unihelp_refresh_token');
+    } else {
+      refreshToken = await SecureStore.getItemAsync('unihelp_refresh_token');
+    }
+    
+    if (refreshToken) {
+      // Don't await strictly, we just want to fire and forget the logout to backend
+      apiClient.post('/api/auth/logout', { refreshToken }).catch(console.warn);
+    }
+  } catch (e) {
+    console.warn('[logoutUser] Error notifying backend:', e);
+  }
 
   if (typeof window !== 'undefined' && window.localStorage) {
     console.log('[logoutUser] Clearing web localStorage...');
-    console.log('Before:', { ...window.localStorage }); // Clone to log current state
+    console.log('Before:', { ...window.localStorage });
 
-    // Remove every specific key
     localStorage.removeItem('token');
     localStorage.removeItem('unihelp_secure_session');
     localStorage.removeItem('unihelp_access_token');
     localStorage.removeItem('unihelp_refresh_token');
-
-    // Also completely clear the storage to guarantee no stale data 
-    // (e.g. from React Navigation or Expo caches) remains.
     localStorage.clear();
 
     console.log('After:', { ...window.localStorage });
   }
 
-  // Also clear SecureStore just in case we are on native or it's polyfilled
   try {
     await SecureStore.deleteItemAsync(KEYS.SESSION);
     await SecureStore.deleteItemAsync(KEYS.TOKEN);
+    await SecureStore.deleteItemAsync('unihelp_refresh_token');
   } catch (e) {
     console.warn('[logoutUser] SecureStore delete failed or not available:', e);
   }
@@ -249,18 +286,23 @@ export const updateProfile = async (id, data) => {
  * @param {object} user         - { id, email, name, role }
  */
 export const loginWithGoogle = async (accessToken, refreshToken, user) => {
-  // Store the user profile in the same session key so AuthContext.getSession()
-  // restores it on next app launch — no changes needed in AuthContext.
   const safeUser = {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
   };
-  await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
 
-  // Also store the raw JWT so API calls can attach it as a Bearer token.
-  await SecureStore.setItemAsync(KEYS.TOKEN, accessToken);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Web: persist to localStorage
+    localStorage.setItem('unihelp_secure_session', JSON.stringify(safeUser));
+    localStorage.setItem('unihelp_access_token', accessToken);
+    if (refreshToken) localStorage.setItem('unihelp_refresh_token', refreshToken);
+  } else {
+    // Native: use SecureStore
+    await SecureStore.setItemAsync(KEYS.SESSION, JSON.stringify(safeUser));
+    await SecureStore.setItemAsync(KEYS.TOKEN, accessToken);
+  }
 
   return { success: true, user: safeUser };
 };
@@ -273,6 +315,9 @@ export const loginWithGoogle = async (accessToken, refreshToken, user) => {
  */
 export const getStoredToken = async () => {
   try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('unihelp_access_token') || localStorage.getItem('token');
+    }
     return await SecureStore.getItemAsync(KEYS.TOKEN);
   } catch {
     return null;

@@ -21,7 +21,6 @@ import {
   subscribeToNotes,
   subscribeToItems,
   subscribeToEvents,
-  subscribeToNotifications,
   subscribeToChats,
   addPost as addPostService,
   toggleLikePost,
@@ -29,20 +28,13 @@ import {
   votePollService,
   addCommentService,
   subscribeToComments,
-  addDoubtService,
-  upvoteDoubtService,
-  addNoteService,
-  downloadNote as downloadNoteService,
-  addItemService,
-  addEventService,
-  initSeedData,
-  reserveItemService,
-  getOrCreateChat as getOrCreateChatService,
-  addMessageService,
-  subscribeToActiveUsersCount,
   deletePostService,
   updatePostService,
+  initSeedData,
+  subscribeToActiveUsersCount,
 } from '../services/dataService';
+import { getTotalUnreadCount } from '../services/chatService';
+import socketService from '../services/socketService';
 import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
@@ -72,6 +64,7 @@ export const DataProvider = ({ children }) => {
   const unsubPresenceRef = useRef(null);
 
   const [chats, setChats] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
 
   const refreshData = useCallback(async () => {
@@ -155,9 +148,27 @@ export const DataProvider = ({ children }) => {
           if (mounted) { setActiveUsersCount(count); }
         });
       } catch (e) { console.warn('Presence init error:', e); }
+
+      // Fetch initial unread count
+      if (user) {
+        getTotalUnreadCount().then(count => {
+          if (mounted) setUnreadCount(count);
+        });
+      }
     };
 
     init();
+
+    // Socket listener for new messages to increment unread count
+    const handleNewNotification = () => {
+      getTotalUnreadCount().then(count => {
+        if (mounted) setUnreadCount(count);
+      });
+    };
+
+    socketService.connect();
+    socketService.on('notification', handleNewNotification);
+    socketService.on('message', handleNewNotification);
 
     return () => {
       mounted = false;
@@ -168,8 +179,10 @@ export const DataProvider = ({ children }) => {
       if (unsubEventsRef.current) unsubEventsRef.current();
       if (unsubChatsRef.current) unsubChatsRef.current();
       if (unsubPresenceRef.current) unsubPresenceRef.current();
+      socketService.off('notification', handleNewNotification);
+      socketService.off('message', handleNewNotification);
     };
-  }, []);
+  }, [user]);
 
   // ══════════ Post Actions ══════════
 
@@ -189,34 +202,26 @@ export const DataProvider = ({ children }) => {
   }, [user, userId]);
 
   const toggleLike = useCallback(async (postId) => {
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-    const currentlyLiked = post.likedBy?.includes(userId);
-    await toggleLikePost(postId, userId, currentlyLiked);
-  }, [posts, userId]);
+    await toggleLikePost(postId);
+  }, []);
 
   const toggleSave = useCallback(async (postId) => {
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-    const currentlySaved = post.savedBy?.includes(userId);
-    await toggleSavePost(postId, userId, currentlySaved);
-  }, [posts, userId]);
+    await toggleSavePost(postId);
+  }, []);
 
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
-    // State will update via real-time listener (onSnapshot)
   }, []);
 
   const updatePost = useCallback(async (postId, updates) => {
     await updatePostService(postId, updates);
-    // State will update via real-time listener (onSnapshot)
   }, []);
 
   const savedPosts = useMemo(() => posts.filter((p) => p.savedBy?.includes(userId)), [posts, userId]);
 
   const votePoll = useCallback(async (postId, optionIndex) => {
-    await votePollService(postId, optionIndex, userId);
-  }, [userId]);
+    await votePollService(postId, optionIndex);
+  }, []);
 
   // ══════════ Comment Actions ══════════
 
@@ -275,22 +280,16 @@ export const DataProvider = ({ children }) => {
   // ══════════ Items (Buy/Sell) Actions ══════════
 
   const addItem = useCallback(async (title, price, condition) => {
-    const item = { title, price: '₹' + price, condition, seller: user?.name || 'You', userId, category: 'Other' };
-    const id = await addItemService(item);
-    // Real-time listener in subscribeToItems will update state automatically
+    const item = { title, content: `Selling ${title}`, price, condition, category: 'Buy/Sell' };
+    const id = await addPostService(item);
     return id;
-  }, [user, userId]);
+  }, []);
 
   const addEvent = useCallback(async (eventData) => {
-    const event = { ...eventData, userId };
-    const id = await addEventService(event);
-    setEvents((prev) => {
-      const exists = prev.some((e) => e.id === id);
-      if (exists) return prev;
-      return [{ ...event, id, createdAt: new Date().toISOString() }, ...prev];
-    });
+    const event = { ...eventData, category: 'Events' };
+    const id = await addPostService(event);
     return id;
-  }, [userId]);
+  }, []);
 
   // ══════════ Chat & Notifications Actions ══════════
 
@@ -327,6 +326,7 @@ export const DataProvider = ({ children }) => {
       events, eventsLoading, addEvent,
       getOrCreateChat, sendMessage,
       userId, refreshData, activeUsersCount,
+      unreadCount, setUnreadCount,
       deletePost, updatePost,
     };
   }, [

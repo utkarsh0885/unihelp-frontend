@@ -10,6 +10,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { DataProvider } from './src/context/DataContext';
+import { ToastProvider, useToast } from './src/context/ToastContext';
 import { updateUserPresence } from './src/services/dataService';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -40,6 +41,17 @@ const linking = {
 const AppContent = () => {
   const { isDark, colors } = useTheme();
   const { user } = useAuth();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleAuthExpired = () => {
+        showToast('Your session has expired. Please log in again.', 'error');
+      };
+      window.addEventListener('auth-expired', handleAuthExpired);
+      return () => window.removeEventListener('auth-expired', handleAuthExpired);
+    }
+  }, [showToast]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -103,13 +115,15 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <DataProvider>
-              <AppContent />
-            </DataProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <DataProvider>
+                <AppContent />
+              </DataProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

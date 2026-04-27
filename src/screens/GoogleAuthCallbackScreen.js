@@ -37,31 +37,69 @@ const GoogleAuthCallbackScreen = ({ navigation, route }) => {
     let mounted = true;
 
     // ── WEB path ──────────────────────────────────────────────────────────────
-    // On Expo Web the browser lands on /auth/callback?access=...
-    // Use a minimal, direct approach: read token → store → hard redirect.
-    // Avoid async AuthContext calls here — they can fail silently on web.
     if (Platform.OS === 'web') {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const accessToken = params.get('access');
+      const processWebCallback = async () => {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const accessToken = params.get('access');
+          const refreshToken = params.get('refresh');
+          const userStr = params.get('user');
 
-        console.log('[GoogleCallback][web] access token present:', !!accessToken);
+          console.log('[GoogleCallback][web] access token present:', !!accessToken);
 
-        if (!accessToken) {
-          throw new Error('No token found in URL');
+          if (!accessToken) {
+            throw new Error('No token found in URL');
+          }
+
+          // Store tokens
+          localStorage.setItem('unihelp_access_token', accessToken);
+          localStorage.setItem('token', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('unihelp_refresh_token', refreshToken);
+          }
+
+          let userObj;
+          if (userStr) {
+            try {
+              userObj = JSON.parse(userStr);
+            } catch (e) {
+              console.warn('[GoogleCallback][web] Failed to parse user JSON from URL, falling back to decoding token');
+            }
+          }
+
+          if (!userObj) {
+            // Decode JWT robustly as fallback
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            
+            const payload = JSON.parse(jsonPayload);
+            userObj = {
+              id: payload.id || payload.sub,
+              name: payload.name,
+              email: payload.email,
+              role: payload.role || 'student'
+            };
+          }
+
+          console.log('[GoogleCallback][web] Calling googleLogin...');
+
+          // Pass the user to AuthContext
+          await googleLogin(accessToken, refreshToken || '', userObj);
+
+          console.log('[GoogleCallback][web] Login successful. Redirecting to /...');
+
+          // Redirect
+          window.location.replace('/');
+        } catch (err) {
+          console.error('[GoogleCallback][web] Callback error:', err);
+          window.location.replace('/login');
         }
+      };
 
-        // Store token in localStorage for app-wide access
-        localStorage.setItem('token', accessToken);
-        console.log('[GoogleCallback][web] Token stored. Redirecting to home...');
-
-        // Hard redirect — bypasses any React Navigation state issues
-        window.location.href = '/';
-      } catch (err) {
-        console.error('[GoogleCallback][web] Callback error:', err.message);
-        window.location.href = '/login';
-      }
-
+      processWebCallback();
       return () => { mounted = false; };
     }
 
@@ -122,12 +160,12 @@ const GoogleAuthCallbackScreen = ({ navigation, route }) => {
         }
 
         console.log('[GoogleCallback] Calling googleLogin for:', user?.email);
-        
+
         // This will update AuthContext and AppNavigator will automatically unmount this screen
         // and mount MainStack. No manual navigation needed.
         await googleLogin(access, refresh, user);
         console.log('[GoogleCallback] googleLogin completed successfully. Auth state updated.');
-        
+
         if (mounted) {
           setStatus('done');
         }

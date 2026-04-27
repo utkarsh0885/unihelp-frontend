@@ -27,6 +27,8 @@ import { useData } from '../context/DataContext';
 // import { DrawerActions } from '@react-navigation/native';
 import AnimatedPostCard from '../components/AnimatedPostCard';
 import ExpandableFAB from '../components/ExpandableFAB';
+import { PostSkeleton } from '../components/SkeletonLoader';
+import { initChat } from '../services/chatService';
 
 const CARD_HEIGHT = 200;
 
@@ -163,6 +165,15 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [deletePost]);
 
+  const handleMessage = useCallback(async (post) => {
+    try {
+      const chat = await initChat(post.author || post.userId, post.authorName || post.username, post);
+      navigation.navigate('Chat', { chat });
+    } catch (err) {
+      Alert.alert('Error', 'Could not start chat');
+    }
+  }, [navigation]);
+
   const renderItem = useCallback(
     ({ item, index }) => (
       <AnimatedPostCard
@@ -171,6 +182,7 @@ const HomeScreen = ({ navigation }) => {
         onLike={handleLike}
         onSave={handleSave}
         onComment={handleComment}
+        onMessage={handleMessage}
         onVotePoll={votePoll}
         onEdit={handleEditPost}
         onDelete={handleDeletePost}
@@ -178,7 +190,7 @@ const HomeScreen = ({ navigation }) => {
         index={index}
       />
     ),
-    [handleLike, handleSave, handleComment, handleEditPost, handleDeletePost, votePoll, userId],
+    [handleLike, handleSave, handleComment, handleEditPost, handleDeletePost, handleMessage, votePoll, userId],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
@@ -394,9 +406,10 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {postsLoading ? (
-          <View style={styles.loaderWrap}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loaderText}>Fetching campus updates…</Text>
+          <View style={{ paddingTop: 20 }}>
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
           </View>
         ) : (
           <FlatList

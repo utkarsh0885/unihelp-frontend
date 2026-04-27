@@ -5,7 +5,7 @@
  * Fully functional with local state.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -51,7 +51,7 @@ const DiscoverEventsScreen = ({ navigation }) => {
 
 
 
-  const renderItem = ({ item, index }) => {
+  const renderItem = useCallback(({ item, index }) => {
     if (item.isGenericPost) {
       return (
         <AnimatedPostCard
@@ -80,7 +80,7 @@ const DiscoverEventsScreen = ({ navigation }) => {
 
       </View>
     );
-  };
+  }, [navigation, handleLike, handleSave, votePoll, userId, styles, colors]);
 
   return (
     <View style={styles.screen}>

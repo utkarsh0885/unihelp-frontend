@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
+const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMessage, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
   const { colors, shadows, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
@@ -52,6 +52,10 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   const handleComment = useCallback(() => {
     if (onComment) onComment(post);
   }, [post, onComment]);
+
+  const handleMessage = useCallback(() => {
+    if (onMessage) onMessage(post);
+  }, [post, onMessage]);
 
   const onPressIn = () => {
     Animated.spring(cardScale, { 
@@ -270,6 +274,14 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
+
+        {/* Message */}
+        {userId !== post.userId && (
+          <TouchableOpacity style={styles.actionBtn} onPress={handleMessage} activeOpacity={0.6}>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
+            <Text style={styles.actionLabel}>Message</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ flex: 1 }} />
 

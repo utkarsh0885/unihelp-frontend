@@ -24,9 +24,9 @@ import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import AnimatedPostCard from '../components/AnimatedPostCard';
+import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const ShareNotesScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
@@ -204,7 +204,8 @@ const ShareNotesScreen = ({ navigation }) => {
           </TouchableOpacity>
         </LinearGradient>
       </View>
-
+      
+      <ResponsiveContainer maxWidth={700} withCardStyle={false}>
       {showUpload && (
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Upload Notes</Text>
@@ -293,6 +294,7 @@ const ShareNotesScreen = ({ navigation }) => {
           }
         />
       )}
+      </ResponsiveContainer>
     </View>
   );
 };

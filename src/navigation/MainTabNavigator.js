@@ -12,19 +12,23 @@ import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
+import ChatListScreen from '../screens/ChatListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   Home: { active: 'home', inactive: 'home-outline' },
   Explore: { active: 'compass', inactive: 'compass-outline' },
+  Messages: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
 };
 
 const MainTabNavigator = () => {
   const { colors, shadows } = useTheme();
+  const { unreadCount } = useData();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
   return (
@@ -52,6 +56,14 @@ const MainTabNavigator = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
+      <Tab.Screen 
+        name="Messages" 
+        component={ChatListScreen} 
+        options={{ 
+          tabBarBadge: unreadCount > 0 ? unreadCount : null,
+          tabBarBadgeStyle: { backgroundColor: colors.accentRed, fontSize: 10, fontWeight: 'bold' }
+        }}
+      />
     </Tab.Navigator>
   );
 };

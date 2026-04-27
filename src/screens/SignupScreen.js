@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { isValidEmail, isValidPassword } from '../services/authService';
 import { SIZES, GRADIENTS } from '../constants/theme';
+import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const SignupScreen = ({ navigation }) => {
   const { signup } = useAuth();
@@ -129,6 +130,7 @@ const SignupScreen = ({ navigation }) => {
           <View style={styles.decorCircle1} />
           <View style={styles.decorCircle2} />
 
+          <ResponsiveContainer maxWidth={480} withCardStyle={true}>
           {/* Logo */}
           <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
             <LinearGradient
@@ -193,6 +195,7 @@ const SignupScreen = ({ navigation }) => {
               <Text style={styles.footerLink}>Log in</Text>
             </TouchableOpacity>
           </View>
+          </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>

@@ -26,8 +26,18 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
     const checkSession = async () => {
       try {
+        console.log('[AuthContext] Checking session on mount...');
         const session = await getSession();
-        if (mounted) setUser(session);
+        
+        if (mounted) {
+          if (session) {
+            console.log('[AuthContext] Session restored for:', session.email);
+            setUser(session);
+          } else {
+            console.log('[AuthContext] No valid session found');
+            setUser(null);
+          }
+        }
       } catch (e) {
         console.warn('[Auth] Session check failed:', e.message);
         if (mounted) setUser(null);
@@ -35,9 +45,25 @@ export const AuthProvider = ({ children }) => {
         if (mounted) setLoading(false);
       }
     };
+
     checkSession();
-    return () => { mounted = false; };
-  }, []);
+
+    // Optional: Periodically check token expiry (e.g., every 5 minutes)
+    const expiryInterval = setInterval(async () => {
+      if (user) {
+        const session = await getSession();
+        if (!session && mounted) {
+          console.warn('[AuthContext] Token expired during active session. Logging out...');
+          logout();
+        }
+      }
+    }, 1000 * 60 * 5); // 5 minutes
+
+    return () => { 
+      mounted = false; 
+      clearInterval(expiryInterval);
+    };
+  }, [user, logout]);
 
   // ── Login ──
   const login = useCallback(async (email, password) => {

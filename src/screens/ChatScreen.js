@@ -19,63 +19,149 @@ import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { subscribeToMessages } from '../services/dataService';
+import socketService from '../services/socketService';
+import { getChatMessages } from '../services/chatService';
 
 const ChatScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
-  const { sendMessage, userId } = useData();
-  const { chat } = route.params; // Expecting chat object
-  
+  const { sendMessage } = useData();
+  const { chat } = route.params;
+  const { userId } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState(null);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+
+  const recipient = chat.participantIds?.find(p => p._id !== userId);
   
   const flatListRef = useRef(null);
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
   useEffect(() => {
-    const unsub = subscribeToMessages(chat.id, (msgs) => {
-      setMessages(msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [chat.id]);
+    // Connect to socket and join room
+    socketService.connect();
+    socketService.joinChat(chat.id);
+
+    // Initial message fetch
+    const fetchHistory = async () => {
+      try {
+        const history = await getChatMessages(chat._id || chat.id);
+        setMessages(history);
+        
+        // Mark as seen once history is loaded
+        if (history.length > 0) {
+          socketService.socket.emit('message_seen', { 
+            chatId: chat._id || chat.id, 
+            senderId: recipient?._id 
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch messages:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+
+    // Listen for new messages
+    const handleNewMessage = (msg) => {
+      if (msg.chatId === (chat._id || chat.id)) {
+        setMessages(prev => [...prev, msg]);
+        // Auto mark seen if we are in the chat
+        socketService.socket.emit('message_seen', { 
+          chatId: chat._id || chat.id, 
+          senderId: recipient?._id 
+        });
+      }
+    };
+
+    // Listen for typing status
+    const handleTyping = ({ chatId, userId: typingId }) => {
+      if (chatId === (chat._id || chat.id) && typingId === recipient?._id) {
+        setOtherUserTyping(true);
+      }
+    };
+
+    const handleStopTyping = ({ chatId, userId: typingId }) => {
+      if (chatId === (chat._id || chat.id) && typingId === recipient?._id) {
+        setOtherUserTyping(false);
+      }
+    };
+
+    const handleMessagesSeen = ({ chatId }) => {
+      if (chatId === (chat._id || chat.id)) {
+        setMessages(prev => prev.map(m => m.senderId === userId ? { ...m, status: 'seen' } : m));
+      }
+    };
+
+    socketService.on('message', handleNewMessage);
+    socketService.on('user_typing', handleTyping);
+    socketService.on('user_stop_typing', handleStopTyping);
+    socketService.on('messages_marked_seen', handleMessagesSeen);
+
+    return () => {
+      socketService.leaveChat(chat._id || chat.id);
+      socketService.off('message', handleNewMessage);
+      socketService.off('user_typing', handleTyping);
+      socketService.off('user_stop_typing', handleStopTyping);
+      socketService.off('messages_marked_seen', handleMessagesSeen);
+    };
+  }, [chat._id, chat.id, recipient?._id, userId]);
+
+  const handleTextChange = (text) => {
+    setInputText(text);
+
+    // Send typing event
+    if (!isTyping) {
+      setIsTyping(true);
+      socketService.socket.emit('typing', { chatId: chat._id || chat.id, recipientId: recipient?._id });
+    }
+
+    // Debounce stop typing
+    if (typingTimeout) clearTimeout(typingTimeout);
+    setTypingTimeout(setTimeout(() => {
+      setIsTyping(false);
+      socketService.socket.emit('stop_typing', { chatId: chat._id || chat.id, recipientId: recipient?._id });
+    }, 2000));
+  };
 
   const handleSend = useCallback(async () => {
     if (!inputText.trim()) return;
     const text = inputText.trim();
     setInputText('');
-    await sendMessage(chat.id, text);
     
-    // Optional: Simulating a response for demo purposes if it's the first message
-    if (messages.length === 0) {
-      setTimeout(async () => {
-        // In a real app, this would come from the other user via subscription
-      }, 1000);
-    }
-  }, [inputText, chat.id, sendMessage, messages.length]);
+    // Find recipient (the other participant)
+    const recipientId = recipient?._id;
+    
+    socketService.sendMessage(chat._id || chat.id, text, recipientId);
+  }, [inputText, chat._id, chat.id, recipient?._id, userId]);
 
   const renderMessage = ({ item }) => {
     const isMe = item.senderId === userId;
     return (
-      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
-        {!isMe && (
-          <View style={styles.senderAvatar}>
-            <Text style={styles.avatarText}>{item.senderName?.charAt(0) || 'U'}</Text>
-          </View>
-        )}
+      <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.otherMessageRow]}>
         <View style={[
-          styles.bubbleContent,
-          isMe ? 
-            { backgroundColor: colors.primary, borderBottomRightRadius: 4 } : 
-            { backgroundColor: isDark ? colors.surfaceElevated : '#FFFFFF', borderBottomLeftRadius: 4 }
+          styles.messageBubble,
+          isMe ? [styles.myBubble, { backgroundColor: colors.primary }] : [styles.otherBubble, { backgroundColor: colors.surface }]
         ]}>
-          <Text style={[styles.messageText, isMe ? { color: '#FFF' } : { color: colors.textPrimary }]}>
+          <Text style={[styles.messageText, { color: isMe ? '#FFFFFF' : colors.textPrimary }]}>
             {item.text}
           </Text>
-          <Text style={[styles.timestamp, isMe ? { color: 'rgba(255,255,255,0.6)' } : { color: colors.textTertiary }]}>
-            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textTertiary }]}>
+              {new Date(item.createdAt || item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {isMe && (
+              <Ionicons 
+                name={item.status === 'seen' ? "checkmark-done" : "checkmark"} 
+                size={14} 
+                color={item.status === 'seen' ? "#4ade80" : "rgba(255,255,255,0.7)"} 
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </View>
         </View>
       </View>
     );
@@ -92,22 +178,19 @@ const ChatScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{chat.name?.charAt(0) || 'U'}</Text>
-              <View style={styles.onlineBadge} />
+            <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Text style={[styles.avatarText, { color: '#FFF' }]}>{recipient?.name?.charAt(0) || 'U'}</Text>
+              {recipient?.isOnline && <View style={styles.onlineBadge} />}
             </View>
             <View>
-              <Text style={styles.headerTitle}>{chat.name || 'Chat'}</Text>
-              <Text style={styles.headerSubtitle}>Online now</Text>
+              <Text style={styles.headerTitle}>{recipient?.name || 'UniHelp User'}</Text>
+              <Text style={styles.headerSubtitle}>{recipient?.isOnline ? 'Online now' : 'Offline'}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
         </LinearGradient>
       </View>
 
@@ -116,82 +199,73 @@ const ChatScreen = ({ navigation, route }) => {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
+        <View style={{ flex: 1 }}>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={item => item._id || item.id}
+            contentContainerStyle={styles.listContent}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          />
+          {otherUserTyping && (
+            <View style={styles.typingIndicator}>
+              <Text style={[styles.typingText, { color: colors.textTertiary }]}>{recipient?.name || 'User'} is typing...</Text>
+            </View>
+          )}
+        </View>
       )}
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <LinearGradient
-          colors={['transparent', colors.background]}
-          style={styles.inputGradient}
-        >
-          <View style={styles.inputContainer}>
-            <TouchableOpacity style={styles.attachBtn}>
-              <Ionicons name="add" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TextInput
-              style={styles.input}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textTertiary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-            />
-            <TouchableOpacity 
-              style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]} 
-              onPress={handleSend}
-              disabled={!inputText.trim()}
+        <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.borderLight }]}>
+          <TouchableOpacity style={styles.attachBtn}>
+            <Ionicons name="add" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TextInput
+            style={[styles.input, { color: colors.textPrimary, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.textTertiary}
+            value={inputText}
+            onChangeText={handleTextChange}
+            multiline
+          />
+          <TouchableOpacity 
+            style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]} 
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+          >
+            <LinearGradient
+              colors={['#1E3A8A', '#2563EB']}
+              style={styles.sendBtnGradient}
             >
-              <LinearGradient
-                colors={isDark ? ['#1A1A1A', '#2A2A2A'] : ['#1E3A8A', '#2563EB']}
-                style={styles.sendBtnGradient}
-              >
-                <Ionicons name="send" size={18} color="#FFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+              <Ionicons name="send" size={18} color="#FFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerContainer: { ...shadows.medium, zIndex: 10 },
+const createStyles = (colors, shadows, isDark) => StyleSheet.create({
+  mainContainer: { flex: 1 },
+  appBarContainer: { ...shadows.medium, zIndex: 10 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
-    gap: SIZES.sm,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    gap: 12,
   },
   backBtn: { 
-    width: 40, height: 40, borderRadius: 12, 
+    width: 36, height: 36, borderRadius: 10, 
     backgroundColor: 'rgba(255,255,255,0.2)', 
     alignItems: 'center', justifyContent: 'center' 
   },
-  itemPreview: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 8,
-    gap: 12,
-  },
-  itemIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center', justifyContent: 'center',
   },
   itemInfo: { flex: 1 },

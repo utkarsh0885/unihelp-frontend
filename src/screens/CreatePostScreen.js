@@ -24,9 +24,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import GradientButton from '../components/GradientButton';
+import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const MAX_LENGTH = 500;
 
@@ -174,7 +174,7 @@ const CreatePostScreen = ({ navigation, route }) => {
         </LinearGradient>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-
+        <ResponsiveContainer maxWidth={600} withCardStyle={false}>
         <View style={styles.card}>
           <View style={styles.authorRow}>
             <View style={styles.avatarRing}>
@@ -316,6 +316,7 @@ const CreatePostScreen = ({ navigation, route }) => {
           loading={loading}
           style={{ marginHorizontal: SIZES.md, marginTop: SIZES.lg }}
         />
+        </ResponsiveContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );
