@@ -25,6 +25,133 @@ import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 
+const createStyles = (colors, shadows) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: {
+    paddingBottom: 120,
+  },
+  appBarContainer: {
+    ...shadows.large,
+    elevation: 20,
+    backgroundColor: colors.background,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    overflow: 'hidden',
+  },
+  gradientHeader: {
+    paddingTop: SIZES.sm,
+    paddingBottom: SIZES.xl,
+    paddingHorizontal: SIZES.md,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerInfo: {
+    marginTop: SIZES.xs,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badge: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: SIZES.radiusFull,
+    alignSelf: 'flex-start',
+    marginBottom: SIZES.sm,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  pageTitle: {
+    fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.8,
+  },
+  pageSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: SIZES.lg },
+  
+  // Search Styles
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16, height: 50, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  searchIcon: { marginRight: 12 },
+  searchInput: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
+
+  sectionTitle: {
+    fontSize: 13, fontWeight: '900', color: colors.textTertiary, 
+    marginHorizontal: SIZES.md, marginTop: 28, marginBottom: 16,
+    textTransform: 'uppercase', letterSpacing: 1.2,
+  },
+  cardsSection: {
+    marginTop: SIZES.lg, paddingHorizontal: SIZES.md,
+  },
+  resultsSection: {
+    paddingHorizontal: SIZES.md, marginTop: SIZES.md,
+  },
+  resultItem: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+    padding: SIZES.md, borderRadius: 20, marginBottom: SIZES.sm,
+    borderWidth: 1, borderColor: colors.borderLight, ...shadows.small,
+  },
+  resultIconWrap: {
+    width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    marginRight: SIZES.md,
+  },
+  resultInfo: { flex: 1 },
+  resultTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  resultType: { fontSize: 10, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  resultUser: { fontSize: 11, color: colors.textTertiary, fontWeight: '600' },
+  resultTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
+  resultSnippet: { fontSize: 13, color: colors.textTertiary, lineHeight: 18 },
+
+  // Empty State
+  emptyContainer: { padding: 40, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, marginBottom: 4 },
+  emptySubtitle: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', lineHeight: 20 },
+
+  featureCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+    borderRadius: 20, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: colors.borderLight, ...shadows.large,
+    elevation: 8,
+  },
+  featureIcon: {
+    width: 64, height: 64, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center', marginRight: 16,
+  },
+  featureText: { flex: 1 },
+  featureTitle: {
+    fontSize: 17, fontWeight: '900', color: colors.textPrimary, marginBottom: 4,
+  },
+  featureDesc: {
+    fontSize: 13, color: colors.textSecondary, lineHeight: 18, fontWeight: '500'
+  },
+  arrowWrap: {
+    width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surfaceLight,
+    alignItems: 'center', justifyContent: 'center', marginLeft: 8,
+  },
+  statsContainer: {
+    marginTop: 8,
+    paddingBottom: 20,
+  },
+  statsBlock: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, borderRadius: 24, padding: 20,
+    marginHorizontal: SIZES.md, borderWidth: 1, borderColor: colors.borderLight,
+    ...shadows.large,
+    elevation: 10,
+  },
+  statItem: { alignItems: 'center', flex: 1 },
+  statIconWrap: {
+    width: 32, height: 32, borderRadius: 10, 
+    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
+  },
+  statValue: { fontSize: 20, fontWeight: '900', color: colors.textPrimary },
+  statLabel: { fontSize: 12, color: colors.textTertiary, marginTop: 2, fontWeight: '700' },
+  statDividerV: { width: 1, height: 40, backgroundColor: colors.borderLight, marginHorizontal: 10 },
+});
+
 const FeatureCard = ({ feature, index, animValues, colors, styles, navigateTo }) => {
   const pressScale = React.useRef(new Animated.Value(1)).current;
   const translateX = animValues[index].interpolate({
@@ -360,132 +487,5 @@ const ExploreScreen = ({ navigation }) => {
     </View>
   );
 };
-
-const createStyles = (colors, shadows) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: {
-    paddingBottom: 120,
-  },
-  appBarContainer: {
-    ...shadows.large,
-    elevation: 20,
-    backgroundColor: colors.background,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
-    overflow: 'hidden',
-  },
-  gradientHeader: {
-    paddingTop: SIZES.sm,
-    paddingBottom: SIZES.xl,
-    paddingHorizontal: SIZES.md,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerInfo: {
-    marginTop: SIZES.xs,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  badge: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: SIZES.radiusFull,
-    alignSelf: 'flex-start',
-    marginBottom: SIZES.sm,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  pageTitle: {
-    fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.8,
-  },
-  pageSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: SIZES.lg },
-  
-  // Search Styles
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16, height: 50, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-  },
-  searchIcon: { marginRight: 12 },
-  searchInput: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
-
-  sectionTitle: {
-    fontSize: 13, fontWeight: '900', color: colors.textTertiary, 
-    marginHorizontal: SIZES.md, marginTop: 28, marginBottom: 16,
-    textTransform: 'uppercase', letterSpacing: 1.2,
-  },
-  cardsSection: {
-    marginTop: SIZES.lg, paddingHorizontal: SIZES.md,
-  },
-  resultsSection: {
-    paddingHorizontal: SIZES.md, marginTop: SIZES.md,
-  },
-  resultItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
-    padding: SIZES.md, borderRadius: 20, marginBottom: SIZES.sm,
-    borderWidth: 1, borderColor: colors.borderLight, ...shadows.small,
-  },
-  resultIconWrap: {
-    width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    marginRight: SIZES.md,
-  },
-  resultInfo: { flex: 1 },
-  resultTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  resultType: { fontSize: 10, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  resultUser: { fontSize: 11, color: colors.textTertiary, fontWeight: '600' },
-  resultTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
-  resultSnippet: { fontSize: 13, color: colors.textTertiary, lineHeight: 18 },
-
-  // Empty State
-  emptyContainer: { padding: 40, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
-  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, marginBottom: 4 },
-  emptySubtitle: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', lineHeight: 20 },
-
-  featureCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
-    borderRadius: 20, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: colors.borderLight, ...shadows.large,
-    elevation: 8,
-  },
-  featureIcon: {
-    width: 64, height: 64, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center', marginRight: 16,
-  },
-  featureText: { flex: 1 },
-  featureTitle: {
-    fontSize: 17, fontWeight: '900', color: colors.textPrimary, marginBottom: 4,
-  },
-  featureDesc: {
-    fontSize: 13, color: colors.textSecondary, lineHeight: 18, fontWeight: '500'
-  },
-  arrowWrap: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surfaceLight,
-    alignItems: 'center', justifyContent: 'center', marginLeft: 8,
-  },
-  statsContainer: {
-    marginTop: 8,
-    paddingBottom: 20,
-  },
-  statsBlock: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surface, borderRadius: 24, padding: 20,
-    marginHorizontal: SIZES.md, borderWidth: 1, borderColor: colors.borderLight,
-    ...shadows.large,
-    elevation: 10,
-  },
-  statItem: { alignItems: 'center', flex: 1 },
-  statIconWrap: {
-    width: 32, height: 32, borderRadius: 10, 
-    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
-  },
-  statValue: { fontSize: 20, fontWeight: '900', color: colors.textPrimary },
-  statLabel: { fontSize: 12, color: colors.textTertiary, marginTop: 2, fontWeight: '700' },
-  statDividerV: { width: 1, height: 40, backgroundColor: colors.borderLight, marginHorizontal: 10 },
-});
 
 export default ExploreScreen;

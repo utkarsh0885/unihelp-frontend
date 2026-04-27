@@ -23,6 +23,148 @@ import { SIZES, GRADIENTS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+
+const createStyles = (colors, shadows, isDark) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { paddingBottom: SIZES.xxxl + 100 },
+  gradientHeader: {
+    alignItems: 'center',
+    paddingTop: SIZES.xl,
+    paddingBottom: SIZES.xl,
+    borderTopLeftRadius: Platform.OS === 'web' ? 24 : 0,
+    borderTopRightRadius: Platform.OS === 'web' ? 24 : 0,
+    borderBottomLeftRadius: SIZES.radiusXxl,
+    borderBottomRightRadius: SIZES.radiusXxl,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  backBtn: {
+    position: 'absolute',
+    top: SIZES.md,
+    left: SIZES.md,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  avatarGlow: {
+    width: 100, height: 100, borderRadius: SIZES.radiusFull,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: SIZES.md,
+  },
+  avatarRing: {
+    width: 88, height: 88, borderRadius: SIZES.radiusFull, borderWidth: 2.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarLg: {
+    width: 78, height: 78, borderRadius: SIZES.radiusFull,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarLgText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF' },
+  nameOnGradient: { fontSize: 24, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+  specialisationOnGradient: { fontSize: 13, color: 'rgba(255, 255, 255, 0.85)', marginTop: 2, fontWeight: '700' },
+  handleOnGradient: { fontSize: 12, color: 'rgba(255, 255, 255, 0.65)', marginTop: 4, fontWeight: '600' },
+  profileCard: {
+    alignItems: 'center', backgroundColor: colors.surface, marginHorizontal: SIZES.md,
+    borderRadius: SIZES.radiusXl, paddingVertical: SIZES.lg, paddingHorizontal: SIZES.lg,
+    borderWidth: 1, borderColor: colors.border, ...shadows.medium,
+    marginTop: SIZES.md,
+  },
+  editBtnHeader: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
+    marginTop: SIZES.md, gap: 5, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  editBtnHeaderText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center', marginTop: SIZES.lg, paddingTop: SIZES.md,
+    borderTopWidth: 1, borderTopColor: colors.border, width: '100%', justifyContent: 'center',
+  },
+  statDivider: { width: 1, height: 28, backgroundColor: colors.border },
+  section: { marginTop: SIZES.lg, marginHorizontal: SIZES.md },
+  sectionTitle: {
+    fontSize: 13, fontWeight: '900', color: colors.textTertiary,
+    textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: SIZES.md, marginLeft: SIZES.xs,
+  },
+  menuItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderRadius: 20, padding: 16,
+    marginBottom: SIZES.sm, borderWidth: 1, borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  menuLeft: { flexDirection: 'row', alignItems: 'center' },
+  menuIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', marginRight: 16,
+  },
+  menuLabel: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+
+  version: { textAlign: 'center', fontSize: SIZES.fontXs, color: colors.textTertiary, marginTop: SIZES.md, marginBottom: SIZES.lg },
+  
+  activityRow: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+    marginTop: SIZES.xs,
+  },
+  activityCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  activityIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  activityLabel: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  activitySubtext: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
+  
+  logoutWrap: {
+    marginHorizontal: SIZES.md,
+    marginTop: SIZES.xl,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 20,
+    paddingVertical: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.15)',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.error,
+  },
+});
+
 import AnimatedSwitch from '../components/AnimatedSwitch';
 import EditProfileModal from '../components/EditProfileModal';
 import ResponsiveContainer from '../components/ResponsiveContainer';
@@ -218,146 +360,5 @@ const ProfileScreen = ({ navigation }) => {
     </View>
   );
 };
-
-const createStyles = (colors, shadows, isDark) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: SIZES.xxxl + 100 },
-  gradientHeader: {
-    alignItems: 'center',
-    paddingTop: SIZES.xl,
-    paddingBottom: SIZES.xl,
-    borderTopLeftRadius: Platform.OS === 'web' ? 24 : 0,
-    borderTopRightRadius: Platform.OS === 'web' ? 24 : 0,
-    borderBottomLeftRadius: SIZES.radiusXxl,
-    borderBottomRightRadius: SIZES.radiusXxl,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  backBtn: {
-    position: 'absolute',
-    top: SIZES.md,
-    left: SIZES.md,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  avatarGlow: {
-    width: 100, height: 100, borderRadius: SIZES.radiusFull,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: SIZES.md,
-  },
-  avatarRing: {
-    width: 88, height: 88, borderRadius: SIZES.radiusFull, borderWidth: 2.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarLg: {
-    width: 78, height: 78, borderRadius: SIZES.radiusFull,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarLgText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF' },
-  nameOnGradient: { fontSize: 24, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  specialisationOnGradient: { fontSize: 13, color: 'rgba(255, 255, 255, 0.85)', marginTop: 2, fontWeight: '700' },
-  handleOnGradient: { fontSize: 12, color: 'rgba(255, 255, 255, 0.65)', marginTop: 4, fontWeight: '600' },
-  profileCard: {
-    alignItems: 'center', backgroundColor: colors.surface, marginHorizontal: SIZES.md,
-    borderRadius: SIZES.radiusXl, paddingVertical: SIZES.lg, paddingHorizontal: SIZES.lg,
-    borderWidth: 1, borderColor: colors.border, ...shadows.medium,
-    marginTop: SIZES.md,
-  },
-  editBtnHeader: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
-    marginTop: SIZES.md, gap: 5, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  editBtnHeaderText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  statsRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: SIZES.lg, paddingTop: SIZES.md,
-    borderTopWidth: 1, borderTopColor: colors.border, width: '100%', justifyContent: 'center',
-  },
-  statDivider: { width: 1, height: 28, backgroundColor: colors.border },
-  section: { marginTop: SIZES.lg, marginHorizontal: SIZES.md },
-  sectionTitle: {
-    fontSize: 13, fontWeight: '900', color: colors.textTertiary,
-    textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: SIZES.md, marginLeft: SIZES.xs,
-  },
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: 20, padding: 16,
-    marginBottom: SIZES.sm, borderWidth: 1, borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  menuLeft: { flexDirection: 'row', alignItems: 'center' },
-  menuIcon: {
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', marginRight: 16,
-  },
-  menuLabel: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-
-  version: { textAlign: 'center', fontSize: SIZES.fontXs, color: colors.textTertiary, marginTop: SIZES.md, marginBottom: SIZES.lg },
-  
-  activityRow: {
-    flexDirection: 'row',
-    gap: SIZES.md,
-    marginTop: SIZES.xs,
-  },
-  activityCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  activityIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  activityLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  activitySubtext: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
-  
-  logoutWrap: {
-    marginHorizontal: SIZES.md,
-    marginTop: SIZES.xl,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
-    borderRadius: 20,
-    paddingVertical: 16,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.15)',
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.error,
-  },
-});
 
 export default ProfileScreen;

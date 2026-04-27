@@ -28,6 +28,211 @@ import ExpandableFAB from '../components/ExpandableFAB';
 import { PostSkeleton } from '../components/SkeletonLoader';
 import { initChat } from '../services/chatService';
 
+const createStyles = (colors, shadows) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  appBarContainer: {
+    ...shadows.medium,
+    zIndex: 10,
+  },
+  appBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SIZES.md, paddingVertical: SIZES.sm + 4,
+  },
+  topBarLeft: { flexDirection: 'row', alignItems: 'center' },
+  miniLogo: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center', justifyContent: 'center', marginRight: SIZES.sm,
+  },
+  appName: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: SIZES.xs },
+  iconBtn: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  notificationBadge: {
+    position: 'absolute', top: 10, right: 10,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#1E3A8A'
+  },
+
+  headerContainer: {
+    backgroundColor: colors.background,
+  },
+  gradientHeader: {
+    paddingBottom: SIZES.md + 8,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingTop: SIZES.xs,
+  },
+  heroBlock: { paddingHorizontal: SIZES.md },
+  greetingPill: {
+    alignSelf: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: SIZES.radiusFull, paddingHorizontal: 10, paddingVertical: 3, marginBottom: SIZES.sm,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  greetingPillText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.8 },
+  heroTitle: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', lineHeight: 32, letterSpacing: -0.5 },
+  heroSub: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', marginTop: 4, fontWeight: '500', lineHeight: 18 },
+
+  sectionWrap: { marginTop: SIZES.xl },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIZES.md, marginBottom: SIZES.xs },
+  sectionLabel: { fontSize: 12, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2, paddingHorizontal: SIZES.md, marginBottom: SIZES.sm },
+  seeAllText: { fontSize: 13, fontWeight: '800', color: colors.primary, marginRight: SIZES.md },
+
+  // Trending Reel Styles
+  trendingTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, paddingHorizontal: SIZES.md, marginBottom: SIZES.md },
+  trendingContainer: { paddingHorizontal: SIZES.md, gap: SIZES.md, paddingBottom: SIZES.md },
+  trendingCard: {
+    width: 280,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...shadows.large,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  trendingGradient: { padding: 16, height: 160, justifyContent: 'space-between' },
+  trendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  trendingAvatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  trendingAvatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
+  trendingUser: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
+  trendingBadge: { color: colors.secondary, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  trendingTitleText: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', marginTop: 8, letterSpacing: -0.2 },
+  trendingContent: { color: colors.textSecondary, fontSize: 14, fontWeight: '500', lineHeight: 20, marginTop: 4 },
+  trendingStats: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  trendingStatItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trendingStatValue: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+
+  // Filter Bar Styles
+  filterBarContainer: { marginTop: SIZES.lg, marginBottom: SIZES.sm },
+  filterScroll: { paddingHorizontal: SIZES.md, gap: 8 },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  filterPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
+  filterTextActive: { color: '#FFFFFF' },
+
+  quickActionsScroll: { paddingHorizontal: SIZES.md, gap: 10 },
+
+  // Empty State Styles
+  emptyContainer: {
+    padding: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  emptyButton: {
+    width: 180,
+    height: 48,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  emptyButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  actionChip: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: colors.borderLight, ...shadows.small,
+  },
+  actionIconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  actionChipText: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
+
+  featuredCard: {
+    marginHorizontal: SIZES.md,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...shadows.large,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  featuredGradient: { padding: 20, minHeight: 160, justifyContent: 'center', position: 'relative' },
+  featuredGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(30, 58, 138, 0.1)',
+  },
+  featuredContentContainer: { zIndex: 2 },
+  featuredHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SIZES.md },
+  featuredAvatar: {
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: SIZES.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  featuredAvatarText: { color: '#FFF', fontWeight: '900', fontSize: 18 },
+  featuredName: { color: '#FFF', fontWeight: '900', fontSize: 17 },
+  hotBadge: {
+    backgroundColor: '#0D9488', // Teal 600
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  hotBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  featuredContent: { color: 'rgba(255,255,255,0.9)', fontSize: 17, fontWeight: '700', lineHeight: 24 },
+  featuredFooter: { flexDirection: 'row', gap: 16, marginTop: SIZES.md },
+  featuredStat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  featuredStatText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' },
+  list: { paddingBottom: 150 },
+  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  loaderText: { fontSize: SIZES.fontMd, color: colors.textTertiary, marginTop: SIZES.md, fontWeight: '600' },
+});
+
 const CARD_HEIGHT = 200;
 
 const QUICK_ACTIONS = [
@@ -445,210 +650,5 @@ const HomeScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const createStyles = (colors, shadows) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: {
-    ...shadows.medium,
-    zIndex: 10,
-  },
-  appBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingVertical: SIZES.sm + 4,
-  },
-  topBarLeft: { flexDirection: 'row', alignItems: 'center' },
-  miniLogo: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center', justifyContent: 'center', marginRight: SIZES.sm,
-  },
-  appName: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: SIZES.xs },
-  iconBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  notificationBadge: {
-    position: 'absolute', top: 10, right: 10,
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#1E3A8A'
-  },
-
-  headerContainer: {
-    backgroundColor: colors.background,
-  },
-  gradientHeader: {
-    paddingBottom: SIZES.md + 8,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    paddingTop: SIZES.xs,
-  },
-  heroBlock: { paddingHorizontal: SIZES.md },
-  greetingPill: {
-    alignSelf: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: SIZES.radiusFull, paddingHorizontal: 10, paddingVertical: 3, marginBottom: SIZES.sm,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  greetingPillText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.8 },
-  heroTitle: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', lineHeight: 32, letterSpacing: -0.5 },
-  heroSub: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', marginTop: 4, fontWeight: '500', lineHeight: 18 },
-
-  sectionWrap: { marginTop: SIZES.xl },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIZES.md, marginBottom: SIZES.xs },
-  sectionLabel: { fontSize: 12, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2, paddingHorizontal: SIZES.md, marginBottom: SIZES.sm },
-  seeAllText: { fontSize: 13, fontWeight: '800', color: colors.primary, marginRight: SIZES.md },
-
-  // Trending Reel Styles
-  trendingTitle: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, paddingHorizontal: SIZES.md, marginBottom: SIZES.md },
-  trendingContainer: { paddingHorizontal: SIZES.md, gap: SIZES.md, paddingBottom: SIZES.md },
-  trendingCard: {
-    width: 280,
-    borderRadius: 24,
-    overflow: 'hidden',
-    ...shadows.large,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  trendingGradient: { padding: 16, height: 160, justifyContent: 'space-between' },
-  trendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  trendingAvatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  trendingAvatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
-  trendingUser: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
-  trendingBadge: { color: colors.secondary, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  trendingTitleText: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', marginTop: 8, letterSpacing: -0.2 },
-  trendingContent: { color: colors.textSecondary, fontSize: 14, fontWeight: '500', lineHeight: 20, marginTop: 4 },
-  trendingStats: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  trendingStatItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  trendingStatValue: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-
-  // Filter Bar Styles
-  filterBarContainer: { marginTop: SIZES.lg, marginBottom: SIZES.sm },
-  filterScroll: { paddingHorizontal: SIZES.md, gap: 8 },
-  filterPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  filterPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
-  filterTextActive: { color: '#FFFFFF' },
-
-  quickActionsScroll: { paddingHorizontal: SIZES.md, gap: 10 },
-
-  // Empty State Styles
-  emptyContainer: {
-    padding: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyIconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  emptyButton: {
-    width: 180,
-    height: 48,
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...shadows.medium,
-  },
-  emptyButtonGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  actionChip: {
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: colors.borderLight, ...shadows.small,
-  },
-  actionIconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  actionChipText: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
-
-  featuredCard: {
-    marginHorizontal: SIZES.md,
-    borderRadius: 20,
-    overflow: 'hidden',
-    ...shadows.large,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  featuredGradient: { padding: 20, minHeight: 160, justifyContent: 'center', position: 'relative' },
-  featuredGlassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(30, 58, 138, 0.1)',
-  },
-  featuredContentContainer: { zIndex: 2 },
-  featuredHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SIZES.md },
-  featuredAvatar: {
-    width: 44, height: 44, borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: SIZES.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  featuredAvatarText: { color: '#FFF', fontWeight: '900', fontSize: 18 },
-  featuredName: { color: '#FFF', fontWeight: '900', fontSize: 17 },
-  hotBadge: {
-    backgroundColor: '#0D9488', // Teal 600
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  hotBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  featuredContent: { color: 'rgba(255,255,255,0.9)', fontSize: 17, fontWeight: '700', lineHeight: 24 },
-  featuredFooter: { flexDirection: 'row', gap: 16, marginTop: SIZES.md },
-  featuredStat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  featuredStatText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' },
-  list: { paddingBottom: 150 },
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  loaderText: { fontSize: SIZES.fontMd, color: colors.textTertiary, marginTop: SIZES.md, fontWeight: '600' },
-});
 
 export default HomeScreen;

@@ -21,50 +21,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ── Auto-login from stored session ──
-  useEffect(() => {
-    let mounted = true;
-    const checkSession = async () => {
-      try {
-        console.log('[AuthContext] Checking session on mount...');
-        const session = await getSession();
-        
-        if (mounted) {
-          if (session) {
-            console.log('[AuthContext] Session restored for:', session.email);
-            setUser(session);
-          } else {
-            console.log('[AuthContext] No valid session found');
-            setUser(null);
-          }
-        }
-      } catch (e) {
-        console.warn('[Auth] Session check failed:', e.message);
-        if (mounted) setUser(null);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    checkSession();
-
-    // Optional: Periodically check token expiry (e.g., every 5 minutes)
-    const expiryInterval = setInterval(async () => {
-      if (user) {
-        const session = await getSession();
-        if (!session && mounted) {
-          console.warn('[AuthContext] Token expired during active session. Logging out...');
-          logout();
-        }
-      }
-    }, 1000 * 60 * 5); // 5 minutes
-
-    return () => { 
-      mounted = false; 
-      clearInterval(expiryInterval);
-    };
-  }, [user, logout]);
-
   // ── Login ──
   const login = useCallback(async (email, password) => {
     const result = await loginUser(email, password);
@@ -80,10 +36,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── Google OAuth Login ──
-  // Called by GoogleAuthCallbackScreen after the backend redirects with tokens.
   const googleLogin = useCallback(async (accessToken, refreshToken, user) => {
     const result = await loginWithGoogle(accessToken, refreshToken, user);
-    setUser(result.user); // Updates app state → AuthContext → navigator shows Main
+    setUser(result.user);
     return result;
   }, []);
 
@@ -91,24 +46,53 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       console.log("[AuthContext] Logging out...");
-
-      // 🔥 DO NOT PASS user.id
       await logoutUser();
-
-      console.log("[AuthContext] Storage cleared");
-
     } catch (err) {
       console.warn("[AuthContext] Logout error:", err);
     } finally {
-      // 🔥 Clear state AFTER storage
       setUser(null);
-
-      // 🔥 HARD RESET
       if (typeof window !== "undefined") {
         window.location.replace("/login");
       }
     }
   }, []);
+
+  // ── Auto-login from stored session ──
+  useEffect(() => {
+    let mounted = true;
+    const checkSession = async () => {
+      try {
+        const session = await getSession();
+        if (mounted) {
+          if (session) {
+            setUser(session);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch (e) {
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    const expiryInterval = setInterval(async () => {
+      if (user) {
+        const session = await getSession();
+        if (!session && mounted) {
+          logout();
+        }
+      }
+    }, 1000 * 60 * 5);
+
+    return () => { 
+      mounted = false; 
+      clearInterval(expiryInterval);
+    };
+  }, [user, logout]);
 
   // ── Update User ──
   const updateUser = useCallback(async (data) => {
