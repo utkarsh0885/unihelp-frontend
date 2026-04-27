@@ -21,6 +21,7 @@ import {
   Text,
   ActivityIndicator,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,8 +34,87 @@ const GoogleAuthCallbackScreen = ({ navigation, route }) => {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    let mounted = true; // Guard: don't call setState after unmount
+    let mounted = true;
 
+    // ── WEB path ──────────────────────────────────────────────────────────────
+    // On Expo Web the browser lands on /auth/callback?access=...&refresh=...&user=...
+    // window.location is available; expo-linking reads deep-link URIs, not browser URLs.
+    if (Platform.OS === 'web') {
+      const processWebCallback = async () => {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const access  = params.get('access');
+          const refresh = params.get('refresh');
+          const userStr = params.get('user');
+          const error   = params.get('error');
+
+          console.log('[GoogleCallback][web] access:', !!access, 'refresh:', !!refresh, 'user:', !!userStr, 'error:', error);
+
+          if (error) {
+            if (mounted) {
+              setStatus('error');
+              setErrorMsg(
+                error === 'auth_failed'
+                  ? 'Google sign-in was cancelled or failed.'
+                  : 'Something went wrong. Please try again.'
+              );
+            }
+            return;
+          }
+
+          if (!access || !refresh || !userStr) {
+            if (mounted) {
+              setStatus('error');
+              setErrorMsg('Sign-in failed: missing token data from server.');
+            }
+            return;
+          }
+
+          let user;
+          try {
+            user = JSON.parse(userStr);
+          } catch (parseErr) {
+            console.error('[GoogleCallback][web] JSON parse failed:', parseErr.message);
+            if (mounted) {
+              setStatus('error');
+              setErrorMsg('Failed to parse user data. Please try again.');
+            }
+            return;
+          }
+
+          // expo-secure-store is unavailable on web — persist to localStorage so
+          // the session survives a page reload.
+          localStorage.setItem('unihelp_access_token', access);
+          localStorage.setItem('unihelp_refresh_token', refresh);
+          localStorage.setItem('unihelp_secure_session', JSON.stringify({
+            id:    user.id,
+            name:  user.name,
+            email: user.email,
+            role:  user.role,
+          }));
+
+          console.log('[GoogleCallback][web] Calling googleLogin for:', user?.email);
+          await googleLogin(access, refresh, user);
+
+          if (mounted) setStatus('done');
+
+          // Clean the token out of the URL bar (cosmetic, prevents accidental sharing)
+          window.history.replaceState({}, document.title, '/');
+
+        } catch (err) {
+          console.error('[GoogleCallback][web] Unexpected error:', err.message);
+          if (mounted) {
+            setStatus('error');
+            setErrorMsg('Unexpected error during sign-in. Please try again.');
+          }
+        }
+      };
+
+      processWebCallback();
+      return () => { mounted = false; };
+    }
+
+    // ── NATIVE path (iOS / Android) ───────────────────────────────────────────
     // ── Timeout: show error if no URL arrives within 12 seconds ──────────────
     const timeout = setTimeout(() => {
       if (mounted && status === 'processing') {

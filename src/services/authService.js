@@ -113,9 +113,15 @@ export const loginUser = async (email, password) => {
 
 /**
  * Get current session (auto-login).
+ * On web, expo-secure-store is unavailable so we fall back to localStorage.
  */
 export const getSession = async () => {
   try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      // Web: use localStorage
+      const raw = localStorage.getItem('unihelp_secure_session');
+      return raw ? JSON.parse(raw) : null;
+    }
     const raw = await SecureStore.getItemAsync(KEYS.SESSION);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -130,7 +136,14 @@ export const logoutUser = async (userId) => {
   if (userId) {
     await updateUserPresence(userId, false);
   }
-  await SecureStore.deleteItemAsync(KEYS.SESSION);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Web: clear localStorage tokens
+    localStorage.removeItem('unihelp_secure_session');
+    localStorage.removeItem('unihelp_access_token');
+    localStorage.removeItem('unihelp_refresh_token');
+  } else {
+    await SecureStore.deleteItemAsync(KEYS.SESSION);
+  }
 };
 
 /**

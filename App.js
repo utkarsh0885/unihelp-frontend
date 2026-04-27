@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useCallback, useEffect } from 'react';
-import { StatusBar, View, Text, AppState } from 'react-native';
+import { StatusBar, View, Text, AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,6 +13,29 @@ import { DataProvider } from './src/context/DataContext';
 import { updateUserPresence } from './src/services/dataService';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// ── React Navigation URL linking config (web) ─────────────────────────────────
+// Maps browser URLs to screens so that navigating to /auth/callback on Vercel
+// correctly mounts GoogleAuthCallbackScreen instead of falling back to Login.
+const linking = {
+  prefixes: [
+    'unihelp://',                         // native deep-link scheme
+    'https://*.vercel.app',               // Vercel production/preview
+    'http://localhost',                   // local web dev
+  ],
+  config: {
+    screens: {
+      Auth: {
+        screens: {
+          Login: 'login',
+          Signup: 'signup',
+          GoogleAuthCallback: 'auth/callback',
+        },
+      },
+      // Main screens are gated by auth — no public URLs needed
+    },
+  },
+};
 
 const AppContent = () => {
   const { isDark, colors } = useTheme();
@@ -49,7 +72,7 @@ const AppContent = () => {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} linking={linking}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
