@@ -1,100 +1,39 @@
-import { io } from 'socket.io-client';
-import { getStoredToken } from './tokenService';
-import { Platform } from 'react-native';
-
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unihelp-backend-a5f3.onrender.com';
+/**
+ * socketService.js — NO-OP STUB
+ * ─────────────────────────────────────────────
+ * WebSocket / socket.io has been intentionally REMOVED.
+ * The app now communicates exclusively via REST API polling.
+ *
+ * This stub keeps the same public interface so that any remaining
+ * import of socketService does NOT crash — every method is a safe no-op.
+ *
+ * DO NOT import 'socket.io-client' here. That package causes reconnect
+ * loops and "Page Unresponsive" errors when the WebSocket server is
+ * unavailable (e.g. Render free-tier cold starts, CORS mismatches).
+ */
 
 class SocketService {
-  constructor() {
-    this.socket = null;
-    this.listeners = new Map();
+  // All methods are safe no-ops — they log a warning but never throw.
+
+  connect() {
+    console.log('[SocketService] DISABLED — using REST polling instead of WebSockets.');
   }
 
-  async connect() {
-    if (this.socket?.connected) return;
+  disconnect() {}
 
-    const token = await getStoredToken();
-    if (!token) return;
+  joinChat(_chatId) {}
 
-    console.log('[SocketService] Connecting to:', SOCKET_URL);
+  leaveChat(_chatId) {}
 
-    this.socket = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['websocket'],
-      // Increase timeout for slow connections (Render spin-up)
-      timeout: 20000,
-      reconnectionAttempts: 5,
-    });
-
-    this.socket.on('connect', () => {
-      console.log('✅ Connected to Chat Server');
-    });
-
-    this.socket.on('connect_error', (err) => {
-      console.error('❌ Socket connection error:', err.message);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('🔌 Disconnected from Chat Server:', reason);
-    });
-
-    // Handle incoming messages
-    this.socket.on('receive_message', (message) => {
-      this._emit('message', message);
-    });
-
-    // Handle notifications
-    this.socket.on('new_message_notification', (data) => {
-      this._emit('notification', data);
-    });
+  sendMessage(_chatId, _text, _recipientId) {
+    console.warn('[SocketService] sendMessage() called on disabled socket — use REST API instead.');
   }
 
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-  }
+  on(_event, _callback) {}
 
-  joinChat(chatId) {
-    if (this.socket) {
-      this.socket.emit('join_chat', chatId);
-    }
-  }
+  off(_event, _callback) {}
 
-  leaveChat(chatId) {
-    if (this.socket) {
-      this.socket.emit('leave_chat', chatId);
-    }
-  }
-
-  sendMessage(chatId, text, recipientId) {
-    if (this.socket) {
-      this.socket.emit('send_message', { chatId, text, recipientId });
-    }
-  }
-
-  // Simple event emitter pattern
-  on(event, callback) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event).push(callback);
-  }
-
-  off(event, callback) {
-    const eventListeners = this.listeners.get(event);
-    if (eventListeners) {
-      this.listeners.set(event, eventListeners.filter(l => l !== callback));
-    }
-  }
-
-  _emit(event, data) {
-    const eventListeners = this.listeners.get(event);
-    if (eventListeners) {
-      eventListeners.forEach(callback => callback(data));
-    }
-  }
+  _emit(_event, _data) {}
 }
 
 const socketService = new SocketService();

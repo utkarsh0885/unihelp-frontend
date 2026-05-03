@@ -233,16 +233,49 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   list: { paddingBottom: 150 },
   loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   loaderText: { fontSize: SIZES.fontMd, color: colors.textTertiary, marginTop: SIZES.md, fontWeight: '600' },
+
+  // Error banner styles
+  errorBanner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 60,
+  },
+  errorIconCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
+  },
+  errorTitle: {
+    fontSize: 18, fontWeight: '900', color: colors.textPrimary,
+    marginBottom: 8, textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 13, color: colors.textTertiary,
+    textAlign: 'center', lineHeight: 20, marginBottom: 24,
+  },
+  errorRetryBtn: {
+    paddingHorizontal: 24, paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+  },
+  errorRetryText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
 });
 
-const CARD_HEIGHT = 200;
-
+// ── Constants defined OUTSIDE the component ───────────────────────────────────────────
+// ❗  These were previously inside HomeScreen, recreated on every render.
+//    Moving them here makes them true constants with stable references.
 const QUICK_ACTIONS = [
   { id: 'events', title: 'Events', icon: 'calendar-outline', screen: 'Calendar', color: '#10B981' },
   { id: 'polls', title: 'Polls', icon: 'bar-chart-outline', screen: 'CreatePoll', color: '#F59E0B' },
   { id: 'notes', title: 'Notes', icon: 'document-text-outline', screen: 'ShareNotes', color: '#06B6D4' },
   { id: 'lostfound', title: 'Lost & Found', icon: 'search-outline', screen: 'LostAndFound', color: '#8B5CF6' },
 ];
+
+const CATEGORIES = ['All', 'Buy/Sell', 'Events', 'Polls', 'Lost & Found'];
 
 const ActionChip = ({ action, navigation, colors, styles }) => {
   const scale = React.useRef(new Animated.Value(1)).current;
@@ -294,27 +327,38 @@ const AnimatedIconButton = ({ icon, onPress, badge = false, styles }) => {
 };
 
 const HomeScreen = ({ navigation }) => {
+  // ── Render counter — detects runaway re-renders ─────────────────────────────────
+  const renderCountRef = React.useRef(0);
+  renderCountRef.current += 1;
+  if (renderCountRef.current <= 5 || renderCountRef.current % 20 === 0) {
+    console.log(`[HomeScreen] render #${renderCountRef.current}`);
+  }
+  if (renderCountRef.current > 100) {
+    console.error('[HomeScreen] 🚨 RENDER LOOP DETECTED — renderCount exceeded 100!');
+  }
+
   const { colors, shadows, isDark } = useTheme();
-  const { 
-    posts: rawPosts, 
-    postsLoading, 
-    items, 
-    toggleLike, 
-    toggleSave, 
-    votePoll, 
-    userId, 
-    refreshData, 
-    deletePost 
+  const {
+    posts: rawPosts,
+    postsLoading,
+    postsError,
+    items,
+    toggleLike,
+    toggleSave,
+    votePoll,
+    userId,
+    refreshData,
+    deletePost
   } = useData();
 
   // Filter out placeholder 'Google User' posts
-  const posts = useMemo(() => 
-    rawPosts.filter(p => !p.username?.toLowerCase().includes('google user')), 
+  const posts = useMemo(() =>
+    rawPosts.filter(p => !p.username?.toLowerCase().includes('google user')),
     [rawPosts]
   );
 
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows, isDark]);
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -339,12 +383,23 @@ const HomeScreen = ({ navigation }) => {
     }).start();
   }, []);
 
-  // Debug log for marketplace items visibility
+  // ── Debug: trace postsLoading transitions (fires only when values genuinely change)
   React.useEffect(() => {
-    if (items.length > 0) {
-      console.log(`[Home] Market items fetched from central DB: ${items.length}`);
+    if (postsLoading) {
+      console.log('[HomeScreen] ⏳ postsLoading=true → skeleton visible');
+    } else {
+      console.log(`[HomeScreen] ✅ postsLoading=false → posts.length=${posts.length}, postsError=${postsError ?? 'none'}`);
     }
-  }, [items]);
+    // ⚠️ Do NOT add posts array here — it fires on every poll even when data is unchanged.
+    // postsLoading and postsError are primitive/null values, safe to watch.
+  }, [postsLoading, postsError]);
+
+  // Debug: market items
+  React.useEffect(() => {
+    console.log(`[HomeScreen] 🛝 items.length=${items.length}`);
+    // ⚠️ items is an array — only log count change, do NOT put items in deps of any
+    // effect that calls setState, or it creates a loop.
+  }, [items.length]);
 
   const handleLike = useCallback((postId) => {
     toggleLike(postId);
@@ -402,29 +457,20 @@ const HomeScreen = ({ navigation }) => {
 
   // ── Smart Feed Logic ──
 
-  // Determine Trending Posts (top 5 by engagement)
+  // Trending: top 5 posts by engagement — only recalculates when posts changes
   const trendingPosts = useMemo(() => {
     return [...posts]
-      .sort((a, b) => (b.likes + b.commentsCount) - (a.likes + a.commentsCount))
+      .sort((a, b) => ((b.likes ?? 0) + (b.commentsCount ?? 0)) - ((a.likes ?? 0) + (a.commentsCount ?? 0)))
       .slice(0, 5);
   }, [posts]);
 
-  // CATEGORIES - User Driven Filter Bar
-  const CATEGORIES = ['All', 'Buy/Sell', 'Events', 'Polls', 'Lost & Found'];
+  // ❗ CATEGORIES is now a module-level constant — NOT inside the component
 
-  // Smart Filtering logic based on explicit category field
+  // Smart Filtering — recalculates only when posts or selectedCategory changes
   const filteredPosts = useMemo(() => {
-    let filtered = [...posts];
-    
-    if (selectedCategory === 'All') {
-      return filtered;
-    }
-    
-    if (selectedCategory === 'Polls') {
-      return filtered.filter(p => !!p.poll);
-    }
-
-    return filtered.filter(p => p.category === selectedCategory);
+    if (selectedCategory === 'All') return posts;
+    if (selectedCategory === 'Polls') return posts.filter(p => !!p.poll);
+    return posts.filter(p => p.category === selectedCategory);
   }, [posts, selectedCategory]);
 
   const ListHeader = useMemo(() => (
@@ -552,7 +598,11 @@ const HomeScreen = ({ navigation }) => {
         <Text style={styles.sectionLabel}>{selectedCategory === 'All' ? 'Latest Activity' : `${selectedCategory} FEED`}</Text>
       </View>
     </View>
-  ), [posts, trendingPosts, selectedCategory, styles, navigation, colors, fadeAnim]);
+  // ── ListHeader: useMemo deps ───────────────────────────────────────────────────
+  // ❗ Do NOT include 'posts' here. trendingPosts is already derived from posts
+  //    via its own useMemo. Adding 'posts' would cause ListHeader to rebuild on
+  //    every single API poll (every 15s), hammering the JS thread.
+  ), [trendingPosts, selectedCategory, styles, navigation, colors, isDark, fadeAnim, handleComment]);
 
   const EmptyState = useMemo(() => (
     <View style={styles.emptyContainer}>
@@ -615,6 +665,23 @@ const HomeScreen = ({ navigation }) => {
             <PostSkeleton />
             <PostSkeleton />
             <PostSkeleton />
+          </View>
+        ) : postsError ? (
+          // ── Error fallback UI (replaces infinite skeleton) ──
+          <View style={styles.errorBanner}>
+            <View style={styles.errorIconCircle}>
+              <Ionicons name="cloud-offline-outline" size={36} color="#EF4444" />
+            </View>
+            <Text style={styles.errorTitle}>Failed to load posts</Text>
+            <Text style={styles.errorSubtitle}>
+              {postsError}{`\n\nCheck your internet connection or try again.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.errorRetryBtn}
+              onPress={onRefresh}
+            >
+              <Text style={styles.errorRetryText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList

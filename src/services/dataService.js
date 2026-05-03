@@ -6,8 +6,17 @@ import apiClient from './apiClient';
 
 export const getPosts = async (category = null) => {
   const url = category ? `/api/posts?category=${category}` : '/api/posts';
-  const response = await apiClient.get(url);
-  return response.data;
+  console.log(`[DataService] ▶ GET ${url}`);
+  try {
+    const response = await apiClient.get(url);
+    console.log(`[DataService] ✅ GET ${url} → status=${response.status}, items=${Array.isArray(response.data) ? response.data.length : 'N/A'}`);
+    return response.data;
+  } catch (err) {
+    const status = err?.response?.status ?? 'NO_RESPONSE';
+    const msg = err?.response?.data?.error || err?.message || 'Unknown error';
+    console.error(`[DataService] ❌ GET ${url} → status=${status}, error=${msg}`);
+    throw err;
+  }
 };
 
 export const addPost = async (post) => {
@@ -60,82 +69,117 @@ export const deleteCommentService = async (commentId) => {
 };
 
 // ══════════════════════════════════════
-// DOUBTS / NOTES / ITEMS (Redirected to Posts with Categories)
+// CATEGORY HELPERS
 // ══════════════════════════════════════
 
-export const getDoubts = () => getPosts('Lost & Found'); // Lost & Found is used for doubts in UI sometimes?
+export const getDoubts = () => getPosts('Lost & Found');
 export const getNotes = () => getPosts('Notes');
 export const getItems = () => getPosts('Buy/Sell');
 export const getEvents = () => getPosts('Events');
 
-// For now, let's keep the existing UI categories mapping
+// ══════════════════════════════════════
+// SUBSCRIBE HELPERS
+// Each subscribe calls the callback immediately, then polls every 10s.
+// On ANY error, the callback is called with an empty array so loading 
+// state is always resolved and the UI never hangs on skeleton indefinitely.
+// ══════════════════════════════════════
+
 export const subscribeToPosts = (callback) => {
-  // Simple polling fallback or just fetch once
-  getPosts().then(callback);
-  const interval = setInterval(() => getPosts().then(callback), 10000);
+  const fetch = () => {
+    console.log('[DataService] 🔄 subscribeToPosts → calling getPosts()...');
+    getPosts()
+      .then((data) => {
+        console.log(`[DataService] ✅ subscribeToPosts → ${data?.length ?? 0} posts received`);
+        callback(data || [], null); // (data, error)
+      })
+      .catch((err) => {
+        const status = err?.response?.status ?? 'NETWORK_ERROR';
+        const msg = err?.response?.data?.error || err?.message || 'Unknown error';
+        console.error(`[DataService] ❌ subscribeToPosts FAILED → status=${status}, msg=${msg}`);
+        callback([], `${status}: ${msg}`); // (empty data, error string)
+      });
+  };
+  fetch();
+  const interval = setInterval(fetch, 15000);
   return () => clearInterval(interval);
 };
 
 export const subscribeToComments = (postId, callback) => {
-  getCommentsForPost(postId).then(callback);
-  const interval = setInterval(() => getCommentsForPost(postId).then(callback), 5000);
+  const fetch = () =>
+    getCommentsForPost(postId)
+      .then(callback)
+      .catch((err) => {
+        console.warn('[DataService] subscribeToComments error:', err?.message);
+        callback([]);
+      });
+  fetch();
+  const interval = setInterval(fetch, 5000);
   return () => clearInterval(interval);
 };
 
 export const subscribeToDoubts = (callback) => {
-  const fetch = () => getPosts('General').then(callback);
+  const fetch = () =>
+    getPosts('General')
+      .then((data) => callback(data || []))
+      .catch((err) => {
+        console.warn('[DataService] subscribeToDoubts error:', err?.message);
+        callback([]);
+      });
   fetch();
-  const interval = setInterval(fetch, 10000);
+  const interval = setInterval(fetch, 15000);
   return () => clearInterval(interval);
 };
 
 export const subscribeToNotes = (callback) => {
-  const fetch = () => getPosts('Notes').then(callback);
+  const fetch = () =>
+    getPosts('Notes')
+      .then((data) => callback(data || []))
+      .catch((err) => {
+        console.warn('[DataService] subscribeToNotes error:', err?.message);
+        callback([]);
+      });
   fetch();
-  const interval = setInterval(fetch, 10000);
+  const interval = setInterval(fetch, 15000);
   return () => clearInterval(interval);
 };
 
 export const subscribeToItems = (callback) => {
-  const fetch = () => getPosts('Buy/Sell').then(callback);
+  const fetch = () =>
+    getPosts('Buy/Sell')
+      .then((data) => callback(data || []))
+      .catch((err) => {
+        console.warn('[DataService] subscribeToItems error:', err?.message);
+        callback([]);
+      });
   fetch();
-  const interval = setInterval(fetch, 10000);
+  const interval = setInterval(fetch, 15000);
   return () => clearInterval(interval);
 };
 
 export const subscribeToEvents = (callback) => {
-  const fetch = () => getPosts('Events').then(callback);
+  const fetch = () =>
+    getPosts('Events')
+      .then((data) => callback(data || []))
+      .catch((err) => {
+        console.warn('[DataService] subscribeToEvents error:', err?.message);
+        callback([]);
+      });
   fetch();
-  const interval = setInterval(fetch, 10000);
+  const interval = setInterval(fetch, 15000);
   return () => clearInterval(interval);
 };
 
-export const subscribeToChats = (callback) => {
-  const fetch = () => apiClient.get('/api/chat').then(res => callback(res.data));
-  fetch();
-  const interval = setInterval(fetch, 10000);
-  return () => clearInterval(interval);
-};
+// ── Removed: subscribeToChats ──────────────────────────────────────────────────
+// ChatListScreen now manages its own polling via setInterval.
+// DataContext no longer subscribes to chats.
 
-// Other services can be added as needed following the same pattern
 export const initSeedData = async () => {};
 
-/**
- * Update user online/offline status
- */
-export const updateUserPresence = async (userId, isOnline) => {
-  try {
-    if (!userId) return;
-    const response = await apiClient.put(`/api/users/${userId}/presence`, { isOnline });
-    return response.data;
-  } catch (error) {
-    console.error('[DataService] Error updating user presence:', error);
-    return null;
-  }
-};
+// ── Removed: subscribeToActiveUsersCount ──────────────────────────────────────
+// Active user count was driven by socket presence events.
+// Without WebSocket this is always 0 (stub in DataContext).
 
-export const subscribeToActiveUsersCount = (callback) => {
-  // Placeholder
-  callback(1);
-  return () => {};
-};
+// ── Removed: updateUserPresence ───────────────────────────────────────────────
+// Presence updates required the socket server to broadcast the change.
+// With WebSocket disabled, presence is not tracked.
+// The /api/users/:userId/presence endpoint can be removed from the backend too.

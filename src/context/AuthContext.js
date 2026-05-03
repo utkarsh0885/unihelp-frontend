@@ -12,9 +12,9 @@ import {
   logoutUser,
   getSession,
   updateProfile,
-  loginWithGoogle,  // Google OAuth — stores JWT + user from callback
+  loginWithGoogle,
 } from '../services/authService';
-import { updateUserPresence as updatePresenceAPI } from '../services/dataService';
+// ⚠️ updateUserPresence removed — presence tracking requires WebSocket (disabled).
 
 const AuthContext = createContext(null);
 
@@ -58,18 +58,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ── Auto-login from stored session ──
+  // ── Auto-login from stored session (runs ONCE on mount) ──
   useEffect(() => {
     let mounted = true;
     const checkSession = async () => {
       try {
         const session = await getSession();
         if (mounted) {
-          if (session) {
-            setUser(session);
-          } else {
-            setUser(null);
-          }
+          setUser(session || null);
         }
       } catch (e) {
         if (mounted) setUser(null);
@@ -77,20 +73,23 @@ export const AuthProvider = ({ children }) => {
         if (mounted) setLoading(false);
       }
     };
-
     checkSession();
+    return () => { mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // ── Periodic token expiry check (every 5 min) ──
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
     const expiryInterval = setInterval(async () => {
-      if (user) {
-        const session = await getSession();
-        if (!session && mounted) {
-          logout();
-        }
+      const session = await getSession();
+      if (!session && mounted) {
+        logout();
       }
     }, 1000 * 60 * 5);
-
-    return () => { 
-      mounted = false; 
+    return () => {
+      mounted = false;
       clearInterval(expiryInterval);
     };
   }, [user, logout]);
@@ -103,15 +102,12 @@ export const AuthProvider = ({ children }) => {
     return updated;
   }, [user]);
 
-  // ── Update Presence ──
-  const updateUserPresence = useCallback(async (isOnline) => {
-    if (!user?.id) return;
-    try {
-      await updatePresenceAPI(user.id, isOnline);
-    } catch (err) {
-      console.error('[AuthContext] Presence update failed:', err);
-    }
-  }, [user?.id]);
+  // ── Update Presence (no-op stub — requires WebSocket) ─────────────────────────
+  // Presence was updated via socket connect/disconnect events.
+  // Without WebSocket, this is a safe no-op so call sites don’t crash.
+  const updateUserPresence = useCallback(async (_isOnline) => {
+    // no-op — re-enable when sockets are restored
+  }, []);
 
   const value = useMemo(() => ({
     user,

@@ -1,4 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * LoginScreen — FAANG-grade redesign
+ * ─────────────────────────────────────────────
+ * • Animated mesh-gradient background (3 decorative blobs)
+ * • Glass card with white surface + strong shadow
+ * • Focus-ring inputs (border pulses on focus)
+ * • Blue → Indigo gradient CTA with spring press feedback
+ * • Clean Google button (white, bordered, centered icon)
+ * • Inline validation with smooth error reveal
+ * • Fully responsive (compact on phone, card-centered on tablet/web)
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,75 +23,184 @@ import {
   Animated,
   ScrollView,
   Dimensions,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { isValidEmail, isValidPassword } from '../services/authService';
-import { SIZES, GRADIENTS } from '../constants/theme';
-import ResponsiveContainer from '../components/ResponsiveContainer';
+import { SIZES } from '../constants/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const IS_WEB = Platform.OS === 'web';
 
+// ── Palette ────────────────────────────────────────────────────────────────────
+const P = {
+  bg:          '#0A0F1E',   // near-black navy
+  card:        '#FFFFFF',
+  primary:     '#2563EB',
+  primaryDark: '#1D4ED8',
+  indigo:      '#4F46E5',
+  surface:     '#F8FAFF',
+  border:      '#E2E8F0',
+  focusBorder: '#2563EB',
+  text:        '#0F172A',
+  textMid:     '#475569',
+  textLight:   '#94A3B8',
+  placeholder: '#94A3B8',
+  error:       '#EF4444',
+  errorBg:     '#FEF2F2',
+  errorBorder: '#FECACA',
+  white:       '#FFFFFF',
+};
+
+// ── Reusable animated input ────────────────────────────────────────────────────
+const PremiumInput = ({ label, icon, error, inputRef, rightElement, ...props }) => {
+  const [focused, setFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const onFocus = () => {
+    setFocused(true);
+    Animated.timing(borderAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+    props.onFocus?.();
+  };
+  const onBlur = () => {
+    setFocused(false);
+    Animated.timing(borderAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
+    props.onBlur?.();
+  };
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [error ? P.errorBorder : P.border, error ? P.error : P.focusBorder],
+  });
+
+  return (
+    <View style={iStyles.fieldWrap}>
+      <Text style={iStyles.label}>{label}</Text>
+      <Animated.View style={[iStyles.inputBox, { borderColor }, error && iStyles.inputBoxError]}>
+        <Ionicons name={icon} size={18} color={focused ? P.primary : P.textLight} style={iStyles.icon} />
+        <TextInput
+          ref={inputRef}
+          style={iStyles.input}
+          placeholderTextColor={P.placeholder}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          {...props}
+        />
+        {rightElement}
+      </Animated.View>
+      {error ? (
+        <View style={iStyles.errorRow}>
+          <Ionicons name="alert-circle" size={13} color={P.error} style={{ marginRight: 4 }} />
+          <Text style={iStyles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const iStyles = StyleSheet.create({
+  fieldWrap: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '600', color: P.textMid, marginBottom: 7, letterSpacing: 0.1 },
+  inputBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.surface,
+    borderRadius: 14, borderWidth: 1.5,
+    paddingHorizontal: 14, height: 54,
+  },
+  inputBoxError: { backgroundColor: P.errorBg },
+  icon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 15, color: P.text, fontWeight: '500' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  errorText: { fontSize: 12, color: P.error, fontWeight: '500' },
+});
+
+// ── Animated button ────────────────────────────────────────────────────────────
+const GradientButton = ({ onPress, disabled, loading, label }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], borderRadius: 14, overflow: 'hidden', marginTop: 4 }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onIn}
+        onPressOut={onOut}
+        disabled={disabled}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+      >
+        <LinearGradient
+          colors={disabled ? ['#94A3B8', '#94A3B8'] : [P.primary, P.indigo]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={bStyles.btn}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={bStyles.label}>{label}</Text>}
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+const bStyles = StyleSheet.create({
+  btn: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  label: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+});
+
+// ── Decorative blob ────────────────────────────────────────────────────────────
+const Blob = ({ style, colors }) => (
+  <LinearGradient colors={colors} style={[{ position: 'absolute', borderRadius: 999 }, style]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+);
+
+// ── Main Screen ────────────────────────────────────────────────────────────────
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
-  const { colors } = useTheme();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [errors, setErrors]         = useState({});
+  const [loading, setLoading]       = useState(false);
+  const [showPwd, setShowPwd]       = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false); // Separate loading for Google btn
-  const [googleError, setGoogleError] = useState('');        // Google-specific error message
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError]     = useState('');
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const pwdRef = useRef(null);
+
+  // Entry animations
+  const cardAnim  = useRef(new Animated.Value(40)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
     Animated.sequence([
-      Animated.spring(logoScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 60,
-        useNativeDriver: true,
-      }),
+      Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 6,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(cardAnim,  { toValue: 0, friction: 7,   useNativeDriver: true }),
       ]),
     ]).start();
   }, []);
 
+  const clearError = (field) => setErrors(e => ({ ...e, [field]: null, global: null }));
+
   const handleLogin = async () => {
-    const newErrors = {};
-    if (!email.trim()) newErrors.email = 'Email is required.';
-    else if (!isValidEmail(email)) newErrors.email = 'Please enter a valid email.';
-
-    if (!password) newErrors.password = 'Password is required.';
-    else if (!isValidPassword(password)) newErrors.password = 'Password must be at least 6 characters.';
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return;
+    const errs = {};
+    if (!email.trim())         errs.email    = 'Email is required.';
+    else if (!isValidEmail(email)) errs.email = 'Enter a valid email address.';
+    if (!password)             errs.password = 'Password is required.';
+    else if (!isValidPassword(password)) errs.password = 'Minimum 6 characters.';
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
 
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
     } catch (err) {
       setErrors({ global: err.message || 'Login failed. Please try again.' });
     } finally {
@@ -87,43 +208,17 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  /**
-   * handleGoogleLogin
-   *
-   * Production flow:
-   *   1. Build the Expo deep-link redirect URI: unihelp://auth/callback
-   *      This is the URL the backend will redirect to after OAuth succeeds.
-   *   2. Open the Render backend URL in an in-app browser:
-   *      https://unihelp-backend-a5f3.onrender.com/auth/google?redirectUri=<encodedExpoUri>
-   *   3. Passport handles Google consent → backend mints JWT
-   *   4. Backend redirects to: unihelp://auth/callback?access=TOKEN&refresh=TOKEN&user=JSON
-   *   5. Expo intercepts the unihelp:// scheme → GoogleAuthCallbackScreen parses tokens
-   */
   const handleGoogleLogin = async () => {
     setGoogleError('');
     setGoogleLoading(true);
     try {
-      // Explicitly define the Expo deep link with /--/ to ensure Expo Go intercepts it properly
       const redirectUri = 'exp://10.12.24.23:8081/--/auth/callback';
-
-      // Build the backend OAuth initiation URL, passing the redirect URI
-      // so the backend knows where to send the token redirect.
-      const backendUrl = `https://unihelp-backend-a5f3.onrender.com/auth/google?redirectUri=${encodeURIComponent(redirectUri)}`;
-
-      // Open the in-app browser.
-      const result = await WebBrowser.openAuthSessionAsync(
-        backendUrl,
-        redirectUri
-      );
+      const backendUrl  = `https://unihelp-backend-a5f3.onrender.com/auth/google?redirectUri=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(backendUrl, redirectUri);
 
       if (result.type === 'success' && result.url) {
-        // iOS: WebBrowser.openAuthSessionAsync returns the redirect URL directly.
-        // Android: the Linking event fires in GoogleAuthCallbackScreen instead.
-        // We navigate to GoogleAuthCallbackScreen with the resolved URL so both
-        // platforms share the same token-parsing logic.
         const parsed = Linking.parse(result.url);
         const { access, refresh, user: userStr } = parsed.queryParams || {};
-
         if (access && refresh && userStr) {
           navigation.navigate('GoogleAuthCallback', { resolvedUrl: result.url });
         } else {
@@ -133,7 +228,6 @@ const LoginScreen = ({ navigation }) => {
         setGoogleError('Google sign-in was cancelled.');
       }
     } catch (err) {
-      console.error('[LoginScreen] Google OAuth error:', err.message);
       setGoogleError('Could not connect to Google sign-in. Please try again.');
     } finally {
       setGoogleLoading(false);
@@ -141,424 +235,269 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <LinearGradient
-      colors={['#1E3A8A', '#2563EB']}
-      style={styles.gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <View style={s.root}>
+      {/* ── Animated background blobs ── */}
+      <Blob colors={['#1E3A8A', '#2563EB']} style={{ width: 340, height: 340, top: -100, right: -80, opacity: 0.9 }} />
+      <Blob colors={['#4F46E5', '#7C3AED']} style={{ width: 260, height: 260, bottom: -60, left: -80, opacity: 0.7 }} />
+      <Blob colors={['#0369A1', '#0EA5E9']} style={{ width: 180, height: 180, top: '40%', right: -60, opacity: 0.5 }} />
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Decorative circles */}
-          <View style={styles.decorCircle1} />
-          <View style={styles.decorCircle2} />
+          {/* ── Card ── */}
+          <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: cardAnim }] }]}>
 
-          <ResponsiveContainer maxWidth={480} withCardStyle={true}>
-          {/* Logo */}
-          <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
-            <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
-              style={styles.logoGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="school" size={32} color="#fff" />
-            </LinearGradient>
-          </Animated.View>
+            {/* Logo */}
+            <Animated.View style={[s.logoWrap, { transform: [{ scale: logoScale }] }]}>
+              <LinearGradient colors={[P.primary, P.indigo]} style={s.logo} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="school" size={28} color="#fff" />
+              </LinearGradient>
+            </Animated.View>
 
-          {/* Title */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue to UNIHELP</Text>
-          </Animated.View>
+            {/* Heading */}
+            <Text style={s.heading}>Welcome back</Text>
+            <Text style={s.sub}>Sign in to your UniHelp account</Text>
 
-          {/* Error Block */}
-          {errors.global && (
-            <View style={styles.errorBlock}>
-              <Ionicons name="alert-circle" size={16} color="#ff6b6b" style={{ marginRight: 8 }} />
-              <Text style={styles.errorBlockText}>{errors.global}</Text>
-            </View>
-          )}
+            {/* Global error */}
+            {errors.global && (
+              <View style={s.globalError}>
+                <Ionicons name="alert-circle" size={15} color={P.error} style={{ marginRight: 7 }} />
+                <Text style={s.globalErrorText}>{errors.global}</Text>
+              </View>
+            )}
 
-          {/* Email Field */}
-          <Animated.View style={[styles.fieldWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <Text style={styles.label}>Email</Text>
-            <View style={[styles.inputContainer, errors.email && styles.inputError]}>
-              <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={(txt) => { setEmail(txt); setErrors({ ...errors, email: null, global: null }); }}
-              />
-            </View>
-            {errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
-          </Animated.View>
+            {/* Inputs */}
+            <PremiumInput
+              label="Email address"
+              icon="mail-outline"
+              placeholder="you@university.edu"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              value={email}
+              onChangeText={t => { setEmail(t); clearError('email'); }}
+              onSubmitEditing={() => pwdRef.current?.focus()}
+              error={errors.email}
+            />
 
-          {/* Password Field */}
-          <Animated.View style={[styles.fieldWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <Text style={styles.label}>Password</Text>
-            <View style={[styles.inputContainer, errors.password && styles.inputError]}>
-              <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={(txt) => { setPassword(txt); setErrors({ ...errors, password: null, global: null }); }}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={18} color="rgba(255,255,255,0.4)" />
+            <PremiumInput
+              label="Password"
+              icon="lock-closed-outline"
+              placeholder="••••••••"
+              secureTextEntry={!showPwd}
+              inputRef={pwdRef}
+              returnKeyType="done"
+              value={password}
+              onChangeText={t => { setPassword(t); clearError('password'); }}
+              onSubmitEditing={handleLogin}
+              error={errors.password}
+              rightElement={
+                <TouchableOpacity onPress={() => setShowPwd(v => !v)} style={s.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name={showPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={P.textLight} />
+                </TouchableOpacity>
+              }
+            />
+
+            {/* Remember + Forgot */}
+            <View style={s.optRow}>
+              <TouchableOpacity style={s.checkRow} onPress={() => setRememberMe(v => !v)} activeOpacity={0.7}>
+                <View style={[s.checkbox, rememberMe && s.checkboxOn]}>
+                  {rememberMe && <Ionicons name="checkmark" size={11} color="#fff" />}
+                </View>
+                <Text style={s.checkLabel}>Remember me</Text>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={s.forgot}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
-          </Animated.View>
 
-          {/* Remember + Forgot */}
-          <Animated.View style={[styles.optionsRow, { opacity: fadeAnim }]}>
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              activeOpacity={0.7}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                {rememberMe && <Ionicons name="checkmark" size={12} color="#fff" />}
-              </View>
-              <Text style={styles.checkboxLabel}>Remember me</Text>
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Sign In Button */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
+            {/* CTA */}
+            <GradientButton
+              label="Sign In"
               onPress={handleLogin}
+              loading={loading}
               disabled={loading || googleLoading}
-              style={{ borderRadius: SIZES.radiusMd, overflow: 'hidden' }}
-            >
-              <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.signInBtn, loading && { opacity: 0.7 }]}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.signInText}>Sign In</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+            />
 
-          {/* ── OR Divider ───────────────────────────────────────── */}
-          <Animated.View style={[styles.dividerRow, { opacity: fadeAnim }]}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </Animated.View>
-
-          {/* ── Google Error ─────────────────────────────────────── */}
-          {googleError !== '' && (
-            <View style={styles.googleErrorBlock}>
-              <Ionicons name="alert-circle-outline" size={15} color="#ff6b6b" style={{ marginRight: 6 }} />
-              <Text style={styles.googleErrorText}>{googleError}</Text>
+            {/* Divider */}
+            <View style={s.divider}>
+              <View style={s.divLine} />
+              <Text style={s.divText}>or continue with</Text>
+              <View style={s.divLine} />
             </View>
-          )}
 
-          {/* ── Continue with Google Button ─────────────────────────── */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            {/* Google error */}
+            {googleError !== '' && (
+              <View style={s.googleErr}>
+                <Ionicons name="alert-circle-outline" size={13} color={P.error} style={{ marginRight: 5 }} />
+                <Text style={s.googleErrText}>{googleError}</Text>
+              </View>
+            )}
+
+            {/* Google button */}
             <TouchableOpacity
-              activeOpacity={0.85}
+              style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.55 }]}
               onPress={handleGoogleLogin}
               disabled={loading || googleLoading}
-              style={[
-                styles.googleBtn,
-                (loading || googleLoading) && { opacity: 0.6 },
-              ]}
+              activeOpacity={0.8}
             >
-              {googleLoading ? (
-                // Loading spinner while browser is opening
-                <ActivityIndicator color="#4A90D9" size="small" />
-              ) : (
-                <>
-                  {/* Google 'G' icon */}
-                  <Ionicons name="logo-google" size={20} color="#EA4335" style={styles.googleIcon} />
-                  <Text style={styles.googleBtnText}>Continue with Google</Text>
-                </>
-              )}
+              {googleLoading
+                ? <ActivityIndicator color={P.primary} size="small" />
+                : (
+                  <>
+                    <View style={s.googleIconWrap}>
+                      {/* Coloured G built from Ionicons */}
+                      <Ionicons name="logo-google" size={20} color="#EA4335" />
+                    </View>
+                    <Text style={s.googleLabel}>Continue with Google</Text>
+                  </>
+                )}
             </TouchableOpacity>
-          </Animated.View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.footerLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-          </ResponsiveContainer>
+            {/* Footer */}
+            <View style={s.footer}>
+              <Text style={s.footerTxt}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
+                <Text style={s.footerLink}>Sign up</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
+// ── Styles ────────────────────────────────────────────────────────────────────
+const CARD_MAX = 440;
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: P.bg },
+
+  scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 60,
-  },
-  decorCircle1: {
-    position: 'absolute',
-    top: -80,
-    right: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(102, 126, 234, 0.12)',
-  },
-  decorCircle2: {
-    position: 'absolute',
-    bottom: 40,
-    left: -80,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(118, 75, 162, 0.1)',
-  },
-  logoWrap: {
-    alignSelf: 'center',
-    marginBottom: SIZES.xl,
-  },
-  logoGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: SIZES.radiusLg,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 48,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-    marginBottom: SIZES.xs,
-  },
-  subtitle: {
-    fontSize: SIZES.fontMd,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    marginBottom: SIZES.xl + SIZES.sm,
-    fontWeight: '500',
-  },
-  errorBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
-    padding: SIZES.md,
-    borderRadius: SIZES.radiusMd,
+
+  // ── Card ──
+  card: {
+    width: '100%',
+    maxWidth: CARD_MAX,
+    backgroundColor: P.card,
+    borderRadius: 28,
+    padding: 32,
+    // Shadow (iOS + Android)
+    shadowColor: '#0A0F1E',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.18,
+    shadowRadius: 40,
+    elevation: 16,
+    // Subtle top border for glass feel
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.2)',
-    marginBottom: SIZES.lg,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  errorBlockText: {
-    color: '#ff6b6b',
-    fontSize: SIZES.fontSm,
-    fontWeight: '500',
-    flex: 1,
+
+  // ── Logo ──
+  logoWrap: { alignSelf: 'center', marginBottom: 24 },
+  logo: {
+    width: 64, height: 64, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: P.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  fieldWrap: {
-    marginBottom: SIZES.lg,
+
+  // ── Headings ──
+  heading: {
+    fontSize: 26, fontWeight: '800', color: P.text,
+    textAlign: 'center', letterSpacing: -0.5, marginBottom: 6,
   },
-  label: {
-    fontSize: SIZES.fontSm,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SIZES.sm,
-    letterSpacing: 0.3,
+  sub: {
+    fontSize: 14, color: P.textMid, textAlign: 'center',
+    fontWeight: '500', marginBottom: 28,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: SIZES.radiusMd,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: SIZES.md,
-    height: 56,
+
+  // ── Global error ──
+  globalError: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.errorBg,
+    borderRadius: 12, padding: 13,
+    borderWidth: 1, borderColor: P.errorBorder,
+    marginBottom: 20,
   },
-  inputError: {
-    borderColor: 'rgba(255, 107, 107, 0.5)',
+  globalErrorText: { flex: 1, color: P.error, fontSize: 13, fontWeight: '500' },
+
+  // ── Remember / Forgot ──
+  optRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 22,
   },
-  inputIcon: {
-    marginRight: SIZES.sm + 2,
-  },
-  input: {
-    flex: 1,
-    fontSize: SIZES.fontMd,
-    color: '#FFFFFF',
-  },
-  eyeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  fieldError: {
-    color: '#ff6b6b',
-    fontSize: SIZES.fontXs,
-    marginTop: SIZES.xs + 2,
-    fontWeight: '500',
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.xl,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  checkRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    marginRight: SIZES.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 18, height: 18, borderRadius: 5,
+    borderWidth: 1.5, borderColor: P.border,
+    marginRight: 9, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: P.surface,
   },
-  checkboxActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+  checkboxOn: { backgroundColor: P.primary, borderColor: P.primary },
+  checkLabel: { fontSize: 13, color: P.textMid, fontWeight: '500' },
+  forgot: { fontSize: 13, color: P.primary, fontWeight: '700' },
+  eyeBtn: { padding: 4 },
+
+  // ── Divider ──
+  divider: {
+    flexDirection: 'row', alignItems: 'center',
+    marginVertical: 24,
   },
-  checkboxLabel: {
-    fontSize: SIZES.fontSm,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontWeight: '500',
-  },
-  forgotText: {
-    color: '#3B82F6',
-    fontWeight: '700',
-    fontSize: SIZES.fontSm,
-  },
-  signInBtn: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signInText: {
-    color: '#FFFFFF',
-    fontSize: SIZES.fontMd,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: SIZES.xl,
-  },
-  footerText: {
-    fontSize: SIZES.fontSm,
-    color: 'rgba(255, 255, 255, 0.4)',
-  },
-  footerLink: {
-    color: '#3B82F6',
-    fontWeight: '800',
-    fontSize: SIZES.fontSm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  divLine: { flex: 1, height: 1, backgroundColor: P.border },
+  divText: {
+    color: P.textLight, fontSize: 12, fontWeight: '600',
+    marginHorizontal: 14, letterSpacing: 0.4,
   },
 
-  // ── OR Divider ───────────────────────────────────────────────────
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SIZES.lg,
+  // ── Google error ──
+  googleErr: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.errorBg,
+    padding: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: P.errorBorder,
+    marginBottom: 10,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  dividerText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: SIZES.fontXs,
-    fontWeight: '700',
-    letterSpacing: 2,
-    marginHorizontal: SIZES.md,
-  },
+  googleErrText: { color: P.error, fontSize: 12, fontWeight: '500', flex: 1 },
 
-  // ── Google Button ────────────────────────────────────────────
+  // ── Google button ──
   googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',       // White card matches Google's brand guidelines
-    borderRadius: SIZES.radiusMd,
-    paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    height: 54, borderRadius: 14,
+    backgroundColor: P.white,
+    borderWidth: 1.5, borderColor: P.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  googleIcon: {
+  googleIconWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: '#FFF7F6',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: 10,
   },
-  googleBtnText: {
-    fontSize: SIZES.fontMd,
-    fontWeight: '700',
-    color: '#1a1a2e',                  // Dark text on white background
-    letterSpacing: 0.2,
-  },
+  googleLabel: { fontSize: 15, fontWeight: '700', color: P.text, letterSpacing: 0.1 },
 
-  // ── Google Error ──────────────────────────────────────────────
-  googleErrorBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    padding: SIZES.sm + 2,
-    borderRadius: SIZES.radiusSm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.2)',
-    marginBottom: SIZES.sm,
-  },
-  googleErrorText: {
-    color: '#ff6b6b',
-    fontSize: SIZES.fontXs,
-    fontWeight: '500',
-    flex: 1,
-  },
+  // ── Footer ──
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 26 },
+  footerTxt: { fontSize: 14, color: P.textLight, fontWeight: '500' },
+  footerLink: { fontSize: 14, color: P.primary, fontWeight: '800' },
 });
 
 export default LoginScreen;

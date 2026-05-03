@@ -4,21 +4,26 @@ import { getStoredToken, getStoredRefreshToken, storeAuthData, clearAuthData } f
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unihelp-backend-a5f3.onrender.com';
 
+console.log('[apiClient] BASE URL:', API_BASE_URL);
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 30s — Render free tier can be slow to wake up
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request Interceptor: Attach access token
+// Request Interceptor: Attach access token + log
 apiClient.interceptors.request.use(
   async (config) => {
     try {
       const token = await getStoredToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log(`[apiClient] → ${config.method?.toUpperCase()} ${config.baseURL}${config.url} [token attached]`);
+      } else {
+        console.warn(`[apiClient] → ${config.method?.toUpperCase()} ${config.baseURL}${config.url} [NO token]`);
       }
     } catch (e) {
       console.warn('[apiClient] Error getting token for request', e);
@@ -28,9 +33,12 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle 401s and Refresh Tokens
+// Response Interceptor: success logging + 401 refresh
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`[apiClient] ✅ ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 

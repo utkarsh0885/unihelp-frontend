@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { getMyChats } from '../services/chatService';
-import socketService from '../services/socketService';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+// ⚠️ socketService removed — chat list now refreshes via REST polling only.
 
 const ChatListScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
@@ -39,19 +39,13 @@ const ChatListScreen = ({ navigation }) => {
   useEffect(() => {
     fetchChats();
 
-    // Listen for new messages to update unread badges or last message preview
-    const handleNewMessage = () => {
-      fetchChats(); // Re-fetch to get updated unread counts and last messages
-    };
+    // Poll for updated chat list every 15s (replaces socket notifications)
+    // Lower frequency than message polling since list updates are less time-critical.
+    const pollInterval = setInterval(() => {
+      fetchChats();
+    }, 15000);
 
-    socketService.connect();
-    socketService.on('message', handleNewMessage);
-    socketService.on('notification', handleNewMessage);
-
-    return () => {
-      socketService.off('message', handleNewMessage);
-      socketService.off('notification', handleNewMessage);
-    };
+    return () => clearInterval(pollInterval);
   }, [fetchChats]);
 
   const renderChatItem = ({ item }) => {
