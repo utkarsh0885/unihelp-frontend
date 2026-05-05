@@ -174,12 +174,3 @@ export const subscribeToEvents = (callback) => {
 // DataContext no longer subscribes to chats.
 
 export const initSeedData = async () => {};
-
-// ── Removed: subscribeToActiveUsersCount ──────────────────────────────────────
-// Active user count was driven by socket presence events.
-// Without WebSocket this is always 0 (stub in DataContext).
-
-// ── Removed: updateUserPresence ───────────────────────────────────────────────
-// Presence updates required the socket server to broadcast the change.
-// With WebSocket disabled, presence is not tracked.
-// The /api/users/:userId/presence endpoint can be removed from the backend too.

@@ -31,7 +31,7 @@ import {
   updatePostService,
   initSeedData,
 } from '../services/dataService';
-import { getTotalUnreadCount } from '../services/chatService';
+// Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
 // ⚠️ socketService intentionally NOT imported — WebSockets removed.
 // All real-time updates use REST polling intervals instead.
@@ -76,7 +76,7 @@ export const DataProvider = ({ children }) => {
   // unsubChatsRef removed — chats no longer polled from DataContext
   // unsubPresenceRef removed — presence was socket-only
 
-  const [chats, setChats] = useState([]);
+  const [chats] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeUsersCount] = useState(0); // stub — requires socket presence
 
@@ -193,42 +193,12 @@ export const DataProvider = ({ children }) => {
         if (mounted) setEventsLoading(false);
       }
 
-      try {
-        unsubChatsRef.current = subscribeToChats((data) => {
-          if (mounted) { setChats(data || []); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Chats init error:', e);
-      }
+      // subscribeToChats and subscribeToActiveUsersCount removed —
+      // Messages feature disabled, presence requires WebSocket.
 
-      try {
-        unsubPresenceRef.current = subscribeToActiveUsersCount((count) => {
-          if (mounted) { setActiveUsersCount(count); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Presence init error:', e);
-      }
-
-      // Fetch initial unread count
-      if (user) {
-        getTotalUnreadCount()
-          .then((count) => { if (mounted) setUnreadCount(count); })
-          .catch(() => {});
-      }
     };
 
     init();
-
-    // ── REST polling for unread message count (replaces socket notification handler)
-    // Polls every 30s. Low frequency because unread count is non-critical UI.
-    let unreadInterval = null;
-    if (user) {
-      unreadInterval = setInterval(() => {
-        getTotalUnreadCount()
-          .then((count) => { if (mounted) setUnreadCount(count); })
-          .catch(() => {});
-      }, 30000);
-    }
 
     return () => {
       mounted = false;
@@ -237,8 +207,6 @@ export const DataProvider = ({ children }) => {
       if (unsubNotesRef.current) unsubNotesRef.current();
       if (unsubItemsRef.current) unsubItemsRef.current();
       if (unsubEventsRef.current) unsubEventsRef.current();
-      if (unreadInterval) clearInterval(unreadInterval);
-      // No socket cleanup needed — sockets disabled
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

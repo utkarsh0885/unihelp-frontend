@@ -30,7 +30,7 @@ const SavedScreen = lazy(() => import('../screens/SavedScreen'));
 const CalendarScreen = lazy(() => import('../screens/CalendarScreen'));
 const PostDetailScreen = lazy(() => import('../screens/PostDetailScreen'));
 const MyPostsScreen = lazy(() => import('../screens/MyPostsScreen'));
-const ChatScreen = lazy(() => import('../screens/ChatScreen'));
+
 const LostAndFoundScreen = lazy(() => import('../screens/LostAndFoundScreen'));
 const ProfileScreen = lazy(() => import('../screens/ProfileScreen'));
 
@@ -123,9 +123,7 @@ const AppNavigator = () => {
             {() => <Suspense fallback={<ScreenLoader />}><MyPostsScreen /></Suspense>}
           </Stack.Screen>
 
-          <Stack.Screen name="Chat" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><ChatScreen /></Suspense>}
-          </Stack.Screen>
+
 
           <Stack.Screen name="LostAndFound" options={{ animation: 'slide_from_right' }}>
             {() => <Suspense fallback={<ScreenLoader />}><LostAndFoundScreen /></Suspense>}

@@ -28,7 +28,7 @@ import { StatusBar } from 'expo-status-bar';
 import AnimatedPostCard from '../components/AnimatedPostCard';
 import ExpandableFAB from '../components/ExpandableFAB';
 import { PostSkeleton } from '../components/SkeletonLoader';
-import { initChat } from '../services/chatService';
+
 
 const createStyles = (colors, shadows) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
@@ -258,11 +258,18 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     textAlign: 'center', lineHeight: 20, marginBottom: 24,
   },
   errorRetryBtn: {
-    paddingHorizontal: 24, paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
+    width: 160, height: 48,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...shadows.medium,
   },
-  errorRetryText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  errorRetryGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorRetryText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });
 
 // ── Constants defined OUTSIDE the component ───────────────────────────────────────────
@@ -425,14 +432,7 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [deletePost]);
 
-  const handleMessage = useCallback(async (post) => {
-    try {
-      const chat = await initChat(post.author || post.userId, post.authorName || post.username, post);
-      navigation.navigate('Chat', { chat });
-    } catch (err) {
-      Alert.alert('Error', 'Could not start chat');
-    }
-  }, [navigation]);
+
 
   const renderItem = useCallback(
     ({ item, index }) => (
@@ -442,7 +442,6 @@ const HomeScreen = ({ navigation }) => {
         onLike={handleLike}
         onSave={handleSave}
         onComment={handleComment}
-        onMessage={handleMessage}
         onVotePoll={votePoll}
         onEdit={handleEditPost}
         onDelete={handleDeletePost}
@@ -450,7 +449,7 @@ const HomeScreen = ({ navigation }) => {
         index={index}
       />
     ),
-    [handleLike, handleSave, handleComment, handleEditPost, handleDeletePost, handleMessage, votePoll, userId],
+    [handleLike, handleSave, handleComment, handleEditPost, handleDeletePost, votePoll, userId],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
@@ -672,15 +671,24 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.errorIconCircle}>
               <Ionicons name="cloud-offline-outline" size={36} color="#EF4444" />
             </View>
-            <Text style={styles.errorTitle}>Failed to load posts</Text>
+            <Text style={styles.errorTitle}>No posts available</Text>
             <Text style={styles.errorSubtitle}>
-              {postsError}{`\n\nCheck your internet connection or try again.`}
+              {`The server may be waking up — this can take up to 30 seconds on free hosting.\n\nTap Retry to try again.`}
             </Text>
             <TouchableOpacity
               style={styles.errorRetryBtn}
               onPress={onRefresh}
+              activeOpacity={0.8}
             >
-              <Text style={styles.errorRetryText}>Retry</Text>
+              <LinearGradient
+                colors={['#1E3A8A', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.errorRetryGradient}
+              >
+                <Ionicons name="refresh" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.errorRetryText}>Retry</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         ) : (

@@ -13,7 +13,7 @@ import {
   getStoredSession, 
   clearAuthData 
 } from './tokenService';
-import { updateUserPresence } from './dataService';
+// updateUserPresence removed — presence tracking requires WebSocket (disabled).
 
 // ── Validation helpers ──
 export const isValidEmail = (email) => {
@@ -35,13 +35,6 @@ export const signupUser = async (name, email, password) => {
     
     await storeAuthData(token, refreshToken, user);
 
-    // Sync Presence
-    try {
-      await updateUserPresence(user.id, true);
-    } catch (e) {
-      console.warn('[signupUser] Presence sync failed:', e);
-    }
-
     return { success: true, user };
   } catch (error) {
     const message = error.response?.data?.error || 'Signup failed';
@@ -58,13 +51,6 @@ export const loginUser = async (email, password) => {
     const { token, user, refreshToken } = response.data;
 
     await storeAuthData(token, refreshToken, user);
-
-    // Sync Presence
-    try {
-      await updateUserPresence(user.id, true);
-    } catch (e) {
-      console.warn('[loginUser] Presence sync failed:', e);
-    }
 
     return { success: true, user };
   } catch (error) {
@@ -155,13 +141,7 @@ export const getSession = async () => {
  * Log out – clear session and notify backend.
  */
 export const logoutUser = async (userId) => {
-  if (userId) {
-    try {
-      await updateUserPresence(userId, false);
-    } catch (e) {
-      console.warn('[logoutUser] Failed to update presence:', e);
-    }
-  }
+  // Presence sync removed — requires WebSocket (disabled).
   
   try {
     const refreshToken = await getStoredRefreshToken();

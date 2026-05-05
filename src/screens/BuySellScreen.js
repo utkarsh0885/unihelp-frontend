@@ -14,6 +14,7 @@ import {
   FlatList,
   Alert,
   TextInput,
+  Image,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -89,14 +90,9 @@ const BuySellScreen = ({ navigation }) => {
     }
   }, [itemTitle, itemPrice, itemCondition, addItem]);
 
-  const handleChat = useCallback(async (item) => {
-    try {
-      const chat = await getOrCreateChat(item.userId, item);
-      navigation.navigate('Chat', { chat });
-    } catch (error) {
-      Alert.alert('Error', 'Could not open chat.');
-    }
-  }, [getOrCreateChat, navigation]);
+  const handleChat = useCallback(() => {
+    Alert.alert('Coming Soon', 'Direct messaging will be available in a future update.');
+  }, []);
 
   const handleReserve = useCallback(async (item) => {
     if (item.status === 'Reserved') return;

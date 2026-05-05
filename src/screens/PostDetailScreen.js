@@ -18,7 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 
 import AnimatedPostCard from '../components/AnimatedPostCard';
-import { initChat } from '../services/chatService';
+
 import { Alert } from 'react-native';
 
 const PostDetailScreen = ({ route, navigation }) => {
@@ -112,14 +112,7 @@ const PostDetailScreen = ({ route, navigation }) => {
         onLike={(id) => toggleLike(id)}
         onSave={(id) => toggleSave(id)}
         // We do not pass onComment here because we are already in the comment view
-        onMessage={async () => {
-          try {
-            const chat = await initChat(post.author || post.userId, post.authorName || post.username, post);
-            navigation.navigate('Chat', { chat });
-          } catch (err) {
-            Alert.alert('Error', 'Could not start chat');
-          }
-        }}
+        // onMessage removed — Messages feature disabled
         onVotePoll={votePoll}
         userId={userId}
         index={0}
