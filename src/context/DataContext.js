@@ -95,9 +95,9 @@ export const DataProvider = ({ children }) => {
 
     await initSeedData();
 
-    unsubPostsRef.current = subscribeToPosts((data) => {
+    unsubPostsRef.current = subscribeToPosts((data, error) => {
       setPosts(data);
-      setPostsError(null);
+      setPostsError(error || null);
       setPostsLoading(false);
     });
 

@@ -681,9 +681,13 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.errorIconCircle}>
               <Ionicons name="cloud-offline-outline" size={36} color="#EF4444" />
             </View>
-            <Text style={styles.errorTitle}>No posts available</Text>
+            <Text style={styles.errorTitle}>
+              {postsError.startsWith('404') ? 'Feature Offline' : 'Failed to Load Feed'}
+            </Text>
             <Text style={styles.errorSubtitle}>
-              {`The server may be waking up — this can take up to 30 seconds on free hosting.\n\nTap Retry to try again.`}
+              {postsError.includes('NETWORK_ERROR') || postsError.includes('timeout')
+                ? `The server may be waking up — this can take up to 30 seconds on free hosting.\n\nTap Retry to try again.`
+                : `We encountered a problem: ${postsError}\n\nTap Retry to try again.`}
             </Text>
             <TouchableOpacity
               style={styles.errorRetryBtn}
