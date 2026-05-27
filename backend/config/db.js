@@ -1,39 +1,49 @@
-const mongoose = require('mongoose');
+const admin = require('firebase-admin');
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 3000;
+// ── Firebase Admin Initialization ──────────────────────────────────────────
+// Configured to initialize using environment variables on Render.
+// If variables are missing, it falls back to basic project-level config.
+const privateKey = process.env.FIREBASE_PRIVATE_KEY
+  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+  : undefined;
 
-const connectDB = async (retryCount = 0) => {
+const initFirebase = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/unihelp');
-    // Note: useNewUrlParser and useUnifiedTopology are removed — deprecated in Mongoose 8+
-
-    console.log(`📡 MongoDB Connected: ${conn.connection.host}`);
-
-    // ── Connection event listeners ──
-    mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️  MongoDB disconnected. Attempting to reconnect...');
-    });
-    mongoose.connection.on('reconnected', () => {
-      console.log('✅ MongoDB reconnected');
-    });
-    mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err.message);
-    });
-
-  } catch (error) {
-    console.error(`❌ Error connecting to MongoDB (attempt ${retryCount + 1}/${MAX_RETRIES}): ${error.message}`);
-
-    if (retryCount < MAX_RETRIES - 1) {
-      const delay = RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff
-      console.log(`   Retrying in ${delay / 1000}s...`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return connectDB(retryCount + 1);
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        }),
+      });
+      console.log('📡 [Firebase] Admin SDK initialized successfully via Service Account Cert');
+    } else {
+      admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'unihelp-5d4dc',
+      });
+      console.log('📡 [Firebase] Admin SDK initialized with basic Project ID fallback');
     }
-
-    console.error('❌ All MongoDB connection attempts failed. Exiting.');
-    process.exit(1);
+  } catch (error) {
+    if (error.code === 'app/duplicate-app') {
+      console.log('📡 [Firebase] Admin SDK already initialized (duplicate app caught)');
+    } else {
+      console.error('❌ [Firebase] Failed to initialize Admin SDK:', error.message);
+      throw error;
+    }
   }
 };
 
-module.exports = connectDB;
+// Initialize immediately so db exports are populated correctly
+initFirebase().catch((err) => console.error('❌ [Firebase] Critical startup error:', err.message));
+
+const db = admin.firestore();
+
+// Standardize Firestore ID settings
+try {
+  db.settings({ ignoreUndefinedProperties: true });
+} catch (e) {
+  // settings might be locked if already set
+}
+
+module.exports = { admin, db, initFirebase };

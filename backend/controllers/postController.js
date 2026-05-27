@@ -1,10 +1,19 @@
-const Post = require('../models/Post');
-const Report = require('../models/Report');
+const { db, admin } = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
-// ── Allowed category values (must match Post model enum) ──
+// ── Allowed category values ──
 const ALLOWED_CATEGORIES = ['General', 'Buy/Sell', 'Events', 'Lost & Found', 'Notes', 'Other'];
+
+// Safe helper to convert any Firestore timestamp/date into milliseconds epoch
+const getEpoch = (val) => {
+  if (!val) return 0;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === 'string') return new Date(val).getTime();
+  if (val.seconds) return val.seconds * 1000;
+  return 0;
+};
 
 exports.createPost = asyncHandler(async (req, res) => {
   const { title, content, category, imageUrl, poll, price, condition } = req.body;
@@ -36,156 +45,220 @@ exports.createPost = asyncHandler(async (req, res) => {
     }
   }
 
-  const post = await Post.create({
+  const postData = {
     title: title.trim(),
     content: content.trim(),
     category: category || 'General',
-    imageUrl,
-    poll,
-    price,
-    condition,
+    imageUrl: imageUrl || null,
+    price: price || null,
+    condition: condition || null,
     author: req.user.id,
     authorName: req.user.name || 'User',
-  });
+    likes: 0,
+    likedBy: [],
+    savedBy: [],
+    commentsCount: 0,
+    isFlagged: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
 
-  const obj = post.toObject();
-  obj.id = obj._id.toString();
-  obj.username = obj.authorName;
-  obj.avatar = (obj.authorName || 'U').charAt(0).toUpperCase();
-  obj.commentsCount = 0;
+  if (poll) {
+    postData.poll = {
+      options: poll.options.map((opt) => ({
+        text: opt.text || opt,
+        votes: 0,
+      })),
+      votedBy: [],
+    };
+  }
 
-  res.status(201).json(obj);
+  const docRef = await db.collection('posts').add(postData);
+
+  // Return normalized post
+  const resObj = {
+    id: docRef.id,
+    ...postData,
+    createdAt: new Date().toISOString(), // Mock immediate timestamp for speed
+    username: postData.authorName,
+    avatar: postData.authorName.charAt(0).toUpperCase(),
+  };
+
+  res.status(201).json(resObj);
 });
 
 exports.getPosts = asyncHandler(async (req, res) => {
-  const { category, authorId, page = 1, limit = 30 } = req.query;
-  const query = {};
+  const { category, authorId, page = 1, limit = 50 } = req.query;
+
+  console.log(`[Posts] GET /api/posts | category=${category ?? 'all'} | authorId=${authorId ?? 'all'} | user=${req.user?.id ?? 'anonymous'}`);
+
+  // Fetch all posts and filter/sort in-memory to prevent complex composite index requirements in Firestore console
+  let snapshot = await db.collection('posts').get();
+  let list = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    list.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  // Filter in-memory
   if (category) {
-    if (!ALLOWED_CATEGORIES.includes(category)) {
-      throw new ApiError(400, `Invalid category filter: "${category}"`);
-    }
-    query.category = category;
+    list = list.filter((p) => p.category === category);
   }
-  if (authorId) query.author = authorId;
+  if (authorId) {
+    list = list.filter((p) => p.author === authorId);
+  }
 
-  // Pagination: clamp to reasonable bounds
+  // Sort by createdAt descending safely
+  list.sort((a, b) => getEpoch(b.createdAt) - getEpoch(a.createdAt));
+
+  // Pagination
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
   const skip = (pageNum - 1) * limitNum;
+  const paginated = list.slice(skip, skip + limitNum);
 
-  console.log(`[Posts] GET /api/posts | category=${category ?? 'all'} | page=${pageNum} | limit=${limitNum} | user=${req.user?.id ?? 'anonymous'}`);
+  // Normalize structure for frontend mapping
+  const normalized = paginated.map((p) => {
+    // Standardize dates
+    let formattedDate = new Date().toISOString();
+    const epoch = getEpoch(p.createdAt);
+    if (epoch > 0) {
+      formattedDate = new Date(epoch).toISOString();
+    }
 
-  const [posts, total] = await Promise.all([
-    Post.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .populate('author', 'name avatar')
-      .lean(),
-    Post.countDocuments(query),
-  ]);
+    return {
+      ...p,
+      createdAt: formattedDate,
+      username: p.authorName || 'User',
+      avatar: (p.authorName || 'U').charAt(0).toUpperCase(),
+      likes: p.likes ?? 0,
+      likedBy: p.likedBy ?? [],
+      savedBy: p.savedBy ?? [],
+      commentsCount: p.commentsCount ?? 0,
+    };
+  });
 
-  // Normalize MongoDB _id → id so the frontend can use item.id safely
-  const normalized = posts.map((p) => ({
-    ...p,
-    id: p._id.toString(),
-    username: p.authorName || p.author?.name || 'User',
-    avatar: (p.authorName || p.author?.name || 'U').charAt(0).toUpperCase(),
-    commentsCount: p.commentsCount ?? 0,
-  }));
-
-  console.log(`[Posts] ✅ Returning ${normalized.length}/${total} posts (page ${pageNum})`);
-
-  // Return array directly for backward compatibility
-  // Frontend currently expects a plain array, not { data, pagination }
+  console.log(`[Posts] ✅ Returning ${normalized.length}/${list.length} posts`);
   res.json(normalized);
 });
 
 exports.getPostById = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id).populate('author', 'name avatar').lean();
-  if (!post) throw new ApiError(404, 'Post not found');
+  const doc = await db.collection('posts').doc(req.params.id).get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
+
+  const post = doc.data();
+  post.id = doc.id;
+
+  // Normalize createdAt
+  let formattedDate = new Date().toISOString();
+  const epoch = getEpoch(post.createdAt);
+  if (epoch > 0) {
+    formattedDate = new Date(epoch).toISOString();
+  }
 
   res.json({
     ...post,
-    id: post._id.toString(),
-    username: post.authorName || post.author?.name || 'User',
-    avatar: (post.authorName || post.author?.name || 'U').charAt(0).toUpperCase(),
+    createdAt: formattedDate,
+    username: post.authorName || 'User',
+    avatar: (post.authorName || 'U').charAt(0).toUpperCase(),
+    likes: post.likes ?? 0,
+    likedBy: post.likedBy ?? [],
+    savedBy: post.savedBy ?? [],
     commentsCount: post.commentsCount ?? 0,
   });
 });
 
 exports.updatePost = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
+
+  const post = doc.data();
 
   // Only author or admin can update
-  if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (post.author !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'Unauthorized to edit this post');
   }
 
   const { title, content, category, imageUrl } = req.body;
+  const updates = {};
+
   if (title !== undefined) {
     if (!title.trim()) throw new ApiError(400, 'Title cannot be empty');
-    post.title = title.trim();
+    updates.title = title.trim();
   }
   if (content !== undefined) {
     if (!content.trim()) throw new ApiError(400, 'Content cannot be empty');
-    post.content = content.trim();
+    updates.content = content.trim();
   }
   if (category !== undefined) {
     if (!ALLOWED_CATEGORIES.includes(category)) {
       throw new ApiError(400, `Invalid category: "${category}"`);
     }
-    post.category = category;
+    updates.category = category;
   }
-  if (imageUrl !== undefined) post.imageUrl = imageUrl;
+  if (imageUrl !== undefined) {
+    updates.imageUrl = imageUrl;
+  }
 
-  await post.save();
-  const obj = post.toObject();
-  obj.id = obj._id.toString();
-  res.json(obj);
+  await ref.update(updates);
+  res.json({ id: doc.id, ...post, ...updates });
 });
 
 exports.toggleLike = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
 
+  const post = doc.data();
   const userId = req.user.id;
-  const likeIndex = post.likedBy.indexOf(userId);
+  const likedBy = post.likedBy || [];
+  const likeIndex = likedBy.indexOf(userId);
+
+  let newLikes = post.likes ?? 0;
 
   if (likeIndex > -1) {
-    post.likedBy.splice(likeIndex, 1);
-    post.likes = Math.max(0, post.likes - 1);
+    likedBy.splice(likeIndex, 1);
+    newLikes = Math.max(0, newLikes - 1);
   } else {
-    post.likedBy.push(userId);
-    post.likes += 1;
+    likedBy.push(userId);
+    newLikes += 1;
   }
 
-  await post.save();
-  res.json({ likes: post.likes, likedBy: post.likedBy });
+  await ref.update({
+    likedBy,
+    likes: newLikes,
+  });
+
+  res.json({ likes: newLikes, likedBy });
 });
 
 exports.toggleSave = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
 
+  const post = doc.data();
   const userId = req.user.id;
-  const saveIndex = post.savedBy.indexOf(userId);
+  const savedBy = post.savedBy || [];
+  const saveIndex = savedBy.indexOf(userId);
 
   if (saveIndex > -1) {
-    post.savedBy.splice(saveIndex, 1);
+    savedBy.splice(saveIndex, 1);
   } else {
-    post.savedBy.push(userId);
+    savedBy.push(userId);
   }
 
-  await post.save();
-  res.json({ savedBy: post.savedBy });
+  await ref.update({ savedBy });
+  res.json({ savedBy });
 });
 
 exports.votePoll = asyncHandler(async (req, res) => {
   const { optionIndex } = req.body;
 
-  // Validate optionIndex
   if (optionIndex === undefined || optionIndex === null) {
     throw new ApiError(400, 'optionIndex is required');
   }
@@ -194,50 +267,64 @@ exports.votePoll = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'optionIndex must be a non-negative integer');
   }
 
-  const post = await Post.findById(req.params.id);
-  if (!post || !post.poll) throw new ApiError(404, 'Poll not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
 
-  if (idx >= post.poll.options.length) {
-    throw new ApiError(400, `optionIndex ${idx} is out of bounds (max: ${post.poll.options.length - 1})`);
+  const post = doc.data();
+  if (!post.poll) throw new ApiError(404, 'Poll not found');
+
+  const poll = post.poll;
+  const votedBy = poll.votedBy || [];
+
+  if (idx >= poll.options.length) {
+    throw new ApiError(400, `optionIndex ${idx} is out of bounds`);
   }
 
-  if (post.poll.votedBy.includes(req.user.id)) {
+  if (votedBy.includes(req.user.id)) {
     throw new ApiError(400, 'Already voted');
   }
 
-  post.poll.options[idx].votes += 1;
-  post.poll.votedBy.push(req.user.id);
-  await post.save();
+  poll.options[idx].votes = (poll.options[idx].votes ?? 0) + 1;
+  votedBy.push(req.user.id);
+  poll.votedBy = votedBy;
 
-  res.json(post.poll);
+  await ref.update({ poll });
+  res.json(poll);
 });
 
 exports.flagPost = asyncHandler(async (req, res) => {
   const { reason } = req.body;
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
 
-  await Post.findByIdAndUpdate(req.params.id, { isFlagged: true });
+  await ref.update({ isFlagged: true });
 
-  await Report.create({
+  await db.collection('reports').add({
     targetType: 'post',
     targetId: req.params.id,
     reason: reason || 'Community Flag',
     reporter: req.user.id,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
   });
 
   res.json({ success: true, message: 'Post flagged for review' });
 });
 
 exports.deletePost = asyncHandler(async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const ref = db.collection('posts').doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ApiError(404, 'Post not found');
+
+  const post = doc.data();
 
   // Only author or admin can delete
-  if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (post.author !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'Unauthorized');
   }
 
-  await post.deleteOne();
+  await ref.delete();
   res.json({ success: true, message: 'Post deleted' });
 });

@@ -1,7 +1,16 @@
-const Comment = require('../models/Comment');
-const Post = require('../models/Post');
+const { db, admin } = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
+
+// Helper to safely get timestamp milliseconds
+const getEpoch = (val) => {
+  if (!val) return 0;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === 'string') return new Date(val).getTime();
+  if (val.seconds) return val.seconds * 1000;
+  return 0;
+};
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { postId, content } = req.body;
@@ -11,63 +20,99 @@ exports.createComment = asyncHandler(async (req, res) => {
   if (content.length > 1000) throw new ApiError(400, 'Comment must be 1000 characters or less');
 
   // Verify the post exists
-  const post = await Post.findById(postId);
-  if (!post) throw new ApiError(404, 'Post not found');
+  const postRef = db.collection('posts').doc(postId);
+  const postDoc = await postRef.get();
+  if (!postDoc.exists) throw new ApiError(404, 'Post not found');
 
-  const comment = await Comment.create({
+  const newComment = {
     postId,
     content: content.trim(),
     author: req.user.id,
     authorName: req.user.name || 'User',
-  });
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const docRef = await db.collection('comments').add(newComment);
 
   // Increment comment count on post
-  await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
+  await postRef.update({
+    commentsCount: admin.firestore.FieldValue.increment(1),
+  });
 
-  // Normalize _id → id for frontend
-  const obj = comment.toObject();
-  obj.id = obj._id.toString();
-  obj.username = obj.authorName;
-  obj.avatar = (obj.authorName || 'U').charAt(0).toUpperCase();
+  // Normalize for frontend
+  const resObj = {
+    id: docRef.id,
+    ...newComment,
+    createdAt: new Date().toISOString(),
+    username: newComment.authorName,
+    avatar: newComment.authorName.charAt(0).toUpperCase(),
+  };
 
-  res.status(201).json(obj);
+  res.status(201).json(resObj);
 });
 
 exports.getCommentsByPost = asyncHandler(async (req, res) => {
   const { postId } = req.params;
   const { page = 1, limit = 50 } = req.query;
 
+  const snapshot = await db.collection('comments').where('postId', '==', postId).get();
+  let list = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    list.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  // Sort by createdAt ascending in-memory safely to prevent composite index errors
+  list.sort((a, b) => getEpoch(a.createdAt) - getEpoch(b.createdAt));
+
+  // Pagination
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+  const skip = (pageNum - 1) * limitNum;
+  const paginated = list.slice(skip, skip + limitNum);
 
-  const comments = await Comment.find({ postId })
-    .sort({ createdAt: 1 })
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .populate('author', 'name avatar')
-    .lean();
-
-  // Normalize _id → id for frontend
-  const normalized = comments.map((c) => ({
-    ...c,
-    id: c._id.toString(),
-    username: c.authorName || c.author?.name || 'User',
-    avatar: (c.authorName || c.author?.name || 'U').charAt(0).toUpperCase(),
-  }));
+  const normalized = paginated.map((c) => {
+    let formattedDate = new Date().toISOString();
+    const epoch = getEpoch(c.createdAt);
+    if (epoch > 0) {
+      formattedDate = new Date(epoch).toISOString();
+    }
+    return {
+      ...c,
+      createdAt: formattedDate,
+      username: c.authorName || 'User',
+      avatar: (c.authorName || 'U').charAt(0).toUpperCase(),
+    };
+  });
 
   res.json(normalized);
 });
 
 exports.deleteComment = asyncHandler(async (req, res) => {
-  const comment = await Comment.findById(req.params.id);
-  if (!comment) throw new ApiError(404, 'Comment not found');
+  const commentRef = db.collection('comments').doc(req.params.id);
+  const doc = await commentRef.get();
+  if (!doc.exists) throw new ApiError(404, 'Comment not found');
 
-  if (comment.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  const comment = doc.data();
+
+  if (comment.author !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'Unauthorized');
   }
 
-  await Post.findByIdAndUpdate(comment.postId, { $inc: { commentsCount: -1 } });
-  await comment.deleteOne();
+  // Decrement commentsCount on the post
+  const postRef = db.collection('posts').doc(comment.postId);
+  const postDoc = await postRef.get();
+  if (postDoc.exists) {
+    const currentCount = postDoc.data().commentsCount ?? 0;
+    await postRef.update({
+      commentsCount: Math.max(0, currentCount - 1),
+    });
+  }
 
+  await commentRef.delete();
   res.json({ success: true, message: 'Comment deleted' });
 });

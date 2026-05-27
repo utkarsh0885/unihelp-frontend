@@ -15,7 +15,7 @@ const adminRoutes = require('./routes/admin');
 const postRoutes = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
 const { initSocket } = require('./config/socket');
-const connectDB = require('./config/db');
+const { initFirebase } = require('./config/db');
 
 const app = express();
 const server = http.createServer(app);
@@ -49,54 +49,38 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// ── Trust proxy (required for Render reverse proxy) ──────────────────────────
+// Trust reverse proxy (Render load balancers)
 app.set('trust proxy', 1);
 
-// ── REQUEST LOGGER ────────────────────────────────────────────────────────────
-// Logs every incoming request: method, path, origin, and status when done.
-app.use((req, res, next) => {
-  const origin = req.headers.origin || req.headers.referer || 'no-origin';
-  const start = Date.now();
-  res.on('finish', () => {
-    const ms = Date.now() - start;
-    const level = res.statusCode >= 400 ? '⚠️ ' : '✅';
-    console.log(
-      `${level} ${req.method} ${req.path} | status=${res.statusCode} | origin=${origin} | ${ms}ms`
-    );
-  });
-  next();
-});
-
-// ── CORS ──────────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = [
-  process.env.FRONTEND_URL,           // e.g. https://unihelp.vercel.app
-  'http://localhost:8081',            // Expo web dev
-  'http://localhost:19006',           // Expo web (legacy)
-  'http://localhost:3000',            // local backend self-calls
+// ── CORS middleware ───────────────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:8081',                 // Local Expo Web client
+  process.env.FRONTEND_URL,                // Production Vercel client
+  'https://unihelp-frontend-iota.vercel.app',
 ].filter(Boolean);
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow no-origin (React Native, Expo Go, Postman, curl)
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
       if (!origin) return callback(null, true);
 
-      const allowed =
-        ALLOWED_ORIGINS.includes(origin) ||       // exact match list
-        /^https?:\/\/.*\.vercel\.app$/.test(origin) ||  // any vercel.app subdomain
-        /^http:\/\/localhost(:\d+)?$/.test(origin) ||   // any localhost port
-        /^exp:\/\//.test(origin);                       // Expo Go deep links
+      // Check if origin is in whitelist
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed === '*') return true;
+        return origin === allowed || origin.startsWith(allowed);
+      });
 
-      if (allowed) {
+      if (isAllowed) {
         callback(null, true);
       } else {
-        console.warn(`[CORS] ❌ Blocked origin: "${origin}"`);
-        callback(new Error(`CORS: Origin "${origin}" is not allowed`));
+        console.warn(`[CORS] Rejected origin: ${origin}`);
+        callback(new Error(`CORS: Origin "${origin}" not allowed by security policy`));
       }
     },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     optionsSuccessStatus: 200,
   })
 );
@@ -108,8 +92,7 @@ app.options('*', cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── Input Sanitization (NoSQL injection prevention) ───────────────────────────
-// Strip any keys starting with $ or containing . from req.body/query/params
+// ── Input Sanitization ────────────────────────────────────────────────────────
 app.use((req, _res, next) => {
   const sanitize = (obj) => {
     if (!obj || typeof obj !== 'object') return obj;
@@ -174,26 +157,13 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
-const mongoose = require('mongoose');
 app.get('/health', (req, res) => {
-  const dbState = mongoose.connection.readyState;
-  const dbStates = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
-
-  res.status(dbState === 1 ? 200 : 503).json({
-    status: dbState === 1 ? 'ok' : 'degraded',
+  res.status(200).json({
+    status: 'ok',
     message: 'UniHelp backend is running',
-    database: dbStates[dbState] || 'unknown',
-    env: process.env.NODE_ENV,
-    frontendUrl: process.env.FRONTEND_URL,
+    database: 'Firestore (Firebase Admin SDK)',
     timestamp: new Date().toISOString(),
-    uptime: Math.floor(process.uptime()),
   });
-});
-
-// ── 404 handler — catches any route not defined above ─────────────────────────
-app.use((req, res) => {
-  console.warn(`[404] ${req.method} ${req.originalUrl} — route not found`);
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
 // ── Global error handler ──────────────────────────────────────────────────────
@@ -206,17 +176,6 @@ app.use((err, req, res, _next) => {
   // ApiError (operational, expected)
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({ error: err.message });
-  }
-
-  // Mongoose validation errors
-  if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map((e) => e.message);
-    return res.status(400).json({ error: messages.join(', ') });
-  }
-
-  // Mongoose CastError (bad ObjectId)
-  if (err.name === 'CastError' && err.kind === 'ObjectId') {
-    return res.status(400).json({ error: 'Invalid ID format' });
   }
 
   // JWT errors
@@ -234,14 +193,15 @@ app.use((err, req, res, _next) => {
 
 // ── Start server ──────────────────────────────────────────────────────────────
 const startServer = async () => {
-  // Connect to DB FIRST (fixes Bug #11 — socket/routes can't use DB before connection)
-  await connectDB();
+  // Initialize Firebase Admin SDK
+  await initFirebase();
 
-  // Initialize Socket.io (currently a no-op stub)
+  // Initialize Socket.io (no-op stub)
   initSocket(server);
 
   server.listen(PORT, () => {
     console.log(`\n✅ UniHelp backend running on port ${PORT}`);
+    console.log(`📡 Database:                Firebase Firestore`);
     console.log(`🌐 Allowed frontend origin: ${process.env.FRONTEND_URL}`);
     console.log(`🔐 Google OAuth entry:      ${BASE_URL}/auth/google`);
     console.log(`📞 Google OAuth callback:   ${process.env.GOOGLE_CALLBACK_URL}`);
@@ -270,10 +230,7 @@ const gracefulShutdown = (signal) => {
   console.log(`\n🛑 ${signal} received. Shutting down gracefully...`);
   server.close(() => {
     console.log('   HTTP server closed.');
-    mongoose.connection.close(false).then(() => {
-      console.log('   MongoDB connection closed.');
-      process.exit(0);
-    });
+    process.exit(0);
   });
 
   // Force exit after 10 seconds

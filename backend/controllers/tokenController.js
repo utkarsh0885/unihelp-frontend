@@ -1,19 +1,19 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const User = require('../models/User');
+const { db } = require('../config/db');
 
 // Define token generators here to stay DRY if possible, or replicate short version
 const generateAccessToken = (user) => {
   const secret = process.env.JWT_SECRET || 'fallback_secret';
   return jwt.sign(
-    { id: user._id || user.id, role: user.role, name: user.name, email: user.email },
+    { id: user.id, role: user.role, name: user.name, email: user.email },
     secret,
     { expiresIn: '15m' }
   );
 };
 const generateRefreshToken = (user) => {
   const secret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
-  return jwt.sign({ id: user._id || user.id }, secret, { expiresIn: '7d' });
+  return jwt.sign({ id: user.id }, secret, { expiresIn: '7d' });
 };
 
 exports.refresh = (req, res) => {
@@ -26,9 +26,13 @@ exports.refresh = (req, res) => {
     if (err) return res.status(403).json({ error: 'Invalid or expired refresh token' });
 
     try {
-      // Look up user in MongoDB
-      const user = await User.findById(decoded.id);
-      if (!user) return res.status(403).json({ error: 'User not found' });
+      // Look up user in Firestore
+      const userRef = db.collection('users').doc(decoded.id);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) return res.status(403).json({ error: 'User not found' });
+
+      const user = userDoc.data();
+      user.id = userDoc.id;
 
       // Validate the hash against the database hash
       const incomingHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
@@ -41,14 +45,17 @@ exports.refresh = (req, res) => {
       const newRefreshToken = generateRefreshToken(user);
 
       // Save new hash
-      user.hashedRefreshToken = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
-      await user.save();
+      const newHashedRT = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+      await userRef.update({
+        hashedRefreshToken: newHashedRT,
+      });
 
       res.json({
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
       });
     } catch (dbError) {
+      console.error('[TokenController] refresh error:', dbError.message);
       res.status(500).json({ error: 'Database error during refresh' });
     }
   });
@@ -60,10 +67,12 @@ exports.logout = async (req, res) => {
     try {
       const decoded = jwt.decode(refreshToken);
       if (decoded && decoded.id) {
-         const user = await User.findById(decoded.id);
-         if (user) {
-           user.hashedRefreshToken = null; // Revoke
-           await user.save();
+         const userRef = db.collection('users').doc(decoded.id);
+         const userDoc = await userRef.get();
+         if (userDoc.exists) {
+           await userRef.update({
+             hashedRefreshToken: null,
+           });
          }
       }
     } catch (e) {
