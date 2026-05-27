@@ -212,7 +212,11 @@ const LoginScreen = ({ navigation }) => {
     setGoogleError('');
     setGoogleLoading(true);
     try {
-      const redirectUri = 'exp://10.12.24.23:8081/--/auth/callback';
+      const redirectUri = Platform.OS === 'web'
+        ? (window.location.hostname === 'localhost'
+            ? 'http://localhost:8081/auth/callback'
+            : 'https://unihelp-frontend-iota.vercel.app/auth/callback')
+        : Linking.createURL('auth/callback');
       const backendUrl  = `https://unihelp-backend-a5f3.onrender.com/auth/google?redirectUri=${encodeURIComponent(redirectUri)}`;
       const result = await WebBrowser.openAuthSessionAsync(backendUrl, redirectUri);
 
