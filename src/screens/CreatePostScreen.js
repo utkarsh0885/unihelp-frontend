@@ -37,12 +37,13 @@ const CreatePostScreen = ({ navigation, route }) => {
   const { addPost, updatePost } = useData();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
-  const existingPost = route?.params?.post;
+  const existingPost = route?.params?.post || null;
   const isEdit = !!existingPost;
+  const defaultCategory = route?.params?.defaultCategory || 'General';
 
   const [title, setTitle] = useState(existingPost?.title || '');
   const [content, setContent] = useState(existingPost?.content || '');
-  const [category, setCategory] = useState(existingPost?.category || 'General');
+  const [category, setCategory] = useState(existingPost?.category || defaultCategory);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(existingPost?.imageUrl || null);
   const [attachedLink, setAttachedLink] = useState('');
@@ -149,10 +150,12 @@ const CreatePostScreen = ({ navigation, route }) => {
   };
 
   const handleGoBack = () => {
-    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+    if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
       navigation.goBack();
     } else if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
     }
   };
 
@@ -195,7 +198,7 @@ const CreatePostScreen = ({ navigation, route }) => {
           {/* Title Input */}
           <View style={styles.titleWrapper}>
             <TextInput
-              style={styles.titleInput}
+              style={[styles.titleInput, { color: colors.textPrimary }]}
               placeholder="Title (required)"
               placeholderTextColor={colors.textTertiary}
               value={title}
@@ -205,7 +208,7 @@ const CreatePostScreen = ({ navigation, route }) => {
           </View>
 
           <TextInput
-            style={styles.textArea}
+            style={[styles.textArea, { color: colors.textPrimary }]}
             placeholder="Description... share details with the campus community!"
             placeholderTextColor={colors.textTertiary}
             multiline
@@ -263,7 +266,7 @@ const CreatePostScreen = ({ navigation, route }) => {
           {showLinkInput && (
             <View style={styles.linkInputRow}>
               <TextInput
-                style={styles.linkInput}
+                style={[styles.linkInput, { color: colors.textPrimary }]}
                 placeholder="https://example.com"
                 placeholderTextColor={colors.textTertiary}
                 value={attachedLink}

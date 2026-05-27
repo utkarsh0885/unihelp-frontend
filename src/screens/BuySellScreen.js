@@ -36,6 +36,16 @@ const BuySellScreen = ({ navigation }) => {
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
+    }
+  };
+
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
 
@@ -215,7 +225,7 @@ const BuySellScreen = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Buy / Sell</Text>
@@ -228,8 +238,8 @@ const BuySellScreen = ({ navigation }) => {
       {showSell && (
         <View style={styles.sellCard}>
           <Text style={styles.sellTitle}>Sell an Item</Text>
-          <TextInput style={styles.sellInput} placeholder="Item name" placeholderTextColor={colors.textTertiary} value={itemTitle} onChangeText={setItemTitle} />
-          <TextInput style={styles.sellInput} placeholder="Price (e.g. 500)" placeholderTextColor={colors.textTertiary} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} />
+          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Item name" placeholderTextColor={colors.textTertiary} value={itemTitle} onChangeText={setItemTitle} />
+          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Price (e.g. 500)" placeholderTextColor={colors.textTertiary} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} />
           <View style={styles.conditionRow}>
             {['New', 'Like New', 'Good', 'Used'].map((c) => (
               <TouchableOpacity key={c} style={[styles.conditionChip, itemCondition === c && styles.conditionChipActive]} onPress={() => setItemCondition(c)} activeOpacity={0.7}>

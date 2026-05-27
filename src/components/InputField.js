@@ -46,7 +46,7 @@ const InputField = ({ label, icon, error, secureTextEntry, ...rest }) => {
         )}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.textPrimary }]}
           placeholderTextColor={colors.textTertiary}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}

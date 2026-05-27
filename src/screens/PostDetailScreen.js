@@ -46,6 +46,8 @@ const PostDetailScreen = ({ route, navigation }) => {
       navigation.goBack();
     } else if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
     }
   };
 
@@ -196,7 +198,7 @@ const PostDetailScreen = ({ route, navigation }) => {
         <View style={styles.inputBar}>
           <TextInput
             ref={inputRef}
-            style={styles.input}
+            style={[styles.input, { color: colors.textPrimary }]}
             placeholder="Write a comment…"
             placeholderTextColor={colors.textTertiary}
             value={newComment}

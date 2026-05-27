@@ -37,6 +37,16 @@ const ShareNotesScreen = ({ navigation }) => {
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
+    }
+  };
+
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
 
@@ -195,7 +205,7 @@ const ShareNotesScreen = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Share Notes</Text>
@@ -209,8 +219,8 @@ const ShareNotesScreen = ({ navigation }) => {
       {showUpload && (
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Upload Notes</Text>
-          <TextInput style={styles.uploadInput} placeholder="Note title (e.g. Linked Lists)" placeholderTextColor={colors.textTertiary} value={noteTitle} onChangeText={setNoteTitle} />
-          <TextInput style={styles.uploadInput} placeholder="Subject code (e.g. CS201)" placeholderTextColor={colors.textTertiary} value={noteSubject} onChangeText={setNoteSubject} autoCapitalize="characters" />
+          <TextInput style={[styles.uploadInput, { color: colors.textPrimary }]} placeholder="Note title (e.g. Linked Lists)" placeholderTextColor={colors.textTertiary} value={noteTitle} onChangeText={setNoteTitle} />
+          <TextInput style={[styles.uploadInput, { color: colors.textPrimary }]} placeholder="Subject code (e.g. CS201)" placeholderTextColor={colors.textTertiary} value={noteSubject} onChangeText={setNoteSubject} autoCapitalize="characters" />
 
           <View style={styles.attachmentActions}>
             <TouchableOpacity style={styles.attachmentBtn} onPress={pickImage} activeOpacity={0.7}>
@@ -230,7 +240,7 @@ const ShareNotesScreen = ({ navigation }) => {
           {showLinkInput && (
             <View style={styles.linkInputRow}>
               <TextInput 
-                style={styles.linkInput} 
+                style={[styles.linkInput, { color: colors.textPrimary }]} 
                 placeholder="https://google.com/drive/..." 
                 placeholderTextColor={colors.textTertiary} 
                 value={linkUrl} 

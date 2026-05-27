@@ -115,6 +115,8 @@ const CreateEventScreen = ({ navigation, route }) => {
       navigation.goBack();
     } else if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
     }
   };
 

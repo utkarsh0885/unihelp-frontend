@@ -105,6 +105,8 @@ const CreatePollScreen = ({ navigation }) => {
       navigation.goBack();
     } else if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Main');
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
+      window.history.back();
     }
   };
 
@@ -131,7 +133,7 @@ const CreatePollScreen = ({ navigation }) => {
           <Text style={styles.label}>Poll Question</Text>
           <View style={styles.inputWrapper}>
             <TextInput
-              style={styles.textArea}
+              style={[styles.textArea, { color: colors.textPrimary }]}
               placeholder="Ask your community..."
               placeholderTextColor={colors.textTertiary}
               multiline
@@ -178,7 +180,7 @@ const CreatePollScreen = ({ navigation }) => {
               <View key={opt.id} style={styles.optionRow}>
                 <View style={[styles.inputWrapper, { flex: 1 }]}>
                   <TextInput
-                    style={styles.optionInput}
+                    style={[styles.optionInput, { color: colors.textPrimary }]}
                     placeholder={`Option ${index + 1}`}
                     placeholderTextColor={colors.textTertiary}
                     value={opt.text}
