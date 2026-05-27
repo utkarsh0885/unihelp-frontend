@@ -9,6 +9,11 @@ const privateKey = process.env.FIREBASE_PRIVATE_KEY
 
 const initFirebase = async () => {
   try {
+    if (admin.apps.length > 0) {
+      console.log('📡 [Firebase] Admin SDK already initialized (singleton active)');
+      return;
+    }
+
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
       admin.initializeApp({
         credential: admin.credential.cert({
