@@ -403,10 +403,10 @@ const HomeScreen = ({ navigation }) => {
 
   // Debug: market items
   React.useEffect(() => {
-    console.log(`[HomeScreen] 🛝 items.length=${items.length}`);
+    console.log(`[HomeScreen] 🛝 items.length=${items?.length ?? 0}`);
     // ⚠️ items is an array — only log count change, do NOT put items in deps of any
     // effect that calls setState, or it creates a loop.
-  }, [items.length]);
+  }, [items?.length]);
 
   const handleLike = useCallback((postId) => {
     toggleLike(postId);

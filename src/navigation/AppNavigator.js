@@ -6,12 +6,17 @@
  *   - Auth flow (Login / Signup)  when logged out
  *   - Drawer → Tabs → Screens    when logged in
  *   - SavedScreen, CommentModal, Placeholder
+ *
+ * ⚠️ IMPORTANT: All screens rendered via {(props) => ...} MUST
+ *    forward {...props} to the component so navigation & route
+ *    params are available. Missing this causes the params crash.
  */
 
 import React, { Suspense, lazy } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { View, ActivityIndicator } from 'react-native';
+import ScreenErrorBoundary from '../components/ScreenErrorBoundary';
 
 // Synchronous core imports
 import AuthNavigator from './AuthNavigator';
@@ -64,6 +69,15 @@ const ScreenLoader = () => (
   </View>
 );
 
+// Wrap lazy screen in Suspense + ErrorBoundary and forward ALL props
+const LazyScreen = ({ Component, ...props }) => (
+  <ScreenErrorBoundary>
+    <Suspense fallback={<ScreenLoader />}>
+      <Component {...props} />
+    </Suspense>
+  </ScreenErrorBoundary>
+);
+
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -84,73 +98,69 @@ const AppNavigator = () => {
           }}>
           {/* Main app with drawer → tabs */}
           <Stack.Screen name="Main">
-            {() => <Suspense fallback={<ScreenLoader />}><DrawerNavigator /></Suspense>}
+            {(props) => <LazyScreen Component={DrawerNavigator} {...props} />}
           </Stack.Screen>
 
           {/* Modal: Create a new post or poll */}
           <Stack.Screen name="CreatePost" options={{ animation: 'slide_from_bottom', presentation: 'modal' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><CreatePostScreen /></Suspense>}
+            {(props) => <LazyScreen Component={CreatePostScreen} {...props} />}
           </Stack.Screen>
           <Stack.Screen name="CreatePoll" options={{ animation: 'slide_from_bottom', presentation: 'modal' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><CreatePollScreen /></Suspense>}
+            {(props) => <LazyScreen Component={CreatePollScreen} {...props} />}
           </Stack.Screen>
           <Stack.Screen name="CreateEvent" options={{ animation: 'slide_from_bottom', presentation: 'modal' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><CreateEventScreen /></Suspense>}
+            {(props) => <LazyScreen Component={CreateEventScreen} {...props} />}
           </Stack.Screen>
 
           {/* Feature sub-screens */}
           <Stack.Screen name="ShareNotes" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><ShareNotesScreen /></Suspense>}
+            {(props) => <LazyScreen Component={ShareNotesScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="BuySell" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><BuySellScreen /></Suspense>}
+            {(props) => <LazyScreen Component={BuySellScreen} {...props} />}
           </Stack.Screen>
-          
+
           <Stack.Screen name="DiscoverEvents" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><DiscoverEventsScreen /></Suspense>}
+            {(props) => <LazyScreen Component={DiscoverEventsScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="Calendar" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><CalendarScreen /></Suspense>}
+            {(props) => <LazyScreen Component={CalendarScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="Saved" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><SavedScreen /></Suspense>}
+            {(props) => <LazyScreen Component={SavedScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="MyPosts" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><MyPostsScreen /></Suspense>}
+            {(props) => <LazyScreen Component={MyPostsScreen} {...props} />}
           </Stack.Screen>
 
-
-
           <Stack.Screen name="LostAndFound" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><LostAndFoundScreen /></Suspense>}
+            {(props) => <LazyScreen Component={LostAndFoundScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="Profile" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><ProfileScreen /></Suspense>}
+            {(props) => <LazyScreen Component={ProfileScreen} {...props} />}
           </Stack.Screen>
 
           <Stack.Screen name="PostDetail" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><PostDetailScreen /></Suspense>}
+            {(props) => <LazyScreen Component={PostDetailScreen} {...props} />}
           </Stack.Screen>
 
           {/* Role-Protected Admin Screen */}
           <Stack.Screen name="AdminDashboard" options={{ animation: 'slide_from_right' }}>
-            {() => (
+            {(props) => (
               <ProtectedRoute allowedRoles={['admin']}>
-                <Suspense fallback={<ScreenLoader />}>
-                  <AdminScreen />
-                </Suspense>
+                <LazyScreen Component={AdminScreen} {...props} />
               </ProtectedRoute>
             )}
           </Stack.Screen>
 
           {/* Placeholder for coming-soon features */}
           <Stack.Screen name="Placeholder" options={{ animation: 'slide_from_right' }}>
-            {() => <Suspense fallback={<ScreenLoader />}><PlaceholderScreen /></Suspense>}
+            {(props) => <LazyScreen Component={PlaceholderScreen} {...props} />}
           </Stack.Screen>
         </Stack.Group>
       ) : (

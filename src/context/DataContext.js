@@ -1,9 +1,17 @@
 /**
  * DataContext – Centralized Global State
  * ─────────────────────────────────────────────
- * Manages all app data: posts, doubts, comments, saved, notes, items.
+ * Manages all app data: posts, doubts, comments, saved, notes, items,
+ * events, and notifications.
+ *
  * Polls backend API every 15s with proper error handling so the loading
  * state is always resolved — no infinite skeleton loaders.
+ *
+ * Changes from previous version:
+ *  - Added notifications state + markNotificationRead/markAllNotificationsRead
+ *  - Fixed refreshData() callback to match (data, error) signature
+ *  - Added subscription deduplication guard in refreshData()
+ *  - Added optional chaining throughout
  */
 
 import React, {
@@ -61,8 +69,9 @@ export const DataProvider = ({ children }) => {
   const [notes, setNotes] = useState([]);
   const [items, setItems] = useState([]);
   const [events, setEvents] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
-  const [postsError, setPostsError] = useState(null);   // ← NEW: tracks API error message
+  const [postsError, setPostsError] = useState(null);
   const [doubtsLoading, setDoubtsLoading] = useState(true);
   const [notesLoading, setNotesLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(true);
@@ -73,13 +82,13 @@ export const DataProvider = ({ children }) => {
   const unsubNotesRef = useRef(null);
   const unsubItemsRef = useRef(null);
   const unsubEventsRef = useRef(null);
-  // unsubChatsRef removed — chats no longer polled from DataContext
-  // unsubPresenceRef removed — presence was socket-only
 
   const [chats] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeUsersCount] = useState(0); // stub — requires socket presence
 
+  // ── Refresh: tears down existing subs and re-creates them ──
+  // Guards against duplicate subscriptions by tearing down first.
   const refreshData = useCallback(async () => {
     setPostsLoading(true);
     setDoubtsLoading(true);
@@ -87,37 +96,39 @@ export const DataProvider = ({ children }) => {
     setItemsLoading(true);
     setEventsLoading(true);
 
-    if (unsubPostsRef.current) unsubPostsRef.current();
-    if (unsubDoubtsRef.current) unsubDoubtsRef.current();
-    if (unsubNotesRef.current) unsubNotesRef.current();
-    if (unsubItemsRef.current) unsubItemsRef.current();
-    if (unsubEventsRef.current) unsubEventsRef.current();
+    // Tear down existing subscriptions to prevent duplicates
+    if (unsubPostsRef.current) { unsubPostsRef.current(); unsubPostsRef.current = null; }
+    if (unsubDoubtsRef.current) { unsubDoubtsRef.current(); unsubDoubtsRef.current = null; }
+    if (unsubNotesRef.current) { unsubNotesRef.current(); unsubNotesRef.current = null; }
+    if (unsubItemsRef.current) { unsubItemsRef.current(); unsubItemsRef.current = null; }
+    if (unsubEventsRef.current) { unsubEventsRef.current(); unsubEventsRef.current = null; }
 
     await initSeedData();
 
-    unsubPostsRef.current = subscribeToPosts((data) => {
-      setPosts(data);
-      setPostsError(null);
+    // subscribeToPosts now sends (data, error) — handle both args
+    unsubPostsRef.current = subscribeToPosts((data, error) => {
+      setPosts(data || []);
+      setPostsError(error || null);
       setPostsLoading(false);
     });
 
     unsubDoubtsRef.current = subscribeToDoubts((data) => {
-      setDoubts(data);
+      setDoubts(data || []);
       setDoubtsLoading(false);
     });
 
     unsubNotesRef.current = subscribeToNotes((data) => {
-      setNotes(data);
+      setNotes(data || []);
       setNotesLoading(false);
     });
 
     unsubItemsRef.current = subscribeToItems((data) => {
-      setItems(data);
+      setItems(data || []);
       setItemsLoading(false);
     });
 
     unsubEventsRef.current = subscribeToEvents((data) => {
-      setEvents(data);
+      setEvents(data || []);
       setEventsLoading(false);
     });
   }, []);
@@ -139,7 +150,7 @@ export const DataProvider = ({ children }) => {
           if (!mounted) return;
 
           const incoming = data || [];
-          const incomingJson = JSON.stringify(incoming.map(p => p._id || p.id));
+          const incomingJson = JSON.stringify(incoming.map(p => p?._id || p?.id));
 
           console.log(`[DataContext] Posts callback → count=${incoming.length}, error=${error ?? 'none'}, changed=${incomingJson !== postsJsonRef.current}`);
 
@@ -192,10 +203,6 @@ export const DataProvider = ({ children }) => {
         console.warn('[DataContext] Events init error:', e);
         if (mounted) setEventsLoading(false);
       }
-
-      // subscribeToChats and subscribeToActiveUsersCount removed —
-      // Messages feature disabled, presence requires WebSocket.
-
     };
 
     init();
@@ -229,11 +236,19 @@ export const DataProvider = ({ children }) => {
   }, [user, userId]);
 
   const toggleLike = useCallback(async (postId) => {
-    await toggleLikePost(postId);
+    try {
+      await toggleLikePost(postId);
+    } catch (e) {
+      console.warn('[DataContext] toggleLike error:', e?.message);
+    }
   }, []);
 
   const toggleSave = useCallback(async (postId) => {
-    await toggleSavePost(postId);
+    try {
+      await toggleSavePost(postId);
+    } catch (e) {
+      console.warn('[DataContext] toggleSave error:', e?.message);
+    }
   }, []);
 
   const deletePost = useCallback(async (postId) => {
@@ -244,10 +259,14 @@ export const DataProvider = ({ children }) => {
     await updatePostService(postId, updates);
   }, []);
 
-  const savedPosts = useMemo(() => posts.filter((p) => p.savedBy?.includes(userId)), [posts, userId]);
+  const savedPosts = useMemo(() => posts.filter((p) => p?.savedBy?.includes(userId)), [posts, userId]);
 
   const votePoll = useCallback(async (postId, optionIndex) => {
-    await votePollService(postId, optionIndex);
+    try {
+      await votePollService(postId, optionIndex);
+    } catch (e) {
+      console.warn('[DataContext] votePoll error:', e?.message);
+    }
   }, []);
 
   // ══════════ Comment Actions ══════════
@@ -269,6 +288,34 @@ export const DataProvider = ({ children }) => {
     []
   );
 
+  // ══════════ Notification Actions ══════════
+
+  const markNotificationRead = useCallback((notifId) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
+    );
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, []);
+
+  // Generate notifications from recent posts (synthesized from feed data)
+  // In a full production system, this would come from a backend notifications endpoint
+  useEffect(() => {
+    if (posts.length === 0) return;
+    const recentNotifs = posts.slice(0, 5).map((p, i) => ({
+      id: `notif_${p?.id || p?._id || i}`,
+      text: `${p?.username || 'Someone'} posted: "${(p?.title || p?.content || '').slice(0, 50)}${(p?.title || p?.content || '').length > 50 ? '...' : ''}"`,
+      icon: p?.poll ? 'bar-chart-outline' : 'document-text-outline',
+      color: p?.poll ? '#F59E0B' : '#2563EB',
+      time: p?.createdAt ? formatTimeAgo(p.createdAt) : 'Recently',
+      read: false,
+      postId: p?.id || p?._id,
+    }));
+    setNotifications(recentNotifs);
+  }, [posts.length]); // Only recalculate when post count changes
+
   // ══════════ Stub Actions (safe no-ops for removed features) ══════════
 
   const addDoubt = useCallback(async () => null, []);
@@ -286,7 +333,6 @@ export const DataProvider = ({ children }) => {
   const reserveItem = useCallback(async () => {}, []);
   const getOrCreateChat = useCallback(async () => null, []);
   const sendMessage = useCallback(async () => null, []);
-  const markAllNotificationsRead = useCallback(async () => {}, []);
 
   // ══════════ Context Value ══════════
 
@@ -297,15 +343,12 @@ export const DataProvider = ({ children }) => {
     notes, notesLoading, addNote, downloadNote,
     chats, items, itemsLoading, addItem, reserveItem,
     events, eventsLoading, addEvent,
+    notifications, markNotificationRead, markAllNotificationsRead,
     getOrCreateChat, sendMessage,
     userId, refreshData, activeUsersCount,
     unreadCount, setUnreadCount,
     deletePost, updatePost,
-    markAllNotificationsRead,
   }), [
-    // ⚠️ FREEZE FIX: setUnreadCount is stable (from useState) — not a loop risk.
-    // All functions wrapped in useCallback are stable references.
-    // Only state values here can trigger re-renders; keep this list minimal.
     posts, postsLoading, postsError,
     addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
@@ -313,6 +356,7 @@ export const DataProvider = ({ children }) => {
     notes, notesLoading,
     chats, items, itemsLoading,
     events, eventsLoading,
+    notifications, markNotificationRead, markAllNotificationsRead,
     userId, refreshData, activeUsersCount,
     unreadCount,
     deletePost, updatePost,
@@ -324,6 +368,19 @@ export const DataProvider = ({ children }) => {
     </DataContext.Provider>
   );
 };
+
+// ── Helper: format a date string into "Xm ago" / "Xh ago" / "Xd ago" ──
+function formatTimeAgo(dateStr) {
+  try {
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  } catch {
+    return 'Recently';
+  }
+}
 
 export const useData = () => {
   const context = useContext(DataContext);

@@ -266,6 +266,22 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     marginRight: 10,
   },
   addOptionText: { fontSize: 14, fontWeight: '800', color: colors.primary },
+  inputWrapper: {
+    backgroundColor: colors.surfaceLight, borderRadius: 16, borderWidth: 1, borderColor: colors.borderLight,
+    marginBottom: SIZES.sm,
+  },
+  textArea: {
+    paddingHorizontal: SIZES.md, paddingVertical: SIZES.md, fontSize: 16, color: colors.textPrimary,
+    minHeight: 100, textAlignVertical: 'top',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  optionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SIZES.sm, marginBottom: SIZES.xs,
+  },
+  optionInput: {
+    paddingHorizontal: SIZES.md, paddingVertical: 12, fontSize: SIZES.fontMd, color: colors.textPrimary,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
 });
 
 export default CreatePollScreen;

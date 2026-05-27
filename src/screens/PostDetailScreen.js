@@ -22,7 +22,20 @@ import AnimatedPostCard from '../components/AnimatedPostCard';
 import { Alert } from 'react-native';
 
 const PostDetailScreen = ({ route, navigation }) => {
-  const { post } = route.params;
+  const post = route?.params?.post;
+  
+  // Safety: if no post was passed, show a fallback
+  if (!post) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 8 }}>Post not found</Text>
+        <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 24 }}>This post may have been deleted or the link is invalid.</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
+          <Text style={{ color: '#FFF', fontWeight: '700' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
   const { colors, shadows, isDark } = useTheme();
   const { 
     addComment, 
@@ -85,14 +98,14 @@ const PostDetailScreen = ({ route, navigation }) => {
   const renderComment = ({ item }) => (
     <View style={styles.commentItem}>
       <View style={styles.commentAvatar}>
-        <Text style={styles.commentAvatarText}>{item.avatar || item.username?.charAt(0) || 'U'}</Text>
+        <Text style={styles.commentAvatarText}>{item?.avatar || item?.authorName?.charAt(0) || item?.username?.charAt(0) || 'U'}</Text>
       </View>
       <View style={styles.commentBody}>
         <View style={styles.commentHeader}>
-          <Text style={styles.commentAuthor}>{item.username}</Text>
-          <Text style={styles.commentTime}>{formatTime(item.createdAt)}</Text>
+          <Text style={styles.commentAuthor}>{item?.authorName || item?.username || 'User'}</Text>
+          <Text style={styles.commentTime}>{formatTime(item?.createdAt)}</Text>
         </View>
-        <Text style={styles.commentContent}>{item.content}</Text>
+        <Text style={styles.commentContent}>{item?.content}</Text>
       </View>
     </View>
   );
@@ -153,7 +166,7 @@ const PostDetailScreen = ({ route, navigation }) => {
         ) : (
           <FlatList
             data={comments}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item?.id || item?._id?.toString() || Math.random().toString()}
             renderItem={renderComment}
             ListHeaderComponent={renderHeader}
             ListEmptyComponent={<EmptyState />}

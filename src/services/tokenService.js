@@ -62,8 +62,9 @@ export const clearAuthData = async () => {
     localStorage.removeItem(KEYS.TOKEN);
     localStorage.removeItem(KEYS.REFRESH_TOKEN);
     localStorage.removeItem(KEYS.SESSION);
-    localStorage.removeItem('token');
-    localStorage.clear();
+    localStorage.removeItem('token'); // Legacy key
+    // Note: Do NOT call localStorage.clear() — that destroys all stored data
+    // including theme preferences, cached feeds, and third-party caches.
   }
   
   try {

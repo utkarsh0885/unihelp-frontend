@@ -447,14 +447,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
 
-        {/* Message */}
-        {userId !== post.userId && (
-          <TouchableOpacity style={styles.actionBtn} onPress={handleMessage} activeOpacity={0.6}>
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
-            <Text style={styles.actionLabel}>Message</Text>
-          </TouchableOpacity>
-        )}
-
         <View style={{ flex: 1 }} />
 
         {/* Save/Bookmark */}

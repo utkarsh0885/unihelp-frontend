@@ -61,7 +61,7 @@ const NotificationItem = ({ item, onRead, colors, shadows }) => {
 
 const NotificationsScreen = ({ navigation }) => {
   const { colors, shadows } = useTheme();
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useData();
+  const { notifications = [], markNotificationRead, markAllNotificationsRead } = useData();
   const screenStyles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
   const backScale = React.useRef(new Animated.Value(1)).current;
