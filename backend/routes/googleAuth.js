@@ -29,36 +29,22 @@ const { googleCallback } = require('../controllers/googleAuthController');
 
 // ── Route 1: Initiate Google OAuth ────────────────────────────────────────────
 // The Expo app calls this with ?redirectUri=<expoDeepLink>.
-// We save that URI in the session so it survives the Google redirect round-trip,
-// then hand off to Passport which redirects the browser to accounts.google.com.
+// We pass it to Google as the OAuth 'state' parameter, which is 100% cookie-less
+// and immune to third-party cookie blocking in browsers!
 router.get('/google', (req, res, next) => {
-  // Save the Expo deep-link redirect URI in the session.
-  // It will be gone from req.query after Google redirects back to /callback.
-  if (req.query.redirectUri) {
-    req.session.oauthRedirectUri = req.query.redirectUri;
-  }
+  const redirectUri = req.query.redirectUri || '';
 
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     prompt: 'select_account', // Forces account picker every time
+    state: redirectUri,       // Pass redirectUri directly as state
   })(req, res, next);
 });
 
 // ── Route 2: Google OAuth Callback ────────────────────────────────────────────
-// Google redirects back here after the user allows/denies.
-// We restore the saved redirectUri from the session onto req.query so that
-// googleCallback can use it to redirect the browser back into the Expo app.
+// Google redirects back here. Google returns the state parameter in req.query.state.
 router.get(
   '/google/callback',
-  (req, res, next) => {
-    // Restore the Expo redirect URI from session → put back on req.query
-    // so googleAuthController.js can read it as req.query.redirectUri.
-    if (req.session.oauthRedirectUri) {
-      req.query.redirectUri = req.session.oauthRedirectUri;
-      delete req.session.oauthRedirectUri; // Clean up after use
-    }
-    next();
-  },
   passport.authenticate('google', {
     session: false,                        // Stateless — JWTs, not sessions
     failureRedirect: '/auth/google/failure',

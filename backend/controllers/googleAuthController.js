@@ -27,7 +27,7 @@ const generateRefreshToken = (user) => {
 };
 
 exports.googleCallback = async (req, res) => {
-  const redirectTarget = req.query.redirectUri || process.env.FRONTEND_URL;
+  const redirectTarget = req.query.state || req.query.redirectUri || process.env.FRONTEND_URL;
 
   try {
     const user = req.user;
