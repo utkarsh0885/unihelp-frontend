@@ -43,7 +43,7 @@ const AdminScreen = lazy(() => import('../screens/AdminScreen'));
  */
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user } = useAuth();
-  
+
   if (!user) return null;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // Render a "Not Authorized" placeholder if user lacks the role
@@ -53,7 +53,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       </Suspense>
     );
   }
-  
+
   return children;
 };
 
@@ -146,20 +146,20 @@ const AppNavigator = () => {
           <Stack.Screen name="Main" component={LazyDrawer} />
 
           {/* Modal: Create a new post or poll */}
-          <Stack.Screen 
-            name="CreatePost" 
-            component={LazyCreatePost} 
-            options={{ animation: 'slide_from_bottom', presentation: 'modal' }} 
+          <Stack.Screen
+            name="CreatePost"
+            component={LazyCreatePost}
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />
-          <Stack.Screen 
-            name="CreatePoll" 
-            component={LazyCreatePoll} 
-            options={{ animation: 'slide_from_bottom', presentation: 'modal' }} 
+          <Stack.Screen
+            name="CreatePoll"
+            component={LazyCreatePoll}
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />
-          <Stack.Screen 
-            name="CreateEvent" 
-            component={LazyCreateEvent} 
-            options={{ animation: 'slide_from_bottom', presentation: 'modal' }} 
+          <Stack.Screen
+            name="CreateEvent"
+            component={LazyCreateEvent}
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />
 
           {/* Feature sub-screens */}
