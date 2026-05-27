@@ -16,6 +16,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,7 +37,7 @@ const CreatePostScreen = ({ navigation, route }) => {
   const { addPost, updatePost } = useData();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
-  const existingPost = route.params?.post;
+  const existingPost = route?.params?.post;
   const isEdit = !!existingPost;
 
   const [title, setTitle] = useState(existingPost?.title || '');
@@ -120,14 +121,14 @@ const CreatePostScreen = ({ navigation, route }) => {
       }
 
       if (isEdit) {
-        await updatePost(existingPost.id, {
+        await updatePost(existingPost?.id, {
           title: title.trim(),
           content: finalContent,
           category,
           imageUrl: selectedImage,
         });
         Alert.alert('Updated! ✨', 'Your post has been successfully modified.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
+          { text: 'OK', onPress: handleGoBack },
         ]);
       } else {
         await addPost(finalContent, { 
@@ -137,16 +138,21 @@ const CreatePostScreen = ({ navigation, route }) => {
         });
 
         Alert.alert('Posted! 🎉', 'Your user-driven post is now live.', [
-          { text: 'OK', onPress: () => {
-              if (navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('Main');
-          }},
+          { text: 'OK', onPress: handleGoBack },
         ]);
       }
     } catch (e) {
       Alert.alert('Error', `Failed to ${isEdit ? 'update' : 'create'} post. Please try again.`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
     }
   };
 
@@ -163,10 +169,7 @@ const CreatePostScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('Main');
-          }} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.screenTitle}>{isEdit ? 'Edit Post' : 'New Post'}</Text>

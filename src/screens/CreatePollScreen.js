@@ -91,15 +91,20 @@ const CreatePollScreen = ({ navigation }) => {
       });
       
       Alert.alert('Poll Created! 📊', 'Your poll is now live.', [
-        { text: 'OK', onPress: () => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('Main');
-        }},
+        { text: 'OK', onPress: handleGoBack },
       ]);
     } catch (e) {
       Alert.alert('Error', 'Failed to create poll. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
     }
   };
 
@@ -113,10 +118,7 @@ const CreatePollScreen = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('Main');
-          }} style={styles.closeBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.closeBtn} activeOpacity={0.7}>
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.screenTitle}>Create Poll</Text>
@@ -237,6 +239,22 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     paddingHorizontal: SIZES.md, paddingVertical: SIZES.md, fontSize: 16, color: colors.textPrimary, 
     minHeight: 100, textAlignVertical: 'top', marginBottom: SIZES.lg,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) 
+  },
+  inputWrapper: {
+    backgroundColor: colors.surfaceLight, borderRadius: 16, borderWidth: 1, borderColor: colors.borderLight,
+    marginBottom: SIZES.sm,
+  },
+  textArea: {
+    paddingHorizontal: SIZES.md, paddingVertical: SIZES.md, fontSize: 16, color: colors.textPrimary,
+    minHeight: 100, textAlignVertical: 'top',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  optionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SIZES.sm, marginBottom: SIZES.xs,
+  },
+  optionInput: {
+    paddingHorizontal: SIZES.md, paddingVertical: 12, fontSize: SIZES.fontMd, color: colors.textPrimary,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   categoryScroll: { marginHorizontal: -SIZES.lg, marginBottom: SIZES.lg },
   categoryContent: { paddingHorizontal: SIZES.lg, gap: 10, paddingVertical: 4 },

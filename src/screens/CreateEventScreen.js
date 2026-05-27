@@ -36,7 +36,7 @@ const CATEGORIES = [
 const CreateEventScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
   const { addEvent } = useData();
-  const initialDate = route.params?.date || new Date().toISOString().split('T')[0];
+  const initialDate = route?.params?.date || new Date().toISOString().split('T')[0];
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -101,12 +101,20 @@ const CreateEventScreen = ({ navigation, route }) => {
       });
       
       Alert.alert('Event Created! 🎉', 'Your campus event is now live and visible on the calendar.', [
-        { text: 'Awesome', onPress: () => navigation.goBack() }
+        { text: 'Awesome', onPress: handleGoBack }
       ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to create event. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
     }
   };
 
@@ -125,7 +133,7 @@ const CreateEventScreen = ({ navigation, route }) => {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.closeBtn}>
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Event</Text>

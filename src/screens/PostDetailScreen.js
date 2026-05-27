@@ -22,7 +22,7 @@ import AnimatedPostCard from '../components/AnimatedPostCard';
 import { Alert } from 'react-native';
 
 const PostDetailScreen = ({ route, navigation }) => {
-  const { post } = route.params;
+  const post = route?.params?.post;
   const { colors, shadows, isDark } = useTheme();
   const { 
     addComment, 
@@ -41,9 +41,20 @@ const PostDetailScreen = ({ route, navigation }) => {
   const [sending, setSending] = useState(false);
   const inputRef = useRef(null);
 
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
+    }
+  };
+
   // Subscribe to comments for this post
   useEffect(() => {
-    if (!post?.id) return;
+    if (!post?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     const unsubscribe = getCommentsForPost(post.id, (data) => {
@@ -58,7 +69,7 @@ const PostDetailScreen = ({ route, navigation }) => {
   }, [post?.id, getCommentsForPost]);
 
   const handleSend = useCallback(async () => {
-    if (!newComment.trim() || sending) return;
+    if (!post?.id || !newComment.trim() || sending) return;
     setSending(true);
     try {
       await addComment(post.id, newComment.trim());
@@ -124,6 +135,25 @@ const PostDetailScreen = ({ route, navigation }) => {
     </View>
   );
 
+  if (!post) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
+        <Ionicons name="alert-circle-outline" size={60} color={colors.textTertiary} />
+        <Text style={[styles.headerTitle, { color: colors.textPrimary, marginTop: 12, fontSize: 18 }]}>Post Not Found</Text>
+        <Text style={{ color: colors.textTertiary, textAlign: 'center', marginTop: 8, marginBottom: 24, fontSize: 14 }}>
+          This post may have been deleted or is unavailable.
+        </Text>
+        <TouchableOpacity 
+          onPress={handleGoBack}
+          style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#FFF', fontWeight: '700' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -131,7 +161,7 @@ const PostDetailScreen = ({ route, navigation }) => {
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleGoBack}
           style={styles.backBtn}
           activeOpacity={0.7}
         >
@@ -153,7 +183,7 @@ const PostDetailScreen = ({ route, navigation }) => {
         ) : (
           <FlatList
             data={comments}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item?.id || item?._id || String(Math.random())}
             renderItem={renderComment}
             ListHeaderComponent={renderHeader}
             ListEmptyComponent={<EmptyState />}

@@ -179,7 +179,7 @@ const GoogleAuthCallbackScreen = ({ navigation, route }) => {
     // ── iOS: LoginScreen passes the URL directly via navigation params ────────
     if (route?.params?.resolvedUrl) {
       console.log('[GoogleCallback] iOS path — using resolvedUrl from params');
-      handleUrl(route.params.resolvedUrl);
+      handleUrl(route?.params?.resolvedUrl);
       return () => { mounted = false; clearTimeout(timeout); };
     }
 

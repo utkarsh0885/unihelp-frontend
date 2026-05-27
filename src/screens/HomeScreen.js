@@ -626,6 +626,16 @@ const HomeScreen = ({ navigation }) => {
     </View>
   ), [colors, styles, navigation]);
 
+  const handleFABNavigation = useCallback((screen) => {
+    try {
+      console.log(`[FAB] Navigating to screen: ${screen}`);
+      navigation.navigate(screen);
+    } catch (err) {
+      console.error(`[FAB] Navigation to screen ${screen} failed:`, err?.message);
+      Alert.alert('Navigation Error', `Could not open ${screen}. Please try again.`);
+    }
+  }, [navigation]);
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
       <StatusBar
@@ -652,7 +662,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.topBarRight}>
               <AnimatedIconButton
                 icon="person-outline"
-                onPress={() => navigation.navigate('Profile')}
+                onPress={() => handleFABNavigation('Profile')}
                 styles={styles}
               />
             </View>
@@ -717,9 +727,9 @@ const HomeScreen = ({ navigation }) => {
         )}
 
         <ExpandableFAB
-          onPost={() => navigation.navigate('CreatePost')}
-          onEvent={() => navigation.navigate('Calendar')}
-          onPoll={() => navigation.navigate('CreatePoll')}
+          onPost={() => handleFABNavigation('CreatePost')}
+          onEvent={() => handleFABNavigation('Calendar')}
+          onPoll={() => handleFABNavigation('CreatePoll')}
         />
 
 

@@ -119,7 +119,7 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
 
 const ChatScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
-  const { chat } = route.params;
+  const chat = route?.params?.chat;
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -134,14 +134,26 @@ const ChatScreen = ({ navigation, route }) => {
 
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
-  const recipient = chat.participantIds?.find(
+  const recipient = chat?.participantIds?.find(
     (p) => (p._id || p.id || p) !== userId
   );
 
+  const handleGoBack = () => {
+    if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Main');
+    }
+  };
+
   // ── Fetch messages ──────────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (silent = false) => {
+    if (!chat?._id && !chat?.id) {
+      setLoading(false);
+      return;
+    }
     try {
-      const history = await getChatMessages(chat._id || chat.id);
+      const history = await getChatMessages(chat?._id || chat?.id);
       setMessages(history);
 
       // Scroll to bottom only when new messages arrive
@@ -157,7 +169,7 @@ const ChatScreen = ({ navigation, route }) => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [chat._id, chat.id]);
+  }, [chat?._id, chat?.id]);
 
   // ── Mount: initial fetch + start polling ────────────────────────────────────
   useEffect(() => {
@@ -173,6 +185,7 @@ const ChatScreen = ({ navigation, route }) => {
 
   // ── Send message via REST ───────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
+    if (!chat?._id && !chat?.id) return;
     if (!inputText.trim() || sending) return;
     const text = inputText.trim();
     setInputText('');
@@ -181,7 +194,7 @@ const ChatScreen = ({ navigation, route }) => {
     // Optimistic UI — show message immediately
     const tempMsg = {
       _id: `temp_${Date.now()}`,
-      chatId: chat._id || chat.id,
+      chatId: chat?._id || chat?.id,
       senderId: userId,
       text,
       status: 'sending',
@@ -191,7 +204,7 @@ const ChatScreen = ({ navigation, route }) => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const response = await apiClient.post(`/api/chat/${chat._id || chat.id}/messages`, { text });
+      const response = await apiClient.post(`/api/chat/${chat?._id || chat?.id}/messages`, { text });
       const savedMsg = response.data;
 
       // Replace temp message with server-confirmed message
@@ -244,6 +257,25 @@ const ChatScreen = ({ navigation, route }) => {
 
   const keyExtractor = useCallback((item) => item._id || item.id, []);
 
+  if (!chat) {
+    return (
+      <View style={[styles.mainContainer, { backgroundColor: isDark ? colors.background : '#F8FAFC', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
+        <Ionicons name="chatbubble-ellipses-outline" size={60} color={colors.textTertiary} />
+        <Text style={[styles.headerTitle, { color: colors.textPrimary, marginTop: 12, fontSize: 18 }]}>Chat Not Found</Text>
+        <Text style={{ color: colors.textTertiary, textAlign: 'center', marginTop: 8, marginBottom: 24, fontSize: 14 }}>
+          This conversation is unavailable or has been closed.
+        </Text>
+        <TouchableOpacity 
+          onPress={handleGoBack}
+          style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#FFF', fontWeight: '700' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.mainContainer, { backgroundColor: isDark ? colors.background : '#F8FAFC' }]}>
       <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
@@ -255,7 +287,7 @@ const ChatScreen = ({ navigation, route }) => {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
