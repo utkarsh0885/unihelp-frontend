@@ -21,8 +21,10 @@ import AnimatedPostCard from '../components/AnimatedPostCard';
 
 import { Alert } from 'react-native';
 
-const PostDetailScreen = ({ route, navigation }) => {
-  const post = route?.params?.post;
+const PostDetailScreen = ({ route = {}, navigation }) => {
+  console.log('[PostDetailScreen] Render — route:', route, 'navigation:', !!navigation);
+  const routeParams = route?.params || {};
+  const post = routeParams?.post;
   const { colors, shadows, isDark } = useTheme();
   const { 
     addComment, 

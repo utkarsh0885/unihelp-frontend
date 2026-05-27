@@ -31,15 +31,17 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const MAX_LENGTH = 500;
 
-const CreatePostScreen = ({ navigation, route }) => {
+const CreatePostScreen = ({ navigation, route = {} }) => {
+  console.log('[CreatePostScreen] Render — route:', route, 'navigation:', !!navigation);
   const { colors, shadows, isDark } = useTheme();
   const { user } = useAuth();
   const { addPost, updatePost } = useData();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
-  const existingPost = route?.params?.post || null;
+  const routeParams = route?.params || {};
+  const existingPost = routeParams?.post || null;
   const isEdit = !!existingPost;
-  const defaultCategory = route?.params?.defaultCategory || 'General';
+  const defaultCategory = routeParams?.defaultCategory || 'General';
 
   const [title, setTitle] = useState(existingPost?.title || '');
   const [content, setContent] = useState(existingPost?.content || '');

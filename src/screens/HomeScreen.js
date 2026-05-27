@@ -298,7 +298,7 @@ const ActionChip = ({ action, navigation, colors, styles }) => {
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
         style={[styles.actionChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => navigation.navigate(action.screen)}
+        onPress={() => navigation.navigate(action.screen, {})}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         activeOpacity={1}
@@ -612,7 +612,7 @@ const HomeScreen = ({ navigation }) => {
       <Text style={styles.emptySubtitle}>Be the first to post!</Text>
       <TouchableOpacity
         style={styles.emptyButton}
-        onPress={() => navigation.navigate('CreatePost')}
+        onPress={() => navigation.navigate('CreatePost', {})}
       >
         <LinearGradient
           colors={['#1E3A8A', '#2563EB']}
@@ -629,7 +629,7 @@ const HomeScreen = ({ navigation }) => {
   const handleFABNavigation = useCallback((screen) => {
     try {
       console.log(`[FAB] Navigating to screen: ${screen}`);
-      navigation.navigate(screen);
+      navigation.navigate(screen, {});
     } catch (err) {
       console.error(`[FAB] Navigation to screen ${screen} failed:`, err?.message);
       Alert.alert('Navigation Error', `Could not open ${screen}. Please try again.`);

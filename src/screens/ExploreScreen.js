@@ -330,11 +330,11 @@ const ExploreScreen = ({ navigation }) => {
     const parent = navigation.getParent();
     const drawerParent = parent?.getParent?.();
     if (drawerParent?.navigate) {
-      drawerParent.navigate(screen);
+      drawerParent.navigate(screen, {});
     } else if (parent?.navigate) {
-      parent.navigate(screen);
+      parent.navigate(screen, {});
     } else {
-      navigation.navigate(screen);
+      navigation.navigate(screen, {});
     }
   }, [navigation]);
 

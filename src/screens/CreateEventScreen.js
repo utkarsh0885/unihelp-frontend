@@ -33,10 +33,12 @@ const CATEGORIES = [
   { label: 'Tech', icon: 'code-slash', color: '#F59E0B' },
 ];
 
-const CreateEventScreen = ({ navigation, route }) => {
+const CreateEventScreen = ({ navigation, route = {} }) => {
+  console.log('[CreateEventScreen] Render — route:', route, 'navigation:', !!navigation);
   const { colors, shadows, isDark } = useTheme();
   const { addEvent } = useData();
-  const initialDate = route?.params?.date || new Date().toISOString().split('T')[0];
+  const routeParams = route?.params || {};
+  const initialDate = routeParams?.date || new Date().toISOString().split('T')[0];
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

@@ -23,11 +23,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
-const PlaceholderScreen = ({ navigation, route }) => {
+const PlaceholderScreen = ({ navigation, route = {} }) => {
+  console.log('[PlaceholderScreen] Render — route:', route, 'navigation:', !!navigation);
   const { colors, shadows } = useTheme();
-  const title = route?.params?.title || 'Coming Soon';
-  const icon = route?.params?.icon || 'construct-outline';
-  const description = route?.params?.description || 'This feature is under development and will be available in the next update.';
+  const routeParams = route?.params || {};
+  const title = routeParams?.title || 'Coming Soon';
+  const icon = routeParams?.icon || 'construct-outline';
+  const description = routeParams?.description || 'This feature is under development and will be available in the next update.';
 
   // ── Animations ──
   const iconScale = useRef(new Animated.Value(0.3)).current;

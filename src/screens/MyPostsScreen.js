@@ -84,7 +84,7 @@ const MyPostsScreen = ({ navigation }) => {
       </Text>
       <TouchableOpacity 
         style={styles.createBtn}
-        onPress={() => navigation.navigate('CreatePost')}
+        onPress={() => navigation.navigate('CreatePost', {})}
       >
         <Text style={styles.createBtnText}>Create My First Post</Text>
       </TouchableOpacity>

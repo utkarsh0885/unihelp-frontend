@@ -117,9 +117,11 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   sendingText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic' },
 });
 
-const ChatScreen = ({ navigation, route }) => {
+const ChatScreen = ({ navigation, route = {} }) => {
+  console.log('[ChatScreen] Render — route:', route, 'navigation:', !!navigation);
   const { colors, shadows, isDark } = useTheme();
-  const chat = route?.params?.chat;
+  const routeParams = route?.params || {};
+  const chat = routeParams?.chat;
   const { user } = useAuth();
   const userId = user?.id;
 

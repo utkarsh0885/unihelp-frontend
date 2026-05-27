@@ -65,127 +65,68 @@ const ScreenLoader = () => (
 );
 
 // ── Define wrapped lazy components outside render to preserve reference stability ──
-const LazyDrawer = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <DrawerNavigator {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+const wrapLazyComponent = (Component, screenName) => {
+  return (props) => {
+    const route = props?.route || {};
+    const safeRoute = {
+      ...route,
+      params: route.params || {},
+    };
+    const safeProps = {
+      ...props,
+      route: safeRoute,
+    };
 
-const LazyCreatePost = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <CreatePostScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+    console.log(`[AppNavigator] Mounting ${screenName} — route params:`, safeRoute.params);
 
-const LazyCreatePoll = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <CreatePollScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+    return (
+      <ScreenErrorBoundary>
+        <Suspense fallback={<ScreenLoader />}>
+          <Component {...safeProps} />
+        </Suspense>
+      </ScreenErrorBoundary>
+    );
+  };
+};
 
-const LazyCreateEvent = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <CreateEventScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+const LazyDrawer = wrapLazyComponent(DrawerNavigator, 'Drawer');
+const LazyCreatePost = wrapLazyComponent(CreatePostScreen, 'CreatePost');
+const LazyCreatePoll = wrapLazyComponent(CreatePollScreen, 'CreatePoll');
+const LazyCreateEvent = wrapLazyComponent(CreateEventScreen, 'CreateEvent');
+const LazyShareNotes = wrapLazyComponent(ShareNotesScreen, 'ShareNotes');
+const LazyBuySell = wrapLazyComponent(BuySellScreen, 'BuySell');
+const LazyDiscoverEvents = wrapLazyComponent(DiscoverEventsScreen, 'DiscoverEvents');
+const LazyCalendar = wrapLazyComponent(CalendarScreen, 'Calendar');
+const LazySaved = wrapLazyComponent(SavedScreen, 'Saved');
+const LazyMyPosts = wrapLazyComponent(MyPostsScreen, 'MyPosts');
+const LazyLostAndFound = wrapLazyComponent(LostAndFoundScreen, 'LostAndFound');
+const LazyProfile = wrapLazyComponent(ProfileScreen, 'Profile');
+const LazyPostDetail = wrapLazyComponent(PostDetailScreen, 'PostDetail');
+const LazyPlaceholder = wrapLazyComponent(PlaceholderScreen, 'Placeholder');
 
-const LazyShareNotes = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <ShareNotesScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+const LazyAdminDashboard = (props) => {
+  const route = props?.route || {};
+  const safeRoute = {
+    ...route,
+    params: route.params || {},
+  };
+  const safeProps = {
+    ...props,
+    route: safeRoute,
+  };
 
-const LazyBuySell = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <BuySellScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+  console.log(`[AppNavigator] Mounting AdminDashboard — route params:`, safeRoute.params);
 
-const LazyDiscoverEvents = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <DiscoverEventsScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyCalendar = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <CalendarScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazySaved = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <SavedScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyMyPosts = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <MyPostsScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyLostAndFound = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <LostAndFoundScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyProfile = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <ProfileScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyPostDetail = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <PostDetailScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
-
-const LazyAdminDashboard = (props) => (
-  <ScreenErrorBoundary>
-    <ProtectedRoute allowedRoles={['admin']}>
-      <Suspense fallback={<ScreenLoader />}>
-        <AdminScreen {...props} />
-      </Suspense>
-    </ProtectedRoute>
-  </ScreenErrorBoundary>
-);
-
-const LazyPlaceholder = (props) => (
-  <ScreenErrorBoundary>
-    <Suspense fallback={<ScreenLoader />}>
-      <PlaceholderScreen {...props} />
-    </Suspense>
-  </ScreenErrorBoundary>
-);
+  return (
+    <ScreenErrorBoundary>
+      <ProtectedRoute allowedRoles={['admin']}>
+        <Suspense fallback={<ScreenLoader />}>
+          <AdminScreen {...safeProps} />
+        </Suspense>
+      </ProtectedRoute>
+    </ScreenErrorBoundary>
+  );
+};
 
 const Stack = createNativeStackNavigator();
 

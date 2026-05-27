@@ -29,7 +29,8 @@ import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
 import { storeAuthData } from '../services/tokenService';
 
-const GoogleAuthCallbackScreen = ({ navigation, route }) => {
+const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
+  console.log('[GoogleAuthCallbackScreen] Render — route:', route, 'navigation:', !!navigation);
   const { googleLogin } = useAuth();
   const [status, setStatus] = useState('processing');
   const [errorMsg, setErrorMsg] = useState('');
