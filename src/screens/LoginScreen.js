@@ -30,6 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { isValidEmail, isValidPassword } from '../services/authService';
 import { SIZES } from '../constants/theme';
 
@@ -113,7 +114,13 @@ const iStyles = StyleSheet.create({
   },
   inputBoxError: { backgroundColor: P.errorBg },
   icon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: P.text, fontWeight: '500' },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: P.text,
+    fontWeight: '500',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
   errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
   errorText: { fontSize: 12, color: P.error, fontWeight: '500' },
 });
@@ -160,6 +167,7 @@ const Blob = ({ style, colors }) => (
 // ── Main Screen ────────────────────────────────────────────────────────────────
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
+  const { showToast } = useToast();
 
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
@@ -308,13 +316,8 @@ const LoginScreen = ({ navigation }) => {
 
             {/* Remember + Forgot */}
             <View style={s.optRow}>
-              <TouchableOpacity style={s.checkRow} onPress={() => setRememberMe(v => !v)} activeOpacity={0.7}>
-                <View style={[s.checkbox, rememberMe && s.checkboxOn]}>
-                  {rememberMe && <Ionicons name="checkmark" size={11} color="#fff" />}
-                </View>
-                <Text style={s.checkLabel}>Remember me</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7}>
+              <View />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => showToast('Forgot password feature is coming soon!', 'info')}>
                 <Text style={s.forgot}>Forgot password?</Text>
               </TouchableOpacity>
             </View>

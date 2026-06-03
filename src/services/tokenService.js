@@ -63,7 +63,6 @@ export const clearAuthData = async () => {
     localStorage.removeItem(KEYS.REFRESH_TOKEN);
     localStorage.removeItem(KEYS.SESSION);
     localStorage.removeItem('token');
-    localStorage.clear();
   }
   
   try {

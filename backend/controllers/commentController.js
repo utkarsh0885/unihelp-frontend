@@ -1,16 +1,7 @@
 const { db, admin } = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
-
-// Helper to safely get timestamp milliseconds
-const getEpoch = (val) => {
-  if (!val) return 0;
-  if (typeof val.toDate === 'function') return val.toDate().getTime();
-  if (val instanceof Date) return val.getTime();
-  if (typeof val === 'string') return new Date(val).getTime();
-  if (val.seconds) return val.seconds * 1000;
-  return 0;
-};
+const { getEpoch } = require('../utils/dateUtils');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { postId, content } = req.body;

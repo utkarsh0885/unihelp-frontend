@@ -10,345 +10,391 @@ import {
   ActivityIndicator,
   Animated,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { isValidEmail, isValidPassword } from '../services/authService';
-import { SIZES, GRADIENTS } from '../constants/theme';
-import ResponsiveContainer from '../components/ResponsiveContainer';
 
+// ── Palette ────────────────────────────────────────────────────────────────────
+const P = {
+  bg:          '#0A0F1E',   // near-black navy
+  card:        '#FFFFFF',
+  primary:     '#2563EB',
+  primaryDark: '#1D4ED8',
+  indigo:      '#4F46E5',
+  surface:     '#F8FAFF',
+  border:      '#E2E8F0',
+  focusBorder: '#2563EB',
+  text:        '#0F172A',
+  textMid:     '#475569',
+  textLight:   '#94A3B8',
+  placeholder: '#94A3B8',
+  error:       '#EF4444',
+  errorBg:     '#FEF2F2',
+  errorBorder: '#FECACA',
+  white:       '#FFFFFF',
+};
+
+// ── Reusable animated input ────────────────────────────────────────────────────
+const PremiumInput = ({ label, icon, error, inputRef, rightElement, ...props }) => {
+  const [focused, setFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const onFocus = () => {
+    setFocused(true);
+    Animated.timing(borderAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+    props.onFocus?.();
+  };
+  const onBlur = () => {
+    setFocused(false);
+    Animated.timing(borderAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
+    props.onBlur?.();
+  };
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [error ? P.errorBorder : P.border, error ? P.error : P.focusBorder],
+  });
+
+  return (
+    <View style={iStyles.fieldWrap}>
+      <Text style={iStyles.label}>{label}</Text>
+      <Animated.View style={[iStyles.inputBox, { borderColor }, error && iStyles.inputBoxError]}>
+        <Ionicons name={icon} size={18} color={focused ? P.primary : P.textLight} style={iStyles.icon} />
+        <TextInput
+          ref={inputRef}
+          style={iStyles.input}
+          placeholderTextColor={P.placeholder}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          {...props}
+        />
+        {rightElement}
+      </Animated.View>
+      {error ? (
+        <View style={iStyles.errorRow}>
+          <Ionicons name="alert-circle" size={13} color={P.error} style={{ marginRight: 4 }} />
+          <Text style={iStyles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const iStyles = StyleSheet.create({
+  fieldWrap: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '600', color: P.textMid, marginBottom: 7, letterSpacing: 0.1 },
+  inputBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.surface,
+    borderRadius: 14, borderWidth: 1.5,
+    paddingHorizontal: 14, height: 54,
+  },
+  inputBoxError: { backgroundColor: P.errorBg },
+  icon: { marginRight: 10 },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: P.text,
+    fontWeight: '500',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  errorText: { fontSize: 12, color: P.error, fontWeight: '500' },
+});
+
+// ── Animated button ────────────────────────────────────────────────────────────
+const GradientButton = ({ onPress, disabled, loading, label }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], borderRadius: 14, overflow: 'hidden', marginTop: 4 }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onIn}
+        onPressOut={onOut}
+        disabled={disabled}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+      >
+        <LinearGradient
+          colors={disabled ? ['#94A3B8', '#94A3B8'] : [P.primary, P.indigo]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={bStyles.btn}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={bStyles.label}>{label}</Text>}
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+const bStyles = StyleSheet.create({
+  btn: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  label: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+});
+
+// ── Decorative blob ────────────────────────────────────────────────────────────
+const Blob = ({ style, colors }) => (
+  <LinearGradient colors={colors} style={[{ position: 'absolute', borderRadius: 999 }, style]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+);
+
+// ── Main Screen ────────────────────────────────────────────────────────────────
 const SignupScreen = ({ navigation }) => {
   const { signup } = useAuth();
-  const { colors } = useTheme();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName]                     = useState('');
+  const [email, setEmail]                   = useState('');
+  const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors]                 = useState({});
+  const [loading, setLoading]               = useState(false);
+  const [showPassword, setShowPassword]     = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const emailRef    = useRef(null);
+  const pwdRef      = useRef(null);
+  const confirmRef  = useRef(null);
+
+  // Entry animations
+  const cardAnim  = useRef(new Animated.Value(40)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
     Animated.sequence([
-      Animated.spring(logoScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 60,
-        useNativeDriver: true,
-      }),
+      Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 6,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(cardAnim,  { toValue: 0, friction: 7,   useNativeDriver: true }),
       ]),
     ]).start();
   }, []);
 
+  const clearError = (field) => setErrors(e => ({ ...e, [field]: null, global: null }));
+
   const handleSignup = async () => {
-    const newErrors = {};
-    if (!name.trim()) newErrors.name = 'Full name is required.';
-    if (!email.trim()) newErrors.email = 'Email is required.';
-    else if (!isValidEmail(email)) newErrors.email = 'Please enter a valid email.';
-    
-    if (!password) newErrors.password = 'Password is required.';
-    else if (!isValidPassword(password)) newErrors.password = 'Password must be at least 6 characters.';
+    const errs = {};
+    if (!name.trim())                  errs.name    = 'Full name is required.';
+    if (!email.trim())                 errs.email   = 'Email is required.';
+    else if (!isValidEmail(email))     errs.email   = 'Enter a valid email address.';
+    if (!password)                     errs.password = 'Password is required.';
+    else if (!isValidPassword(password)) errs.password = 'Minimum 6 characters.';
 
-    if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match.';
+    if (password !== confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match.';
+    }
 
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return;
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
 
     setLoading(true);
     try {
-      await signup(name, email, password);
+      await signup(name.trim(), email.trim(), password);
     } catch (err) {
-      setErrors({ global: err.message || 'Signup failed. Please try again later.' });
+      setErrors({ global: err.message || 'Signup failed. Please try again.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const renderField = (label, icon, value, setValue, errorKey, options = {}) => (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputContainer, errors[errorKey] && styles.inputError]}>
-        <Ionicons name={icon} size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder={options.placeholder || ''}
-          placeholderTextColor="rgba(255,255,255,0.3)"
-          value={value}
-          onChangeText={(txt) => { setValue(txt); setErrors({...errors, [errorKey]: null, global: null}); }}
-          secureTextEntry={options.secure && !(options.showState)}
-          keyboardType={options.keyboardType || 'default'}
-          autoCapitalize={options.autoCapitalize || 'sentences'}
-        />
-        {options.secure && (
-          <TouchableOpacity onPress={options.toggleShow} style={styles.eyeBtn}>
-            <Ionicons name={options.showState ? "eye-off-outline" : "eye-outline"} size={18} color="rgba(255,255,255,0.4)" />
-          </TouchableOpacity>
-        )}
-      </View>
-      {errors[errorKey] && <Text style={styles.fieldError}>{errors[errorKey]}</Text>}
-    </View>
-  );
-
   return (
-    <LinearGradient
-      colors={['#1E3A8A', '#2563EB']}
-      style={styles.gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <View style={s.root}>
+      {/* ── Animated background blobs ── */}
+      <Blob colors={['#1E3A8A', '#2563EB']} style={{ width: 340, height: 340, top: -100, right: -80, opacity: 0.9 }} />
+      <Blob colors={['#4F46E5', '#7C3AED']} style={{ width: 260, height: 260, bottom: -60, left: -80, opacity: 0.7 }} />
+      <Blob colors={['#0369A1', '#0EA5E9']} style={{ width: 180, height: 180, top: '40%', right: -60, opacity: 0.5 }} />
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Decorative circles */}
-          <View style={styles.decorCircle1} />
-          <View style={styles.decorCircle2} />
+          {/* ── Card ── */}
+          <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: cardAnim }] }]}>
 
-          <ResponsiveContainer maxWidth={480} withCardStyle={true}>
-          {/* Logo */}
-          <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
-            <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
-              style={styles.logoGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="sparkles" size={32} color="#fff" />
-            </LinearGradient>
-          </Animated.View>
-
-          {/* Title */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join the UNIHELP community</Text>
-          </Animated.View>
-
-          {/* Error Block */}
-          {errors.global && (
-            <View style={styles.errorBlock}>
-              <Ionicons name="alert-circle" size={16} color="#ff6b6b" style={{ marginRight: 8 }} />
-              <Text style={styles.errorBlockText}>{errors.global}</Text>
-            </View>
-          )}
-
-          {/* Fields */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            {renderField('Full Name', 'person-outline', name, setName, 'name', { placeholder: 'John Doe' })}
-            {renderField('Email', 'mail-outline', email, setEmail, 'email', { placeholder: 'you@university.edu', keyboardType: 'email-address', autoCapitalize: 'none' })}
-            {renderField('Password', 'lock-closed-outline', password, setPassword, 'password', { placeholder: '••••••••', secure: true, showState: showPassword, toggleShow: () => setShowPassword(!showPassword) })}
-            {renderField('Confirm Password', 'shield-checkmark-outline', confirmPassword, setConfirmPassword, 'confirmPassword', { placeholder: '••••••••', secure: true, showState: showConfirmPassword, toggleShow: () => setShowConfirmPassword(!showConfirmPassword) })}
-          </Animated.View>
-
-          {/* Create Account Button */}
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              onPress={handleSignup}
-              disabled={loading}
-              style={{ borderRadius: SIZES.radiusMd, overflow: 'hidden' }}
-            >
-              <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.signUpBtn, loading && { opacity: 0.7 }]}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.signUpText}>Create Account</Text>
-                )}
+            {/* Logo */}
+            <Animated.View style={[s.logoWrap, { transform: [{ scale: logoScale }] }]}>
+              <LinearGradient colors={[P.primary, P.indigo]} style={s.logo} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="sparkles" size={28} color="#fff" />
               </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+            </Animated.View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.footerLink}>Log in</Text>
-            </TouchableOpacity>
-          </View>
-          </ResponsiveContainer>
+            {/* Heading */}
+            <Text style={s.heading}>Create Account</Text>
+            <Text style={s.sub}>Join the UNIHELP community</Text>
+
+            {/* Global error */}
+            {errors.global && (
+              <View style={s.globalError}>
+                <Ionicons name="alert-circle" size={15} color={P.error} style={{ marginRight: 7 }} />
+                <Text style={s.globalErrorText}>{errors.global}</Text>
+              </View>
+            )}
+
+            {/* Inputs */}
+            <PremiumInput
+              label="Full Name"
+              icon="person-outline"
+              placeholder="John Doe"
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="next"
+              value={name}
+              onChangeText={t => { setName(t); clearError('name'); }}
+              onSubmitEditing={() => emailRef.current?.focus()}
+              error={errors.name}
+            />
+
+            <PremiumInput
+              label="Email address"
+              icon="mail-outline"
+              placeholder="you@university.edu"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              inputRef={emailRef}
+              value={email}
+              onChangeText={t => { setEmail(t); clearError('email'); }}
+              onSubmitEditing={() => pwdRef.current?.focus()}
+              error={errors.email}
+            />
+
+            <PremiumInput
+              label="Password"
+              icon="lock-closed-outline"
+              placeholder="••••••••"
+              secureTextEntry={!showPassword}
+              inputRef={pwdRef}
+              returnKeyType="next"
+              value={password}
+              onChangeText={t => { setPassword(t); clearError('password'); }}
+              onSubmitEditing={() => confirmRef.current?.focus()}
+              error={errors.password}
+              rightElement={
+                <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={s.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={P.textLight} />
+                </TouchableOpacity>
+              }
+            />
+
+            <PremiumInput
+              label="Confirm Password"
+              icon="shield-checkmark-outline"
+              placeholder="••••••••"
+              secureTextEntry={!showConfirmPassword}
+              inputRef={confirmRef}
+              returnKeyType="done"
+              value={confirmPassword}
+              onChangeText={t => { setConfirmPassword(t); clearError('confirmPassword'); }}
+              onSubmitEditing={handleSignup}
+              error={errors.confirmPassword}
+              rightElement={
+                <TouchableOpacity onPress={() => setShowConfirmPassword(v => !v)} style={s.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={P.textLight} />
+                </TouchableOpacity>
+              }
+            />
+
+            {/* CTA */}
+            <GradientButton
+              label="Create Account"
+              onPress={handleSignup}
+              loading={loading}
+              disabled={loading}
+            />
+
+            {/* Footer */}
+            <View style={s.footer}>
+              <Text style={s.footerTxt}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
+                <Text style={s.footerLink}>Log in</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
+// ── Styles ────────────────────────────────────────────────────────────────────
+const CARD_MAX = 440;
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: P.bg },
+
+  scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 50,
-  },
-  decorCircle1: {
-    position: 'absolute',
-    top: -60,
-    left: -70,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
-  },
-  decorCircle2: {
-    position: 'absolute',
-    bottom: 60,
-    right: -50,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-  },
-  logoWrap: {
-    alignSelf: 'center',
-    marginBottom: SIZES.lg,
-  },
-  logoGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: SIZES.radiusLg,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#00d2ff',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 48,
   },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-    marginBottom: SIZES.xs,
-  },
-  subtitle: {
-    fontSize: SIZES.fontMd,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    marginBottom: SIZES.xl,
-    fontWeight: '500',
-  },
-  errorBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
-    padding: SIZES.md,
-    borderRadius: SIZES.radiusMd,
+
+  // ── Card ──
+  card: {
+    width: '100%',
+    maxWidth: CARD_MAX,
+    backgroundColor: P.card,
+    borderRadius: 28,
+    padding: 32,
+    // Shadow (iOS + Android)
+    shadowColor: '#0A0F1E',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.18,
+    shadowRadius: 40,
+    elevation: 16,
+    // Subtle top border for glass feel
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.2)',
-    marginBottom: SIZES.lg,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  errorBlockText: {
-    color: '#ff6b6b',
-    fontSize: SIZES.fontSm,
-    fontWeight: '500',
-    flex: 1,
+
+  // ── Logo ──
+  logoWrap: { alignSelf: 'center', marginBottom: 24 },
+  logo: {
+    width: 64, height: 64, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: P.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  fieldWrap: {
-    marginBottom: SIZES.md + 2,
+
+  // ── Headings ──
+  heading: {
+    fontSize: 26, fontWeight: '800', color: P.text,
+    textAlign: 'center', letterSpacing: -0.5, marginBottom: 6,
   },
-  label: {
-    fontSize: SIZES.fontSm,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: SIZES.sm,
-    letterSpacing: 0.3,
+  sub: {
+    fontSize: 14, color: P.textMid, textAlign: 'center',
+    fontWeight: '500', marginBottom: 28,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: SIZES.radiusMd,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: SIZES.md,
-    height: 54,
+
+  // ── Global error ──
+  globalError: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.errorBg,
+    borderRadius: 12, padding: 13,
+    borderWidth: 1, borderColor: P.errorBorder,
+    marginBottom: 20,
   },
-  inputError: {
-    borderColor: 'rgba(255, 107, 107, 0.5)',
-  },
-  inputIcon: {
-    marginRight: SIZES.sm + 2,
-  },
-  input: {
-    flex: 1,
-    fontSize: SIZES.fontMd,
-    color: '#FFFFFF',
-  },
-  eyeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  fieldError: {
-    color: '#ff6b6b',
-    fontSize: SIZES.fontXs,
-    marginTop: SIZES.xs + 2,
-    fontWeight: '500',
-  },
-  signUpBtn: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SIZES.sm,
-  },
-  signUpText: {
-    color: '#FFFFFF',
-    fontSize: SIZES.fontMd,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: SIZES.xl,
-  },
-  footerText: {
-    fontSize: SIZES.fontSm,
-    color: 'rgba(255, 255, 255, 0.4)',
-  },
-  footerLink: {
-    color: '#3B82F6',
-    fontWeight: '800',
-    fontSize: SIZES.fontSm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+  globalErrorText: { flex: 1, color: P.error, fontSize: 13, fontWeight: '500' },
+
+  eyeBtn: { padding: 4 },
+
+  // ── Footer ──
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 26 },
+  footerTxt: { fontSize: 14, color: P.textLight, fontWeight: '500' },
+  footerLink: { fontSize: 14, color: P.primary, fontWeight: '800' },
 });
 
 export default SignupScreen;

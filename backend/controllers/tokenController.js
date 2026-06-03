@@ -1,70 +1,61 @@
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { db } = require('../config/db');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
 
-// Define token generators here to stay DRY if possible, or replicate short version
-const generateAccessToken = (user) => {
-  const secret = process.env.JWT_SECRET || 'fallback_secret';
-  return jwt.sign(
-    { id: user.id, role: user.role, name: user.name, email: user.email },
-    secret,
-    { expiresIn: '15m' }
-  );
-};
-const generateRefreshToken = (user) => {
-  const secret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
-  return jwt.sign({ id: user.id }, secret, { expiresIn: '7d' });
-};
-
-exports.refresh = (req, res) => {
+exports.refresh = async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
 
-  const secret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
-  
-  jwt.verify(refreshToken, secret, async (err, decoded) => {
-    if (err) return res.status(403).json({ error: 'Invalid or expired refresh token' });
+  try {
+    // Verify the refresh token using the validated secret (no fallbacks)
+    const decoded = verifyRefreshToken(refreshToken);
 
-    try {
-      // Look up user in Firestore
-      const userRef = db.collection('users').doc(decoded.id);
-      const userDoc = await userRef.get();
-      if (!userDoc.exists) return res.status(403).json({ error: 'User not found' });
+    // Look up user in Firestore
+    const userRef = db.collection('users').doc(decoded.id);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(403).json({ error: 'User not found' });
 
-      const user = userDoc.data();
-      user.id = userDoc.id;
+    const user = userDoc.data();
+    user.id = userDoc.id;
 
-      // Validate the hash against the database hash
-      const incomingHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      if (user.hashedRefreshToken !== incomingHash) {
-        return res.status(403).json({ error: 'Token has been revoked or rotated' });
-      }
-
-      // Token is fully valid! Rotate tokens
-      const newAccessToken = generateAccessToken(user);
-      const newRefreshToken = generateRefreshToken(user);
-
-      // Save new hash
-      const newHashedRT = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
-      await userRef.update({
-        hashedRefreshToken: newHashedRT,
-      });
-
-      res.json({
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      });
-    } catch (dbError) {
-      console.error('[TokenController] refresh error:', dbError.message);
-      res.status(500).json({ error: 'Database error during refresh' });
+    // Validate the hash against the database hash
+    const incomingHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    if (user.hashedRefreshToken !== incomingHash) {
+      return res.status(403).json({ error: 'Token has been revoked or rotated' });
     }
-  });
+
+    // Token is fully valid! Rotate tokens
+    const newAccessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    // Save new hash
+    const newHashedRT = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    await userRef.update({
+      hashedRefreshToken: newHashedRT,
+    });
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(403).json({ error: 'Refresh token expired' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(403).json({ error: 'Invalid refresh token' });
+    }
+    console.error('[TokenController] refresh error:', error.message);
+    res.status(500).json({ error: 'Database error during refresh' });
+  }
 };
 
 exports.logout = async (req, res) => {
   const { refreshToken } = req.body;
   if (refreshToken) {
     try {
+      // jwt.decode does NOT verify — safe to use here just to extract the user ID
       const decoded = jwt.decode(refreshToken);
       if (decoded && decoded.id) {
          const userRef = db.collection('users').doc(decoded.id);

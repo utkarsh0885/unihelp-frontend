@@ -17,10 +17,6 @@ import React, {
 } from 'react';
 import {
   subscribeToPosts,
-  subscribeToDoubts,
-  subscribeToNotes,
-  subscribeToItems,
-  subscribeToEvents,
   addPost as addPostService,
   toggleLikePost,
   toggleSavePost,
@@ -57,24 +53,21 @@ export const DataProvider = ({ children }) => {
 
   // ── State ──
   const [posts, setPosts] = useState([]);
-  const [doubts, setDoubts] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [items, setItems] = useState([]);
-  const [events, setEvents] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
-  const [postsError, setPostsError] = useState(null);   // ← NEW: tracks API error message
-  const [doubtsLoading, setDoubtsLoading] = useState(true);
-  const [notesLoading, setNotesLoading] = useState(true);
-  const [itemsLoading, setItemsLoading] = useState(true);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [postsError, setPostsError] = useState(null);   // tracks API error message
+
+  // Derived Category Feeds (In-memory derived from a single polling subscription)
+  const doubts = useMemo(() => posts.filter((p) => p.category === 'General'), [posts]);
+  const notes = useMemo(() => posts.filter((p) => p.category === 'Notes' || p.category === 'Share Notes'), [posts]);
+  const items = useMemo(() => posts.filter((p) => p.category === 'Buy/Sell'), [posts]);
+  const events = useMemo(() => posts.filter((p) => p.category === 'Events'), [posts]);
+
+  const doubtsLoading = postsLoading;
+  const notesLoading = postsLoading;
+  const itemsLoading = postsLoading;
+  const eventsLoading = postsLoading;
 
   const unsubPostsRef = useRef(null);
-  const unsubDoubtsRef = useRef(null);
-  const unsubNotesRef = useRef(null);
-  const unsubItemsRef = useRef(null);
-  const unsubEventsRef = useRef(null);
-  // unsubChatsRef removed — chats no longer polled from DataContext
-  // unsubPresenceRef removed — presence was socket-only
 
   const [chats] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -82,16 +75,8 @@ export const DataProvider = ({ children }) => {
 
   const refreshData = useCallback(async () => {
     setPostsLoading(true);
-    setDoubtsLoading(true);
-    setNotesLoading(true);
-    setItemsLoading(true);
-    setEventsLoading(true);
 
     if (unsubPostsRef.current) unsubPostsRef.current();
-    if (unsubDoubtsRef.current) unsubDoubtsRef.current();
-    if (unsubNotesRef.current) unsubNotesRef.current();
-    if (unsubItemsRef.current) unsubItemsRef.current();
-    if (unsubEventsRef.current) unsubEventsRef.current();
 
     await initSeedData();
 
@@ -99,26 +84,6 @@ export const DataProvider = ({ children }) => {
       setPosts(data);
       setPostsError(error || null);
       setPostsLoading(false);
-    });
-
-    unsubDoubtsRef.current = subscribeToDoubts((data) => {
-      setDoubts(data);
-      setDoubtsLoading(false);
-    });
-
-    unsubNotesRef.current = subscribeToNotes((data) => {
-      setNotes(data);
-      setNotesLoading(false);
-    });
-
-    unsubItemsRef.current = subscribeToItems((data) => {
-      setItems(data);
-      setItemsLoading(false);
-    });
-
-    unsubEventsRef.current = subscribeToEvents((data) => {
-      setEvents(data);
-      setEventsLoading(false);
     });
   }, []);
 
@@ -156,46 +121,6 @@ export const DataProvider = ({ children }) => {
         console.warn('[DataContext] Posts subscription error:', e);
         if (mounted) { setPostsError(e?.message || 'Subscription error'); setPostsLoading(false); }
       }
-
-      try {
-        unsubDoubtsRef.current = subscribeToDoubts((data) => {
-          if (mounted) { setDoubts(data || []); setDoubtsLoading(false); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Doubts init error:', e);
-        if (mounted) setDoubtsLoading(false);
-      }
-
-      try {
-        unsubNotesRef.current = subscribeToNotes((data) => {
-          if (mounted) { setNotes(data || []); setNotesLoading(false); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Notes init error:', e);
-        if (mounted) setNotesLoading(false);
-      }
-
-      try {
-        unsubItemsRef.current = subscribeToItems((data) => {
-          if (mounted) { setItems(data || []); setItemsLoading(false); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Items init error:', e);
-        if (mounted) setItemsLoading(false);
-      }
-
-      try {
-        unsubEventsRef.current = subscribeToEvents((data) => {
-          if (mounted) { setEvents(data || []); setEventsLoading(false); }
-        });
-      } catch (e) {
-        console.warn('[DataContext] Events init error:', e);
-        if (mounted) setEventsLoading(false);
-      }
-
-      // subscribeToChats and subscribeToActiveUsersCount removed —
-      // Messages feature disabled, presence requires WebSocket.
-
     };
 
     init();
@@ -203,10 +128,6 @@ export const DataProvider = ({ children }) => {
     return () => {
       mounted = false;
       if (unsubPostsRef.current) unsubPostsRef.current();
-      if (unsubDoubtsRef.current) unsubDoubtsRef.current();
-      if (unsubNotesRef.current) unsubNotesRef.current();
-      if (unsubItemsRef.current) unsubItemsRef.current();
-      if (unsubEventsRef.current) unsubEventsRef.current();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

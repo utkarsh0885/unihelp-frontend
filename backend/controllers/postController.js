@@ -1,19 +1,10 @@
 const { db, admin } = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
+const { getEpoch } = require('../utils/dateUtils');
 
 // ── Allowed category values ──
 const ALLOWED_CATEGORIES = ['General', 'Buy/Sell', 'Events', 'Lost & Found', 'Notes', 'Other'];
-
-// Safe helper to convert any Firestore timestamp/date into milliseconds epoch
-const getEpoch = (val) => {
-  if (!val) return 0;
-  if (typeof val.toDate === 'function') return val.toDate().getTime();
-  if (val instanceof Date) return val.getTime();
-  if (typeof val === 'string') return new Date(val).getTime();
-  if (val.seconds) return val.seconds * 1000;
-  return 0;
-};
 
 exports.createPost = asyncHandler(async (req, res) => {
   const { title, content, category, imageUrl, poll, price, condition } = req.body;
@@ -91,8 +82,20 @@ exports.getPosts = asyncHandler(async (req, res) => {
 
   console.log(`[Posts] GET /api/posts | category=${category ?? 'all'} | authorId=${authorId ?? 'all'} | user=${req.user?.id ?? 'anonymous'}`);
 
-  // Fetch all posts and filter/sort in-memory to prevent complex composite index requirements in Firestore console
-  let snapshot = await db.collection('posts').get();
+  let query = db.collection('posts');
+
+  if (category) {
+    query = query.where('category', '==', category);
+  } else if (authorId) {
+    query = query.where('author', '==', authorId);
+  } else {
+    query = query.orderBy('createdAt', 'desc');
+  }
+
+  // Restrict reads to the latest 200 documents to protect database limits
+  query = query.limit(200);
+
+  let snapshot = await query.get();
   let list = [];
 
   snapshot.forEach((doc) => {
@@ -102,14 +105,6 @@ exports.getPosts = asyncHandler(async (req, res) => {
       ...data,
     });
   });
-
-  // Filter in-memory
-  if (category) {
-    list = list.filter((p) => p.category === category);
-  }
-  if (authorId) {
-    list = list.filter((p) => p.author === authorId);
-  }
 
   // Sort by createdAt descending safely
   list.sort((a, b) => getEpoch(b.createdAt) - getEpoch(a.createdAt));

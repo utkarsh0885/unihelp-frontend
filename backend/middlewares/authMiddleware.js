@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../utils/tokenUtils');
 
 // ── JWT Access Token Verification ─────────────────────────────────────────────
 exports.authenticateUser = (req, res, next) => {
@@ -13,9 +13,8 @@ exports.authenticateUser = (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'fallback_secret';
 
-    const decoded = jwt.verify(token, secret);
+    const decoded = verifyAccessToken(token);
     req.user = decoded; // { id, role, ... }
 
     next();

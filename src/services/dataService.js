@@ -117,57 +117,8 @@ export const subscribeToComments = (postId, callback) => {
   return () => clearInterval(interval);
 };
 
-export const subscribeToDoubts = (callback) => {
-  const fetch = () =>
-    getPosts('General')
-      .then((data) => callback(data || []))
-      .catch((err) => {
-        console.warn('[DataService] subscribeToDoubts error:', err?.message);
-        callback([]);
-      });
-  fetch();
-  const interval = setInterval(fetch, 15000);
-  return () => clearInterval(interval);
-};
-
-export const subscribeToNotes = (callback) => {
-  const fetch = () =>
-    getPosts('Notes')
-      .then((data) => callback(data || []))
-      .catch((err) => {
-        console.warn('[DataService] subscribeToNotes error:', err?.message);
-        callback([]);
-      });
-  fetch();
-  const interval = setInterval(fetch, 15000);
-  return () => clearInterval(interval);
-};
-
-export const subscribeToItems = (callback) => {
-  const fetch = () =>
-    getPosts('Buy/Sell')
-      .then((data) => callback(data || []))
-      .catch((err) => {
-        console.warn('[DataService] subscribeToItems error:', err?.message);
-        callback([]);
-      });
-  fetch();
-  const interval = setInterval(fetch, 15000);
-  return () => clearInterval(interval);
-};
-
-export const subscribeToEvents = (callback) => {
-  const fetch = () =>
-    getPosts('Events')
-      .then((data) => callback(data || []))
-      .catch((err) => {
-        console.warn('[DataService] subscribeToEvents error:', err?.message);
-        callback([]);
-      });
-  fetch();
-  const interval = setInterval(fetch, 15000);
-  return () => clearInterval(interval);
-};
+// ── Removed: subscribeToDoubts, subscribeToNotes, subscribeToItems, subscribeToEvents ──
+// Feeds are now derived in-memory from the main posts subscription in DataContext.js.
 
 // ── Removed: subscribeToChats ──────────────────────────────────────────────────
 // ChatListScreen now manages its own polling via setInterval.

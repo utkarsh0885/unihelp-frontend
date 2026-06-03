@@ -1,3 +1,15 @@
 node_modules
-.env
 dist
+
+# ── Environment files (NEVER commit secrets) ──
+.env
+.env.*
+!.env.example
+
+# ── Firebase credentials ──
+**/serviceAccountKey*.json
+**/firebase-adminsdk*.json
+
+# ── OS artifacts ──
+.DS_Store
+Thumbs.db

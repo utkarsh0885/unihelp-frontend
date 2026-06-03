@@ -1,23 +1,7 @@
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { db } = require('../config/db');
-
-// Helper to generate custom JWT Access Token (short lived)
-const generateAccessToken = (user) => {
-  const secret = process.env.JWT_SECRET || 'fallback_secret';
-  return jwt.sign(
-    { id: user.id, role: user.role, name: user.name, email: user.email },
-    secret,
-    { expiresIn: '15m' }
-  );
-};
-
-// Helper to generate Refresh Token (long lived)
-const generateRefreshToken = (user) => {
-  const secret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
-  return jwt.sign({ id: user.id }, secret, { expiresIn: '7d' });
-};
+const { generateAccessToken, generateRefreshToken } = require('../utils/tokenUtils');
 
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;

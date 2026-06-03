@@ -16,12 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import InputField from './InputField';
 import GradientButton from './GradientButton';
 
 const EditProfileModal = ({ visible, onClose, user }) => {
   const { colors, shadows, isDark } = useTheme();
   const { updateUser } = useAuth();
+  const { showToast } = useToast();
   
   const [name, setName] = React.useState(user?.name || '');
   const [specialisation, setSpecialisation] = React.useState(user?.specialisation || '');
@@ -142,14 +144,11 @@ const EditProfileModal = ({ visible, onClose, user }) => {
                 />
 
                 <GradientButton 
-                  title={saving ? "Saving..." : "Save Changes"} 
-                  onPress={async () => {
-                    setSaving(true);
-                    await updateUser({ name, specialisation });
-                    setSaving(false);
+                  title="Save Changes" 
+                  onPress={() => {
+                    showToast("Edit Profile feature is coming soon!", "info");
                     handleClose();
                   }} 
-                  disabled={saving}
                   style={{ marginTop: SIZES.lg }} 
                 />
                 

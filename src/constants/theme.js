@@ -143,6 +143,7 @@ export const SIZES = {
   radiusMd: 16,
   radiusLg: 20,
   radiusXl: 24,
+  radiusXxl: 28,
   radiusFull: 9999,
 
   // ── Avatars ──

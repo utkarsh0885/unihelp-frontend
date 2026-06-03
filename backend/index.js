@@ -1,4 +1,9 @@
 require('dotenv').config();
+
+// ── Centralized env validation (MUST be first import after dotenv) ────────────
+// Crashes immediately if any required secret is missing or weak.
+const env = require('./config/env');
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -20,28 +25,9 @@ const { initFirebase } = require('./config/db');
 const app = express();
 const server = http.createServer(app);
 
-// ── Production startup guard ──────────────────────────────────────────────────
-const REQUIRED_ENV_VARS = [
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_CALLBACK_URL',
-  'FRONTEND_URL',
-  'JWT_SECRET',
-  'JWT_REFRESH_SECRET',
-  'SESSION_SECRET',
-];
-
-const missingVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
-if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:');
-  missingVars.forEach((v) => console.error(`   - ${v}`));
-  console.error('Set these in your Render dashboard → Environment tab.');
-  process.exit(1);
-}
-
 // ── Resolve dynamic base URL ──────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const PORT = env.PORT;
+const BASE_URL = env.BASE_URL;
 
 // ── Security middleware ───────────────────────────────────────────────────────
 app.use(helmet({
@@ -132,7 +118,7 @@ const authLimiter = rateLimit({
 // ── Session middleware ────────────────────────────────────────────────────────
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
