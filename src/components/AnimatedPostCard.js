@@ -196,7 +196,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMessage, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
+const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
   const { colors, shadows, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
@@ -215,7 +215,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
   const [likeHovered, setLikeHovered] = React.useState(false);
   const [commentHovered, setCommentHovered] = React.useState(false);
   const [shareHovered, setShareHovered] = React.useState(false);
-  const [messageHovered, setMessageHovered] = React.useState(false);
   const [saveHovered, setSaveHovered] = React.useState(false);
 
   const handleLike = useCallback(() => {
@@ -247,10 +246,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
   const handleComment = useCallback(() => {
     if (onComment) onComment(post);
   }, [post, onComment]);
-
-  const handleMessage = useCallback(() => {
-    if (onMessage) onMessage(post);
-  }, [post, onMessage]);
 
   const onPressIn = () => {
     Animated.spring(cardScale, { 
@@ -494,22 +489,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
 
-        {/* Message */}
-        {userId !== post.userId && (
-          <TouchableOpacity 
-            style={[
-              styles.actionBtn,
-              messageHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
-            ]} 
-            onPress={handleMessage} 
-            activeOpacity={0.6}
-            onMouseEnter={() => setMessageHovered(true)}
-            onMouseLeave={() => setMessageHovered(false)}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
-            <Text style={styles.actionLabel}>Message</Text>
-          </TouchableOpacity>
-        )}
+        {/* Message button hidden for public release */}
 
         <View style={{ flex: 1 }} />
 

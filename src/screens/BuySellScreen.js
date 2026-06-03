@@ -32,7 +32,7 @@ const BuySellScreen = ({ navigation }) => {
   const { 
     items, itemsLoading, posts, 
     toggleLike, toggleSave, votePoll, userId, refreshData,
-    addItem, reserveItem, getOrCreateChat 
+    addItem, reserveItem 
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
@@ -99,10 +99,6 @@ const BuySellScreen = ({ navigation }) => {
       setPosting(false);
     }
   }, [itemTitle, itemPrice, itemCondition, addItem]);
-
-  const handleChat = useCallback(() => {
-    Alert.alert('Coming Soon', 'Direct messaging will be available in a future update.');
-  }, []);
 
   const handleReserve = useCallback(async (item) => {
     if (item.status === 'Reserved') return;
@@ -200,19 +196,11 @@ const BuySellScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.actionBtn, styles.chatBtn]} 
-              onPress={() => handleChat(item)} 
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
-              <Text style={[styles.actionText, styles.chatText]}>Chat</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
     );
-  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleChat, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation]);
+  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation]);
 
   return (
     <View style={styles.screen}>

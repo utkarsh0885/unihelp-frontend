@@ -99,8 +99,6 @@ export const DataProvider = ({ children }) => {
 
   const unsubPostsRef = useRef(null);
 
-  const [chats] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [activeUsersCount] = useState(0); // stub — requires socket presence
 
   const refreshData = useCallback(async () => {
@@ -407,8 +405,6 @@ export const DataProvider = ({ children }) => {
     return await addPostService(event);
   }, []);
   const reserveItem = useCallback(async () => {}, []);
-  const getOrCreateChat = useCallback(async () => null, []);
-  const sendMessage = useCallback(async () => null, []);
   const markAllNotificationsRead = useCallback(async () => {}, []);
 
   // ══════════ Context Value ══════════
@@ -418,11 +414,9 @@ export const DataProvider = ({ children }) => {
     addComment, getCommentsForPost,
     doubts, doubtsLoading, addDoubt, upvoteDoubt,
     notes, notesLoading, addNote, downloadNote,
-    chats, items, itemsLoading, addItem, reserveItem,
+    items, itemsLoading, addItem, reserveItem,
     events, eventsLoading, addEvent,
-    getOrCreateChat, sendMessage,
     userId, refreshData, activeUsersCount,
-    unreadCount, setUnreadCount,
     deletePost, updatePost,
     markAllNotificationsRead,
   }), [
@@ -434,10 +428,9 @@ export const DataProvider = ({ children }) => {
     addComment, getCommentsForPost,
     doubts, doubtsLoading,
     notes, notesLoading,
-    chats, items, itemsLoading,
+    items, itemsLoading,
     events, eventsLoading,
     userId, refreshData, activeUsersCount,
-    unreadCount,
     deletePost, updatePost,
   ]);
 
