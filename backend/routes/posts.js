@@ -8,6 +8,7 @@ const { authenticateUser } = require('../middlewares/authMiddleware');
 // GET requests are intentionally public so the Home screen loads without auth.
 // Mobile/web clients may hit these before the token is attached on first render.
 router.get('/', postController.getPosts);
+router.get('/saved', authenticateUser, postController.getSavedPosts);
 router.get('/:id', postController.getPostById);
 
 // ── Protected routes (token required) ────────────────────────────────────────

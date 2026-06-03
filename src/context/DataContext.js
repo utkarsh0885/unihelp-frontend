@@ -20,6 +20,7 @@ import {
   addPost as addPostService,
   toggleLikePost,
   toggleSavePost,
+  getSavedPostsService,
   votePollService,
   addCommentService,
   subscribeToComments,
@@ -55,6 +56,35 @@ export const DataProvider = ({ children }) => {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(null);   // tracks API error message
+  const [savedPosts, setSavedPosts] = useState([]);
+
+  // ── Fetch saved posts from backend ──
+  useEffect(() => {
+    if (!userId || userId === 'local_user') {
+      setSavedPosts([]);
+      return;
+    }
+
+    let mounted = true;
+    const fetchSaved = async () => {
+      try {
+        const data = await getSavedPostsService();
+        if (mounted) {
+          setSavedPosts(data || []);
+        }
+      } catch (err) {
+        console.warn('[DataContext] Failed to fetch saved posts:', err?.message);
+      }
+    };
+
+    fetchSaved();
+    const interval = setInterval(fetchSaved, 15000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [userId]);
 
   // Derived Category Feeds (In-memory derived from a single polling subscription)
   const doubts = useMemo(() => posts.filter((p) => p.category === 'General'), [posts]);
@@ -200,6 +230,10 @@ export const DataProvider = ({ children }) => {
 
   const toggleSave = useCallback(async (postId) => {
     let rollbackPosts = null;
+    let rollbackSaved = null;
+
+    // Find the target post in main feed
+    const targetPost = posts.find(p => (p.id || p._id) === postId);
 
     setPosts(prevPosts => {
       rollbackPosts = prevPosts;
@@ -220,6 +254,24 @@ export const DataProvider = ({ children }) => {
       });
     });
 
+    setSavedPosts(prevSaved => {
+      rollbackSaved = prevSaved;
+      const isCurrentlySaved = prevSaved.some(p => (p.id || p._id) === postId);
+      
+      if (isCurrentlySaved) {
+        return prevSaved.filter(p => (p.id || p._id) !== postId);
+      } else {
+        if (targetPost) {
+          const updatedPost = {
+            ...targetPost,
+            savedBy: [...(targetPost.savedBy || []), userId],
+          };
+          return [updatedPost, ...prevSaved];
+        }
+        return prevSaved;
+      }
+    });
+
     try {
       const response = await toggleSavePost(postId);
       if (response && Array.isArray(response.savedBy)) {
@@ -235,12 +287,33 @@ export const DataProvider = ({ children }) => {
             return post;
           })
         );
+
+        setSavedPosts(prevSaved => {
+          const isSaved = response.savedBy.includes(userId);
+          if (isSaved) {
+            const exists = prevSaved.some(p => (p.id || p._id) === postId);
+            if (exists) {
+              return prevSaved.map(p => {
+                if ((p.id || p._id) === postId) {
+                  return { ...p, savedBy: response.savedBy };
+                }
+                return p;
+              });
+            } else if (targetPost) {
+              return [{ ...targetPost, savedBy: response.savedBy }, ...prevSaved];
+            }
+          } else {
+            return prevSaved.filter(p => (p.id || p._id) !== postId);
+          }
+          return prevSaved;
+        });
       }
     } catch (err) {
       console.error('[DataContext] toggleSave failed, rolling back:', err);
       if (rollbackPosts) setPosts(rollbackPosts);
+      if (rollbackSaved) setSavedPosts(rollbackSaved);
     }
-  }, [userId]);
+  }, [userId, posts]);
 
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
@@ -249,8 +322,6 @@ export const DataProvider = ({ children }) => {
   const updatePost = useCallback(async (postId, updates) => {
     await updatePostService(postId, updates);
   }, []);
-
-  const savedPosts = useMemo(() => posts.filter((p) => p.savedBy?.includes(userId)), [posts, userId]);
 
   const votePoll = useCallback(async (postId, optionIndex) => {
     let rollbackPosts = null;

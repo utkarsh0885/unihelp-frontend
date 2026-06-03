@@ -251,6 +251,48 @@ exports.toggleSave = asyncHandler(async (req, res) => {
   res.json({ savedBy });
 });
 
+exports.getSavedPosts = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  console.log(`[Posts] GET /api/posts/saved | user=${userId}`);
+
+  const snapshot = await db.collection('posts').where('savedBy', 'array-contains', userId).get();
+  let list = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    list.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  // Sort by createdAt descending safely
+  list.sort((a, b) => getEpoch(b.createdAt) - getEpoch(a.createdAt));
+
+  // Normalize structure for frontend mapping
+  const normalized = list.map((p) => {
+    let formattedDate = new Date().toISOString();
+    const epoch = getEpoch(p.createdAt);
+    if (epoch > 0) {
+      formattedDate = new Date(epoch).toISOString();
+    }
+
+    return {
+      ...p,
+      createdAt: formattedDate,
+      username: p.authorName || 'User',
+      avatar: (p.authorName || 'U').charAt(0).toUpperCase(),
+      likes: p.likes ?? 0,
+      likedBy: p.likedBy ?? [],
+      savedBy: p.savedBy ?? [],
+      commentsCount: p.commentsCount ?? 0,
+    };
+  });
+
+  console.log(`[Posts] Saved → returning ${normalized.length} posts`);
+  res.json(normalized);
+});
+
 exports.votePoll = asyncHandler(async (req, res) => {
   const { optionIndex } = req.body;
 

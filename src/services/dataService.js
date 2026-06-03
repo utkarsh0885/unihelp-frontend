@@ -34,6 +34,11 @@ export const toggleSavePost = async (postId) => {
   return response.data;
 };
 
+export const getSavedPostsService = async () => {
+  const response = await apiClient.get('/api/posts/saved');
+  return response.data;
+};
+
 export const deletePostService = async (postId) => {
   const response = await apiClient.delete(`/api/posts/${postId}`);
   return response.data;
