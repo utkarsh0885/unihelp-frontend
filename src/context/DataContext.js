@@ -150,12 +150,97 @@ export const DataProvider = ({ children }) => {
   }, [user, userId]);
 
   const toggleLike = useCallback(async (postId) => {
-    await toggleLikePost(postId);
-  }, []);
+    let rollbackPosts = null;
+
+    setPosts(prevPosts => {
+      rollbackPosts = prevPosts;
+      return prevPosts.map(post => {
+        const id = post.id || post._id;
+        if (id === postId) {
+          const likedBy = post.likedBy || [];
+          const isLiked = likedBy.includes(userId);
+          const nextLikedBy = isLiked
+            ? likedBy.filter(uid => uid !== userId)
+            : [...likedBy, userId];
+          const nextLikes = isLiked
+            ? Math.max(0, (post.likes || 0) - 1)
+            : (post.likes || 0) + 1;
+          return {
+            ...post,
+            likedBy: nextLikedBy,
+            likes: nextLikes,
+          };
+        }
+        return post;
+      });
+    });
+
+    try {
+      const response = await toggleLikePost(postId);
+      if (response && Array.isArray(response.likedBy)) {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            const id = post.id || post._id;
+            if (id === postId) {
+              return {
+                ...post,
+                likedBy: response.likedBy,
+                likes: response.likes ?? post.likes,
+              };
+            }
+            return post;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('[DataContext] toggleLike failed, rolling back:', err);
+      if (rollbackPosts) setPosts(rollbackPosts);
+    }
+  }, [userId]);
 
   const toggleSave = useCallback(async (postId) => {
-    await toggleSavePost(postId);
-  }, []);
+    let rollbackPosts = null;
+
+    setPosts(prevPosts => {
+      rollbackPosts = prevPosts;
+      return prevPosts.map(post => {
+        const id = post.id || post._id;
+        if (id === postId) {
+          const savedBy = post.savedBy || [];
+          const isSaved = savedBy.includes(userId);
+          const nextSavedBy = isSaved
+            ? savedBy.filter(uid => uid !== userId)
+            : [...savedBy, userId];
+          return {
+            ...post,
+            savedBy: nextSavedBy,
+          };
+        }
+        return post;
+      });
+    });
+
+    try {
+      const response = await toggleSavePost(postId);
+      if (response && Array.isArray(response.savedBy)) {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            const id = post.id || post._id;
+            if (id === postId) {
+              return {
+                ...post,
+                savedBy: response.savedBy,
+              };
+            }
+            return post;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('[DataContext] toggleSave failed, rolling back:', err);
+      if (rollbackPosts) setPosts(rollbackPosts);
+    }
+  }, [userId]);
 
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
@@ -168,8 +253,54 @@ export const DataProvider = ({ children }) => {
   const savedPosts = useMemo(() => posts.filter((p) => p.savedBy?.includes(userId)), [posts, userId]);
 
   const votePoll = useCallback(async (postId, optionIndex) => {
-    await votePollService(postId, optionIndex);
-  }, []);
+    let rollbackPosts = null;
+
+    setPosts(prevPosts => {
+      rollbackPosts = prevPosts;
+      return prevPosts.map(post => {
+        const id = post.id || post._id;
+        if (id === postId && post.poll) {
+          const votedBy = post.poll.votedBy || [];
+          const options = post.poll.options.map((opt, idx) => {
+            if (idx === optionIndex) {
+              return { ...opt, votes: (opt.votes || 0) + 1 };
+            }
+            return opt;
+          });
+          return {
+            ...post,
+            poll: {
+              ...post.poll,
+              options,
+              votedBy: [...votedBy, userId],
+            },
+          };
+        }
+        return post;
+      });
+    });
+
+    try {
+      const response = await votePollService(postId, optionIndex);
+      if (response && response.poll) {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            const id = post.id || post._id;
+            if (id === postId) {
+              return {
+                ...post,
+                poll: response.poll,
+              };
+            }
+            return post;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('[DataContext] votePoll failed, rolling back:', err);
+      if (rollbackPosts) setPosts(rollbackPosts);
+    }
+  }, [userId]);
 
   // ══════════ Comment Actions ══════════
 

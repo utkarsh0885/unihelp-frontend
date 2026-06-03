@@ -24,9 +24,9 @@ import { Alert } from 'react-native';
 const PostDetailScreen = ({ route = {}, navigation }) => {
   console.log('[PostDetailScreen] Render — route:', route, 'navigation:', !!navigation);
   const routeParams = route?.params || {};
-  const post = routeParams?.post;
   const { colors, shadows, isDark } = useTheme();
   const { 
+    posts,
     addComment, 
     getCommentsForPost, 
     toggleLike, 
@@ -34,6 +34,10 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
     votePoll, 
     userId 
   } = useData();
+
+  // Find the fresh post from context, falling back to routeParams.post
+  const routePost = routeParams?.post;
+  const post = posts.find(p => (p.id || p._id) === (routePost?.id || routePost?._id)) || routePost;
 
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 

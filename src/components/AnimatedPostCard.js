@@ -175,9 +175,11 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SIZES.lg, // Proper spacing between actions
+    marginRight: 8,
     gap: 6,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
   },
   actionLabel: {
     fontSize: SIZES.fontXs,
@@ -205,18 +207,39 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
   const isLiked = post.likedBy?.includes(userId);
   const isSaved = post.savedBy?.includes(userId);
 
+  // Click locks to prevent double-click spam
+  const lastLikeClick = React.useRef(0);
+  const lastSaveClick = React.useRef(0);
+
+  // Hover states for premium web interaction
+  const [likeHovered, setLikeHovered] = React.useState(false);
+  const [commentHovered, setCommentHovered] = React.useState(false);
+  const [shareHovered, setShareHovered] = React.useState(false);
+  const [messageHovered, setMessageHovered] = React.useState(false);
+  const [saveHovered, setSaveHovered] = React.useState(false);
+
   const handleLike = useCallback(() => {
+    const now = Date.now();
+    if (now - lastLikeClick.current < 350) return;
+    lastLikeClick.current = now;
+
+    likeScale.setValue(1);
     Animated.sequence([
-      Animated.spring(likeScale, { toValue: 1.2, friction: 3, useNativeDriver: true }),
-      Animated.spring(likeScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.spring(likeScale, { toValue: 1.4, friction: 3, tension: 120, useNativeDriver: true }),
+      Animated.spring(likeScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
     ]).start();
     onLike(post.id);
   }, [post.id, onLike, likeScale]);
 
   const handleSave = useCallback(() => {
+    const now = Date.now();
+    if (now - lastSaveClick.current < 350) return;
+    lastSaveClick.current = now;
+
+    saveScale.setValue(1);
     Animated.sequence([
-      Animated.spring(saveScale, { toValue: 1.3, friction: 3, useNativeDriver: true }),
-      Animated.spring(saveScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.spring(saveScale, { toValue: 1.4, friction: 3, tension: 120, useNativeDriver: true }),
+      Animated.spring(saveScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
     ]).start();
     onSave(post.id);
   }, [post.id, onSave, saveScale]);
@@ -416,9 +439,15 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
       <View style={styles.actions}>
         {/* Like */}
         <AnimatedTouchable
-          style={[styles.actionBtn, { transform: [{ scale: likeScale }] }]}
+          style={[
+            styles.actionBtn, 
+            { transform: [{ scale: likeScale }] },
+            likeHovered && { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.08)' }
+          ]}
           onPress={handleLike}
           activeOpacity={0.6}
+          onMouseEnter={() => setLikeHovered(true)}
+          onMouseLeave={() => setLikeHovered(false)}
         >
           <Ionicons
             name={isLiked ? 'heart' : 'heart-outline'}
@@ -434,7 +463,16 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
         </AnimatedTouchable>
 
         {/* Comment */}
-        <TouchableOpacity style={styles.actionBtn} onPress={handleComment} activeOpacity={0.6}>
+        <TouchableOpacity 
+          style={[
+            styles.actionBtn,
+            commentHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+          ]} 
+          onPress={handleComment} 
+          activeOpacity={0.6}
+          onMouseEnter={() => setCommentHovered(true)}
+          onMouseLeave={() => setCommentHovered(false)}
+        >
           <Ionicons name="chatbubble-outline" size={20} color={colors.textPrimary} />
           <Text style={styles.actionLabel}>
             {post.commentsCount === 1 ? '1 Comment' : (post.commentsCount > 1 ? `${post.commentsCount} Comments` : 'Comment')}
@@ -442,14 +480,32 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
         </TouchableOpacity>
 
         {/* Share */}
-        <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.6}>
+        <TouchableOpacity 
+          style={[
+            styles.actionBtn,
+            shareHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+          ]} 
+          onPress={handleShare} 
+          activeOpacity={0.6}
+          onMouseEnter={() => setShareHovered(true)}
+          onMouseLeave={() => setShareHovered(false)}
+        >
           <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
 
         {/* Message */}
         {userId !== post.userId && (
-          <TouchableOpacity style={styles.actionBtn} onPress={handleMessage} activeOpacity={0.6}>
+          <TouchableOpacity 
+            style={[
+              styles.actionBtn,
+              messageHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+            ]} 
+            onPress={handleMessage} 
+            activeOpacity={0.6}
+            onMouseEnter={() => setMessageHovered(true)}
+            onMouseLeave={() => setMessageHovered(false)}
+          >
             <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.actionLabel}>Message</Text>
           </TouchableOpacity>
@@ -459,9 +515,15 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onMes
 
         {/* Save/Bookmark */}
         <AnimatedTouchable
-          style={[styles.actionBtn, { transform: [{ scale: saveScale }] }]}
+          style={[
+            styles.actionBtn, 
+            { transform: [{ scale: saveScale }] },
+            saveHovered && { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(30, 58, 138, 0.08)' }
+          ]}
           onPress={handleSave}
           activeOpacity={0.6}
+          onMouseEnter={() => setSaveHovered(true)}
+          onMouseLeave={() => setSaveHovered(false)}
         >
           <Ionicons
             name={isSaved ? 'bookmark' : 'bookmark-outline'}
