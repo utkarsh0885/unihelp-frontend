@@ -1,0 +1,26 @@
+{
+  "short_name": "UniHelp",
+  "name": "UniHelp - The Ultimate University Academic Companion",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0D0D0D",
+  "theme_color": "#1E3A8A",
+  "display": "standalone",
+  "orientation": "portrait"
+}
