@@ -14,7 +14,7 @@ import { DataProvider } from './src/context/DataContext';
 import { ToastProvider, useToast } from './src/context/ToastContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 // ── React Navigation URL linking config (web) ─────────────────────────────────
 // Maps browser URLs to screens so that navigating to /auth/callback on Vercel
@@ -120,7 +120,7 @@ export default function App() {
   const onLayoutRootView = useCallback(async () => {
     try {
       await SplashScreen.hideAsync();
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   return (

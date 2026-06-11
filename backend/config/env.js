@@ -20,6 +20,9 @@ const REQUIRED = [
   'GOOGLE_CLIENT_SECRET',
   'GOOGLE_CALLBACK_URL',
   'FRONTEND_URL',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
 ];
 
 // ── Minimum secret length (prevents weak secrets like "abc") ──────────────────
@@ -77,6 +80,9 @@ const env = Object.freeze({
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
   FRONTEND_URL:        process.env.FRONTEND_URL,
+  FIREBASE_PROJECT_ID:  process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+  FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
   PORT:                process.env.PORT || '3000',
   NODE_ENV:            process.env.NODE_ENV || 'development',
   BASE_URL:            process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`,

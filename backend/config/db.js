@@ -1,11 +1,10 @@
 const admin = require('firebase-admin');
+const env = require('./env');
 
 // ── Firebase Admin Initialization ──────────────────────────────────────────
-// Configured to initialize using environment variables on Render.
-// If variables are missing, it falls back to basic project-level config.
-const privateKey = process.env.FIREBASE_PRIVATE_KEY
-  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-  : undefined;
+// Uses validated credentials from config/env.js.
+// Server will NOT start if Firebase credentials are missing.
+const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
 const initFirebase = async () => {
   try {
@@ -14,21 +13,14 @@ const initFirebase = async () => {
       return;
     }
 
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: privateKey,
-        }),
-      });
-      console.log('📡 [Firebase] Admin SDK initialized successfully via Service Account Cert');
-    } else {
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'unihelp-5d4dc',
-      });
-      console.log('📡 [Firebase] Admin SDK initialized with basic Project ID fallback');
-    }
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: env.FIREBASE_PROJECT_ID,
+        clientEmail: env.FIREBASE_CLIENT_EMAIL,
+        privateKey: privateKey,
+      }),
+    });
+    console.log('📡 [Firebase] Admin SDK initialized successfully via Service Account Cert');
   } catch (error) {
     if (error.code === 'app/duplicate-app') {
       console.log('📡 [Firebase] Admin SDK already initialized (duplicate app caught)');
@@ -41,6 +33,7 @@ const initFirebase = async () => {
 
 // Initialize immediately so db exports are populated correctly
 initFirebase().catch((err) => console.error('❌ [Firebase] Critical startup error:', err.message));
+
 
 const db = admin.firestore();
 

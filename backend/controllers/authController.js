@@ -111,3 +111,44 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: 'Internal server error during login' });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+  const userId = req.user?.id;
+  const { name, specialisation } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized user context missing' });
+  }
+
+  try {
+    // 1. Update Firestore user document
+    await db.collection('users').doc(userId).update({
+      name: name.trim(),
+      specialisation: (specialisation || '').trim(),
+    });
+
+    // 2. Fetch the updated user document to construct safe response
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User account not found' });
+    }
+
+    const userData = userDoc.data();
+
+    const safeUser = {
+      id: userId,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      isVerified: userData.isVerified || false,
+      specialisation: userData.specialisation || '',
+    };
+
+    console.log(`[Auth] profile update success: ${safeUser.email} (id=${safeUser.id})`);
+
+    return res.json({ success: true, user: safeUser });
+  } catch (error) {
+    console.error('[Auth] Profile Update Error:', error.message);
+    res.status(500).json({ error: 'Internal server error during profile update' });
+  }
+};

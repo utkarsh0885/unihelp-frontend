@@ -25,9 +25,15 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+const profileValidation = [
+  body('name').notEmpty().withMessage('Name is required').trim().escape(),
+  body('specialisation').optional().isLength({ max: 50 }).withMessage('Specialisation is too long').trim().escape(),
+];
+
 // Primary Authentication Routes
 router.post('/signup', signupValidation, validate, authController.signup);
 router.post('/login', loginValidation, validate, authController.login);
+router.put('/profile', authenticateUser, profileValidation, validate, authController.updateProfile);
 
 // Token Rotation & Session Management
 router.post('/refresh', tokenController.refresh);

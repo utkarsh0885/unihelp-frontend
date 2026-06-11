@@ -87,6 +87,35 @@ const EditProfileModal = ({ visible, onClose, user }) => {
     })
   ).current;
 
+  const handleSave = async () => {
+    if (!name.trim()) {
+      showToast("Display name cannot be empty.", "error");
+      return;
+    }
+    if (specialisation.trim().length > 50) {
+      showToast("Specialisation cannot exceed 50 characters.", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const updated = await updateUser({
+        name: name.trim(),
+        specialisation: specialisation.trim(),
+      });
+      if (updated) {
+        showToast("Profile updated successfully!", "success");
+        handleClose();
+      } else {
+        showToast("Failed to update profile.", "error");
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to update profile.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
@@ -145,10 +174,8 @@ const EditProfileModal = ({ visible, onClose, user }) => {
 
                 <GradientButton 
                   title="Save Changes" 
-                  onPress={() => {
-                    showToast("Edit Profile feature is coming soon!", "info");
-                    handleClose();
-                  }} 
+                  loading={saving}
+                  onPress={handleSave} 
                   style={{ marginTop: SIZES.lg }} 
                 />
                 
