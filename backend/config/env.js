@@ -20,9 +20,6 @@ const REQUIRED = [
   'GOOGLE_CLIENT_SECRET',
   'GOOGLE_CALLBACK_URL',
   'FRONTEND_URL',
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
 ];
 
 // ── Minimum secret length (prevents weak secrets like "abc") ──────────────────

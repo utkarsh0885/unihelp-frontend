@@ -13,12 +13,14 @@ const rateLimit = require('express-rate-limit');
 const passport = require('./config/passport');
 const ApiError = require('./utils/ApiError');
 
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const googleAuthRoutes = require('./routes/googleAuth');
 const chatRoutes = require('./routes/chat');
 const adminRoutes = require('./routes/admin');
 const postRoutes = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
+const notesRoutes = require('./routes/notes');
 const { initSocket } = require('./config/socket');
 const { initFirebase } = require('./config/db');
 
@@ -141,6 +143,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
