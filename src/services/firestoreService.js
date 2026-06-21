@@ -21,8 +21,8 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebaseConfig';
+import { db } from './firebaseConfig';
+
 
 
 // ──────────────────────────────────────────────
@@ -76,77 +76,7 @@ export const toggleLike = async (postId, currentlyLiked) => {
   });
 };
 
-// ──────────────────────────────────────────────
-// Notes
-// ──────────────────────────────────────────────
-
-export const getNotes = async () => {
-  try {
-    const snapshot = await getDocs(
-      query(collection(db, 'notes'), orderBy('createdAt', 'desc')),
-    );
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-  } catch (e) {
-    console.warn('[Firestore] getNotes error:', e);
-    return [];
-  }
-};
-
-/**
- * Upload a note PDF to Firebase Storage.
- * Unique file path: notes/{userId}/{timestamp}_{filename}
- */
-export const uploadNoteFile = async (uri, userId, filename, onProgress) => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-
-  const timestamp = Date.now();
-  const uniqueName = `${timestamp}_${filename}`;
-  const fileRef = ref(storage, `notes/${userId}/${uniqueName}`);
-
-  const uploadTask = uploadBytesResumable(fileRef, blob);
-
-  return new Promise((resolve, reject) => {
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        if (onProgress) onProgress(progress);
-      },
-      (error) => {
-        reject(error);
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            downloadUrl,
-            fileName: uniqueName,
-            fileSize: blob.size,
-          });
-        } catch (e) {
-          reject(e);
-        }
-      }
-    );
-  });
-};
-
-export const addNote = async (note) => {
-  const docRef = await addDoc(collection(db, 'notes'), {
-    title: note.title,
-    subject: note.subject,
-    uploadedBy: note.uploadedBy,
-    uploadedAt: serverTimestamp(),
-    fileUrl: note.fileUrl,
-    fileSize: note.fileSize,
-    fileName: note.fileName,
-    downloads: 0,
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-};
-
+// Notes are now uploaded and retrieved through the Express backend API.
 
 // ──────────────────────────────────────────────
 // Doubts
@@ -221,10 +151,4 @@ export const deleteDocument = async (collectionName, docId) => {
   await deleteDoc(doc(db, collectionName, docId));
 };
 
-export const incrementDownloads = async (noteId) => {
-  const ref = doc(db, 'notes', noteId);
-  await updateDoc(ref, {
-    downloads: increment(1),
-  });
-};
 

@@ -28,12 +28,14 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // Validate that the file is a PDF
+  // Validate that the file is a PDF (be lenient: accept if either extension is .pdf OR mimetype is application/pdf)
   const ext = path.extname(file.originalname).toLowerCase();
-  if (ext !== '.pdf' || file.mimetype !== 'application/pdf') {
-    return cb(new ApiError(400, 'Only PDF files are allowed'), false);
+  const mime = (file.mimetype || '').toLowerCase();
+  if (ext === '.pdf' || mime === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new ApiError(400, 'Only PDF files are allowed'), false);
   }
-  cb(null, true);
 };
 
 const upload = multer({
@@ -68,10 +70,22 @@ router.get('/', asyncHandler(async (req, res) => {
       formattedDate = new Date(epoch).toISOString();
     }
 
+    // Resolve fileUrl, falling back to legacy attachments[0].uri
+    let fileUrl = item.fileUrl || '';
+    if (!fileUrl && Array.isArray(item.attachments) && item.attachments.length > 0) {
+      fileUrl = item.attachments[0].uri || '';
+    }
+
     return {
-      ...item,
+      id: item.id,
+      title: item.title || '',
+      subject: item.subject || '',
+      fileUrl: fileUrl,
       uploadedAt: formattedDate,
-      createdAt: formattedDate,
+      downloads: item.downloads || 0,
+      uploadedBy: item.uploadedBy || item.uploader || item.author || 'Anonymous Student',
+      fileName: item.fileName || (Array.isArray(item.attachments) && item.attachments[0] && item.attachments[0].name) || 'notes.pdf',
+      fileSize: item.fileSize || 0,
     };
   });
 

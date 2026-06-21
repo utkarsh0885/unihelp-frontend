@@ -27,15 +27,14 @@ import {
   deletePostService,
   updatePostService,
   initSeedData,
+  fetchNotesService,
+  uploadNoteService,
+  incrementNoteDownloadsService,
 } from '../services/dataService';
 // Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
-import {
-  getNotes as getNotesFirestore,
-  addNote as addNoteFirestore,
-  uploadNoteFile,
-  incrementDownloads,
-} from '../services/firestoreService';
+import { Platform } from 'react-native';
+
 
 // ⚠️ socketService intentionally NOT imported — WebSockets removed.
 // All real-time updates use REST polling intervals instead.
@@ -100,11 +99,11 @@ export const DataProvider = ({ children }) => {
   const fetchNotes = useCallback(async () => {
     setNotesLoading(true);
     try {
-      const data = await getNotesFirestore();
+      const data = await fetchNotesService();
       setNotes(data || []);
       setNotesError(null);
     } catch (e) {
-      console.warn('[DataContext] getNotes error:', e);
+      console.warn('[DataContext] fetchNotesService error:', e);
       setNotesError(e.message || 'Failed to load notes');
     } finally {
       setNotesLoading(false);
@@ -144,7 +143,7 @@ export const DataProvider = ({ children }) => {
     });
 
     try {
-      const data = await getNotesFirestore();
+      const data = await fetchNotesService();
       setNotes(data || []);
       setNotesError(null);
     } catch (e) {
@@ -436,36 +435,34 @@ export const DataProvider = ({ children }) => {
   const addDoubt = useCallback(async () => null, []);
   const upvoteDoubt = useCallback(async () => {}, []);
   const addNote = useCallback(async (title, subject, fileUri, fileName, fileSize, onProgress) => {
-    // 1. Upload to Firebase Storage
-    const uploadResult = await uploadNoteFile(fileUri, userId, fileName, onProgress);
+    // Construct FormData (cross-platform compatible)
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('subject', subject);
 
-    // 2. Save metadata to Firestore
-    const noteData = {
-      title,
-      subject,
-      uploadedBy: user?.name || 'Anonymous',
-      fileUrl: uploadResult.downloadUrl,
-      fileName: uploadResult.fileName,
-      fileSize: uploadResult.fileSize,
-    };
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      formData.append('file', blob, fileName);
+    } else {
+      formData.append('file', {
+        uri: fileUri,
+        name: fileName,
+        type: 'application/pdf',
+      });
+    }
 
-    const docId = await addNoteFirestore(noteData);
+    const uploadedNote = await uploadNoteService(formData, onProgress);
 
-    // 3. Update local state
-    const newNote = {
-      id: docId,
-      ...noteData,
-      downloads: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setNotes(prev => [newNote, ...prev]);
+    // Update local state
+    setNotes(prev => [uploadedNote, ...prev]);
 
-    return docId;
+    return uploadedNote.id;
   }, [userId, user]);
 
   const downloadNote = useCallback(async (noteId) => {
     try {
-      await incrementDownloads(noteId);
+      await incrementNoteDownloadsService(noteId);
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, downloads: (n.downloads || 0) + 1 } : n));
     } catch (e) {
       console.warn('[DataContext] downloadNote error:', e);
