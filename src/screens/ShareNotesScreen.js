@@ -16,11 +16,11 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
-  ScrollView,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES, GRADIENTS } from '../constants/theme';
+import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,8 +59,16 @@ const ShareNotesScreen = ({ navigation }) => {
     const nativeNotes = notes.map(n => ({ ...n, isGenericPost: false }));
 
     return [...nativeNotes, ...notePosts].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt) : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+      const dateA = a.uploadedAt 
+        ? new Date(a.uploadedAt?.seconds * 1000 || a.uploadedAt) 
+        : a.createdAt 
+          ? new Date(a.createdAt?.seconds * 1000 || a.createdAt) 
+          : 0;
+      const dateB = b.uploadedAt 
+        ? new Date(b.uploadedAt?.seconds * 1000 || b.uploadedAt) 
+        : b.createdAt 
+          ? new Date(b.createdAt?.seconds * 1000 || b.createdAt) 
+          : 0;
       return dateB - dateA;
     });
   }, [notes, posts]);
@@ -68,61 +76,34 @@ const ShareNotesScreen = ({ navigation }) => {
   const [showUpload, setShowUpload] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteSubject, setNoteSubject] = useState('');
-  const [attachments, setAttachments] = useState([]);
-  const [showLinkInput, setShowLinkInput] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [posting, setPosting] = useState(false);
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsMultipleSelection: true,
-    });
-
-    if (!result.canceled) {
-      const newAttachments = result.assets.map(asset => ({
-        uri: asset.uri,
-        name: asset.fileName || `Image_${Date.now()}.jpg`,
-        type: 'image',
-      }));
-      setAttachments(prev => [...prev, ...newAttachments]);
-    }
-  };
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const pickDocument = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: '*/*',
-      multiple: true,
-    });
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        multiple: false,
+      });
 
-    if (!result.canceled) {
-      const newAttachments = result.assets.map(asset => ({
-        uri: asset.uri,
-        name: asset.name,
-        type: 'document',
-      }));
-      setAttachments(prev => [...prev, ...newAttachments]);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const isPdf = asset.mimeType === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
+        if (!isPdf) {
+          Alert.alert('Invalid File', 'Only PDF files can be uploaded.');
+          return;
+        }
+        setSelectedFile({
+          uri: asset.uri,
+          name: asset.name,
+          size: asset.size || 0,
+        });
+      }
+    } catch (e) {
+      console.warn('[ShareNotes] DocumentPicker error:', e);
+      Alert.alert('Error', 'Failed to pick document.');
     }
-  };
-
-  const removeAttachment = (index) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAddLink = () => {
-    if (!linkUrl.trim()) {
-      setShowLinkInput(false);
-      return;
-    }
-    const url = linkUrl.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      Alert.alert('Invalid Link', 'Please enter a valid URL starting with http:// or https://');
-      return;
-    }
-    setAttachments(prev => [...prev, { uri: url, name: url, type: 'link' }]);
-    setLinkUrl('');
-    setShowLinkInput(false);
   };
 
   const handleUpload = useCallback(async () => {
@@ -130,27 +111,60 @@ const ShareNotesScreen = ({ navigation }) => {
       Alert.alert('Missing Info', 'Please enter both title and subject.');
       return;
     }
+    if (!selectedFile) {
+      Alert.alert('No File Selected', 'Please select a PDF file to upload.');
+      return;
+    }
     setPosting(true);
+    setUploadProgress(0);
     try {
-      await addNote(noteTitle.trim(), noteSubject.trim().toUpperCase(), attachments);
+      await addNote(
+        noteTitle.trim(),
+        noteSubject.trim().toUpperCase(),
+        selectedFile.uri,
+        selectedFile.name,
+        selectedFile.size || 0,
+        (progress) => {
+          setUploadProgress(Math.round(progress));
+        }
+      );
       setNoteTitle('');
       setNoteSubject('');
-      setAttachments([]);
+      setSelectedFile(null);
       setShowUpload(false);
       Alert.alert('Uploaded! 📚', 'Your notes are now available for the community.');
     } catch (e) {
-      Alert.alert('Error', 'Failed to upload notes.');
+      console.error('[ShareNotes] Upload error:', e);
+      Alert.alert(
+        'Upload Failed', 
+        e.message || 'An error occurred during note upload. Please try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry', onPress: () => handleUpload() }
+        ]
+      );
     } finally {
       setPosting(false);
+      setUploadProgress(0);
     }
-  }, [noteTitle, noteSubject, addNote, attachments]);
+  }, [noteTitle, noteSubject, selectedFile, addNote]);
 
   const handleDownload = useCallback((note) => {
-    downloadNote(note.id);
-    Alert.alert('Downloaded! ✅', `"${note.title}" saved to your device.`);
+    if (note.fileUrl) {
+      downloadNote(note.id);
+      if (Platform.OS === 'web') {
+        window.open(note.fileUrl, '_blank');
+      } else {
+        Linking.openURL(note.fileUrl).catch(err => {
+          Alert.alert('Error', 'Could not open PDF URL.');
+        });
+      }
+    } else {
+      Alert.alert('Unavailable', 'No file URL exists for this note.');
+    }
   }, [downloadNote]);
 
-  const renderItem = Array.prototype.map.call([noteTitle], () => null)[0] || useCallback(({ item, index }) => {
+  const renderItem = useCallback(({ item, index }) => {
     if (item.isGenericPost) {
       return (
         <AnimatedPostCard
@@ -166,30 +180,42 @@ const ShareNotesScreen = ({ navigation }) => {
       );
     }
 
+    const fileSizeMb = item.fileSize ? (item.fileSize / 1024 / 1024).toFixed(2) : null;
+    const formattedDate = item.uploadedAt 
+      ? new Date(item.uploadedAt?.seconds * 1000 || item.uploadedAt).toLocaleDateString()
+      : item.createdAt 
+        ? new Date(item.createdAt?.seconds * 1000 || item.createdAt).toLocaleDateString() 
+        : '';
+
     return (
       <View style={styles.noteCard}>
-        <View style={styles.noteIcon}><Ionicons name="document-text" size={22} color={colors.accentCyan} /></View>
+        <View style={styles.noteIcon}>
+          <Ionicons name="document-text" size={22} color={colors.accentCyan} />
+        </View>
         <View style={styles.noteInfo}>
           <Text style={styles.noteTitle}>{item.title}</Text>
           <View style={styles.noteMeta}>
-            <View style={styles.subjectBadge}><Text style={styles.subjectText}>{item.subject}</Text></View>
-            <Text style={styles.noteAuthor}>by {item.author}</Text>
-            {item.attachments?.length > 0 && (
+            <View style={styles.subjectBadge}>
+              <Text style={styles.subjectText}>{item.subject}</Text>
+            </View>
+            <Text style={styles.noteAuthor}>by {item.uploadedBy || 'Anonymous'}</Text>
+            {fileSizeMb && (
               <>
                 <Text style={styles.noteDot}>·</Text>
-                <View style={styles.attachmentBadge}>
-                  <Ionicons name="attach" size={12} color={colors.primary} />
-                  <Text style={styles.attachmentText}>{item.attachments.length}</Text>
-                </View>
+                <Text style={styles.noteTime}>{fileSizeMb} MB</Text>
               </>
             )}
-            <Text style={styles.noteDot}>·</Text>
-            <Text style={styles.noteTime}>{item.time || ''}</Text>
+            {formattedDate ? (
+              <>
+                <Text style={styles.noteDot}>·</Text>
+                <Text style={styles.noteTime}>{formattedDate}</Text>
+              </>
+            ) : null}
           </View>
         </View>
         <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)} activeOpacity={0.7}>
-          <Ionicons name="download-outline" size={18} color={colors.primary} />
-          <Text style={styles.downloadCount}>{item.downloads || 0}</Text>
+          <Ionicons name="eye-outline" size={18} color={colors.primary} />
+          <Text style={styles.downloadCount}>View</Text>
         </TouchableOpacity>
       </View>
     );
@@ -218,64 +244,69 @@ const ShareNotesScreen = ({ navigation }) => {
       <ResponsiveContainer maxWidth={700} withCardStyle={false}>
       {showUpload && (
         <View style={styles.uploadCard}>
-          <Text style={styles.uploadTitle}>Upload Notes</Text>
-          <TextInput style={[styles.uploadInput, { color: colors.textPrimary }]} placeholder="Note title (e.g. Linked Lists)" placeholderTextColor={colors.textTertiary} value={noteTitle} onChangeText={setNoteTitle} />
-          <TextInput style={[styles.uploadInput, { color: colors.textPrimary }]} placeholder="Subject code (e.g. CS201)" placeholderTextColor={colors.textTertiary} value={noteSubject} onChangeText={setNoteSubject} autoCapitalize="characters" />
+          <Text style={styles.uploadTitle}>Upload PDF Notes</Text>
+          <TextInput 
+            style={[styles.uploadInput, { color: colors.textPrimary }]} 
+            placeholder="Note title (e.g. Linked Lists)" 
+            placeholderTextColor={colors.textTertiary} 
+            value={noteTitle} 
+            onChangeText={setNoteTitle} 
+            editable={!posting}
+          />
+          <TextInput 
+            style={[styles.uploadInput, { color: colors.textPrimary }]} 
+            placeholder="Subject code (e.g. CS201)" 
+            placeholderTextColor={colors.textTertiary} 
+            value={noteSubject} 
+            onChangeText={setNoteSubject} 
+            autoCapitalize="characters" 
+            editable={!posting}
+          />
 
-          <View style={styles.attachmentActions}>
-            <TouchableOpacity style={styles.attachmentBtn} onPress={pickImage} activeOpacity={0.7}>
-              <Ionicons name="image-outline" size={20} color={colors.primary} />
-              <Text style={styles.attachmentBtnText}>Add Photos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.attachmentBtn} onPress={pickDocument} activeOpacity={0.7}>
-              <Ionicons name="document-outline" size={20} color={colors.primary} />
-              <Text style={styles.attachmentBtnText}>Add Docs</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.attachmentBtn} onPress={() => setShowLinkInput(true)} activeOpacity={0.7}>
-              <Ionicons name="link-outline" size={20} color={colors.primary} />
-              <Text style={styles.attachmentBtnText}>Add Link</Text>
-            </TouchableOpacity>
-          </View>
-
-          {showLinkInput && (
-            <View style={styles.linkInputRow}>
-              <TextInput 
-                style={[styles.linkInput, { color: colors.textPrimary }]} 
-                placeholder="https://google.com/drive/..." 
-                placeholderTextColor={colors.textTertiary} 
-                value={linkUrl} 
-                onChangeText={setLinkUrl}
-                autoCapitalize="none"
-                autoFocus
-              />
-              <TouchableOpacity style={styles.linkDoneBtn} onPress={handleAddLink}>
-                <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
+          <TouchableOpacity 
+            style={[styles.pdfSelectBtn, selectedFile && styles.pdfSelectBtnActive]} 
+            onPress={pickDocument} 
+            disabled={posting} 
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="document-text-outline" 
+              size={20} 
+              color={selectedFile ? colors.accentCyan : colors.primary} 
+            />
+            <Text style={[styles.pdfSelectText, { color: colors.textPrimary }]} numberOfLines={1}>
+              {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` : 'Choose PDF File'}
+            </Text>
+            {selectedFile && !posting && (
+              <TouchableOpacity onPress={() => setSelectedFile(null)}>
+                <Ionicons name="close-circle" size={18} color={colors.accent} />
               </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          {posting && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
+              </View>
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                Uploading: {uploadProgress}%
+              </Text>
             </View>
           )}
 
-          {attachments.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.attachmentPreviewScroll}>
-              {attachments.map((file, idx) => (
-                <View key={idx} style={styles.attachmentPreviewCard}>
-                  <Ionicons 
-                    name={file.type === 'image' ? 'image' : file.type === 'link' ? 'link' : 'document'} 
-                    size={16} 
-                    color={colors.textSecondary} 
-                  />
-                  <Text style={styles.attachmentName} numberOfLines={1}>{file.name}</Text>
-                  <TouchableOpacity onPress={() => removeAttachment(idx)} style={styles.removeBtn}>
-                    <Ionicons name="close-circle" size={16} color={colors.accent} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          <TouchableOpacity style={[styles.uploadBtn, posting && { opacity: 0.7 }]} onPress={handleUpload} activeOpacity={0.8} disabled={posting}>
-            {posting ? <ActivityIndicator size="small" color={colors.textOnPrimary} /> : (
+          <TouchableOpacity 
+            style={[styles.uploadBtn, (posting || !selectedFile) && { opacity: 0.7 }]} 
+            onPress={handleUpload} 
+            activeOpacity={0.8} 
+            disabled={posting || !selectedFile}
+          >
+            {posting ? (
+              <ActivityIndicator size="small" color="#000" />
+            ) : (
               <>
-                <Ionicons name="cloud-upload-outline" size={18} color={colors.textOnPrimary} />
-                <Text style={styles.uploadBtnText}>Upload</Text>
+                <Ionicons name="cloud-upload-outline" size={18} color="#000" />
+                <Text style={styles.uploadBtnText}>Upload PDF</Text>
               </>
             )}
           </TouchableOpacity>
@@ -299,7 +330,7 @@ const ShareNotesScreen = ({ navigation }) => {
                 <Ionicons name="document-text-outline" size={40} color={colors.primary} />
               </View>
               <Text style={styles.emptyTitle}>No notes yet 📝</Text>
-              <Text style={styles.emptySubtitle}>Be the first to share study resources with your peers!</Text>
+              <Text style={styles.emptySubtitle}>Be the first to share PDF study resources with your peers!</Text>
             </View>
           }
         />
@@ -355,98 +386,51 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   noteTime: { fontSize: 12, color: colors.textTertiary },
   downloadBtn: {
     alignItems: 'center', justifyContent: 'center',
-    width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
+    width: 60, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
     borderWidth: 1, borderColor: colors.borderLight,
   },
-  downloadCount: { fontSize: 10, color: colors.primary, fontWeight: '900', marginTop: 2 },
+  downloadCount: { fontSize: 11, color: colors.primary, fontWeight: '900', marginTop: 2 },
 
-  attachmentActions: {
-    flexDirection: 'row',
-    gap: SIZES.sm,
-    marginBottom: SIZES.md,
-  },
-  attachmentBtn: {
-    flex: 1,
+  pdfSelectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    paddingVertical: 10,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    gap: 6,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 50,
+    marginBottom: SIZES.sm,
+    gap: 12,
   },
-  attachmentBtnText: {
+  pdfSelectBtnActive: {
+    borderColor: colors.accentCyan,
+    backgroundColor: colors.accentCyan + '10',
+  },
+  pdfSelectText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  progressContainer: {
+    marginBottom: SIZES.md,
+    marginTop: SIZES.xs,
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceLight,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  linkInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: SIZES.md,
-  },
-  linkInput: {
-    flex: 1,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: 12,
-    height: 44,
-    fontSize: 14,
-    color: colors.textPrimary,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
-  },
-  linkDoneBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  attachmentPreviewScroll: {
-    marginBottom: SIZES.md,
-  },
-  attachmentPreviewCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    paddingLeft: 10,
-    paddingRight: 6,
-    paddingVertical: 6,
-    marginRight: 10,
-    maxWidth: 150,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  attachmentName: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginLeft: 6,
-    marginRight: 4,
-    maxWidth: 80,
-  },
-  removeBtn: {
-    padding: 2,
-  },
-  attachmentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryGlow,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    gap: 2,
-  },
-  attachmentText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: colors.primary,
+    marginTop: 6,
+    textAlign: 'center',
   },
 
   loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

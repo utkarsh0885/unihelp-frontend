@@ -30,6 +30,13 @@ import {
 } from '../services/dataService';
 // Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
+import {
+  getNotes as getNotesFirestore,
+  addNote as addNoteFirestore,
+  uploadNoteFile,
+  incrementDownloads,
+} from '../services/firestoreService';
+
 // ⚠️ socketService intentionally NOT imported — WebSockets removed.
 // All real-time updates use REST polling intervals instead.
 
@@ -57,6 +64,10 @@ export const DataProvider = ({ children }) => {
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(null);   // tracks API error message
   const [savedPosts, setSavedPosts] = useState([]);
+
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesError, setNotesError] = useState(null);
 
   // ── Fetch saved posts from backend ──
   useEffect(() => {
@@ -86,16 +97,33 @@ export const DataProvider = ({ children }) => {
     };
   }, [userId]);
 
+  const fetchNotes = useCallback(async () => {
+    setNotesLoading(true);
+    try {
+      const data = await getNotesFirestore();
+      setNotes(data || []);
+      setNotesError(null);
+    } catch (e) {
+      console.warn('[DataContext] getNotes error:', e);
+      setNotesError(e.message || 'Failed to load notes');
+    } finally {
+      setNotesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
+
   // Derived Category Feeds (In-memory derived from a single polling subscription)
   const doubts = useMemo(() => posts.filter((p) => p.category === 'General'), [posts]);
-  const notes = useMemo(() => posts.filter((p) => p.category === 'Notes' || p.category === 'Share Notes'), [posts]);
   const items = useMemo(() => posts.filter((p) => p.category === 'Buy/Sell'), [posts]);
   const events = useMemo(() => posts.filter((p) => p.category === 'Events'), [posts]);
 
   const doubtsLoading = postsLoading;
-  const notesLoading = postsLoading;
   const itemsLoading = postsLoading;
   const eventsLoading = postsLoading;
+
 
   const unsubPostsRef = useRef(null);
 
@@ -103,6 +131,7 @@ export const DataProvider = ({ children }) => {
 
   const refreshData = useCallback(async () => {
     setPostsLoading(true);
+    setNotesLoading(true);
 
     if (unsubPostsRef.current) unsubPostsRef.current();
 
@@ -113,7 +142,19 @@ export const DataProvider = ({ children }) => {
       setPostsError(error || null);
       setPostsLoading(false);
     });
+
+    try {
+      const data = await getNotesFirestore();
+      setNotes(data || []);
+      setNotesError(null);
+    } catch (e) {
+      console.warn('[DataContext] refresh notes error:', e);
+      setNotesError(e.message || 'Failed to refresh notes');
+    } finally {
+      setNotesLoading(false);
+    }
   }, []);
+
 
   // ── Stable reference cache — prevents new array ref on every poll ──────────
   // JSON-compares incoming data with stored posts. If identical, skips setPosts
@@ -394,8 +435,42 @@ export const DataProvider = ({ children }) => {
 
   const addDoubt = useCallback(async () => null, []);
   const upvoteDoubt = useCallback(async () => {}, []);
-  const addNote = useCallback(async () => null, []);
-  const downloadNote = useCallback(async () => {}, []);
+  const addNote = useCallback(async (title, subject, fileUri, fileName, fileSize, onProgress) => {
+    // 1. Upload to Firebase Storage
+    const uploadResult = await uploadNoteFile(fileUri, userId, fileName, onProgress);
+
+    // 2. Save metadata to Firestore
+    const noteData = {
+      title,
+      subject,
+      uploadedBy: user?.name || 'Anonymous',
+      fileUrl: uploadResult.downloadUrl,
+      fileName: uploadResult.fileName,
+      fileSize: uploadResult.fileSize,
+    };
+
+    const docId = await addNoteFirestore(noteData);
+
+    // 3. Update local state
+    const newNote = {
+      id: docId,
+      ...noteData,
+      downloads: 0,
+      createdAt: new Date().toISOString(),
+    };
+    setNotes(prev => [newNote, ...prev]);
+
+    return docId;
+  }, [userId, user]);
+
+  const downloadNote = useCallback(async (noteId) => {
+    try {
+      await incrementDownloads(noteId);
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, downloads: (n.downloads || 0) + 1 } : n));
+    } catch (e) {
+      console.warn('[DataContext] downloadNote error:', e);
+    }
+  }, []);
   const addItem = useCallback(async (title, price, condition) => {
     const item = { title, content: `Selling ${title}`, price, condition, category: 'Buy/Sell' };
     return await addPostService(item);

@@ -21,7 +21,9 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './firebaseConfig';
+
 
 // ──────────────────────────────────────────────
 // Posts
@@ -90,13 +92,61 @@ export const getNotes = async () => {
   }
 };
 
+/**
+ * Upload a note PDF to Firebase Storage.
+ * Unique file path: notes/{userId}/{timestamp}_{filename}
+ */
+export const uploadNoteFile = async (uri, userId, filename, onProgress) => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  const timestamp = Date.now();
+  const uniqueName = `${timestamp}_${filename}`;
+  const fileRef = ref(storage, `notes/${userId}/${uniqueName}`);
+
+  const uploadTask = uploadBytesResumable(fileRef, blob);
+
+  return new Promise((resolve, reject) => {
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        if (onProgress) onProgress(progress);
+      },
+      (error) => {
+        reject(error);
+      },
+      async () => {
+        try {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            downloadUrl,
+            fileName: uniqueName,
+            fileSize: blob.size,
+          });
+        } catch (e) {
+          reject(e);
+        }
+      }
+    );
+  });
+};
+
 export const addNote = async (note) => {
-  return await addDoc(collection(db, 'notes'), {
-    ...note,
+  const docRef = await addDoc(collection(db, 'notes'), {
+    title: note.title,
+    subject: note.subject,
+    uploadedBy: note.uploadedBy,
+    uploadedAt: serverTimestamp(),
+    fileUrl: note.fileUrl,
+    fileSize: note.fileSize,
+    fileName: note.fileName,
     downloads: 0,
     createdAt: serverTimestamp(),
   });
+  return docRef.id;
 };
+
 
 // ──────────────────────────────────────────────
 // Doubts
@@ -170,3 +220,11 @@ export const addItem = async (item) => {
 export const deleteDocument = async (collectionName, docId) => {
   await deleteDoc(doc(db, collectionName, docId));
 };
+
+export const incrementDownloads = async (noteId) => {
+  const ref = doc(db, 'notes', noteId);
+  await updateDoc(ref, {
+    downloads: increment(1),
+  });
+};
+

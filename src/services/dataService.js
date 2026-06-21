@@ -78,7 +78,7 @@ export const deleteCommentService = async (commentId) => {
 // ══════════════════════════════════════
 
 export const getDoubts = () => getPosts('Lost & Found');
-export const getNotes = () => getPosts('Notes');
+// getNotes removed — Notes are now stored in a separate Firestore collection.
 export const getItems = () => getPosts('Buy/Sell');
 export const getEvents = () => getPosts('Events');
 
