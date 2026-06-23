@@ -82,7 +82,10 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
     if (!post?.id || !newComment.trim() || sending) return;
     setSending(true);
     try {
-      await addComment(post.id, newComment.trim());
+      const createdComment = await addComment(post.id, newComment.trim());
+      if (createdComment) {
+        setComments(prev => [...prev, createdComment]);
+      }
       setNewComment('');
     } catch (e) {
       console.warn('Error adding comment:', e);

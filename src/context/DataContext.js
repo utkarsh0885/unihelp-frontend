@@ -429,8 +429,17 @@ export const DataProvider = ({ children }) => {
       avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
       userId,
     };
-    const id = await addCommentService(comment);
-    return id;
+    const newComment = await addCommentService(comment);
+    if (newComment) {
+      setPosts(prev => prev.map(p => {
+        const id = p.id || p._id;
+        if (id === postId) {
+          return { ...p, commentsCount: (p.commentsCount || 0) + 1 };
+        }
+        return p;
+      }));
+    }
+    return newComment;
   }, [user, userId]);
 
   const getCommentsForPost = useCallback(
