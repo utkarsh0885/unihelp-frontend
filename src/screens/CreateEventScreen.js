@@ -26,6 +26,7 @@ import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventPoster } from '../services/storageService';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -43,6 +44,7 @@ const CreateEventScreen = ({ navigation, route = {} }) => {
   const { colors, shadows, isDark } = useTheme();
   const { addEvent } = useData();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const routeParams = route?.params || {};
   const initialDate = routeParams?.date || new Date().toISOString().split('T')[0];
   
@@ -165,9 +167,25 @@ const CreateEventScreen = ({ navigation, route = {} }) => {
         imageUrl: posterUrl,
       });
       
-      Alert.alert('Event Created! 🎉', 'Your campus event is now live and visible on the calendar.', [
-        { text: 'Awesome', onPress: handleGoBack }
-      ]);
+      showToast('Event created successfully! 🎉', 'success');
+
+      // Reset form state
+      setTitle('');
+      setDescription('');
+      setSelectedImage(null);
+      setLocation('');
+      setDate(new Date(initialDate));
+      setTime(new Date());
+      setCategory(CATEGORIES[0]);
+      setErrors({});
+      setUploadProgress(0);
+      setUploadingPoster(false);
+
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Main', { screen: 'Home' });
+      } else {
+        handleGoBack();
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to create event. Please try again.');
     } finally {

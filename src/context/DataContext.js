@@ -214,8 +214,11 @@ export const DataProvider = ({ children }) => {
       avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
       userId,
     };
-    const id = await addPostService(post);
-    return id;
+    const newPost = await addPostService(post);
+    if (newPost && newPost.id) {
+      setPosts(prev => [newPost, ...prev]);
+    }
+    return newPost?.id || newPost?._id;
   }, [user, userId]);
 
   const toggleLike = useCallback(async (postId) => {
@@ -356,10 +359,14 @@ export const DataProvider = ({ children }) => {
 
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
+    setPosts(prev => prev.filter(p => p.id !== postId && p._id !== postId));
   }, []);
 
   const updatePost = useCallback(async (postId, updates) => {
-    await updatePostService(postId, updates);
+    const updatedPost = await updatePostService(postId, updates);
+    if (updatedPost) {
+      setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { ...p, ...updatedPost } : p));
+    }
   }, []);
 
   const votePoll = useCallback(async (postId, optionIndex) => {
@@ -463,13 +470,37 @@ export const DataProvider = ({ children }) => {
     }
   }, []);
   const addItem = useCallback(async (title, price, condition) => {
-    const item = { title, content: `Selling ${title}`, price, condition, category: 'Buy/Sell' };
-    return await addPostService(item);
-  }, []);
+    const item = { 
+      title, 
+      content: `Selling ${title}`, 
+      price, 
+      condition, 
+      category: 'Buy/Sell',
+      username: user?.name || 'You',
+      avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
+      userId,
+    };
+    const newItem = await addPostService(item);
+    if (newItem && newItem.id) {
+      setPosts(prev => [newItem, ...prev]);
+    }
+    return newItem?.id || newItem?._id;
+  }, [user, userId]);
+
   const addEvent = useCallback(async (eventData) => {
-    const event = { ...eventData, category: 'Events' };
-    return await addPostService(event);
-  }, []);
+    const event = { 
+      ...eventData, 
+      category: 'Events',
+      username: user?.name || 'You',
+      avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
+      userId,
+    };
+    const newEvent = await addPostService(event);
+    if (newEvent && newEvent.id) {
+      setPosts(prev => [newEvent, ...prev]);
+    }
+    return newEvent?.id || newEvent?._id;
+  }, [user, userId]);
   const reserveItem = useCallback(async () => {}, []);
   const markAllNotificationsRead = useCallback(async () => {}, []);
 

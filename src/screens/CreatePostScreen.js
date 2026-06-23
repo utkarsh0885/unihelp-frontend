@@ -28,6 +28,7 @@ import { SIZES, GRADIENTS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import GradientButton from '../components/GradientButton';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
@@ -38,6 +39,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
   const { colors, shadows, isDark } = useTheme();
   const { user } = useAuth();
   const { addPost, updatePost } = useData();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
   const routeParams = route?.params || {};
@@ -170,19 +172,46 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           category,
           imageUrl,
         });
-        Alert.alert('Updated! ✨', 'Your post has been successfully modified.', [
-          { text: 'OK', onPress: handleGoBack },
-        ]);
+        showToast('Post updated successfully! ✨', 'success');
+        
+        // Reset form state
+        setTitle('');
+        setContent('');
+        setSelectedImage(null);
+        setAttachedLink('');
+        setShowLinkInput(false);
+        setUploadProgress(0);
+        setUploadingImage(false);
+        
+        // Navigate back to Home
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('Main', { screen: 'Home' });
+        } else {
+          handleGoBack();
+        }
       } else {
         await addPost(finalContent, { 
           title: title.trim(), 
           category, 
           imageUrl 
         });
+        showToast('Post created successfully! 🎉', 'success');
 
-        Alert.alert('Posted! 🎉', 'Your user-driven post is now live.', [
-          { text: 'OK', onPress: handleGoBack },
-        ]);
+        // Reset form state
+        setTitle('');
+        setContent('');
+        setSelectedImage(null);
+        setAttachedLink('');
+        setShowLinkInput(false);
+        setUploadProgress(0);
+        setUploadingImage(false);
+
+        // Navigate back to Home
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('Main', { screen: 'Home' });
+        } else {
+          handleGoBack();
+        }
       }
     } catch (e) {
       Alert.alert('Error', `Failed to ${isEdit ? 'update' : 'create'} post. Please try again.`);
