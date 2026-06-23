@@ -97,7 +97,9 @@ export const AuthProvider = ({ children }) => {
   // ── Update User ──
   const updateUser = useCallback(async (data) => {
     if (!user) return;
+    console.log('[AuthContext.updateUser] payload data:', data);
     const updated = await updateProfile(user.id, data);
+    console.log('[AuthContext.updateUser] updated user response:', updated);
     if (updated) setUser(updated);
     return updated;
   }, [user]);

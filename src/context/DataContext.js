@@ -34,6 +34,7 @@ import {
 // Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
 import { Platform } from 'react-native';
+import { uploadPDF } from '../services/storageService';
 
 
 // ⚠️ socketService intentionally NOT imported — WebSockets removed.
@@ -435,24 +436,17 @@ export const DataProvider = ({ children }) => {
   const addDoubt = useCallback(async () => null, []);
   const upvoteDoubt = useCallback(async () => {}, []);
   const addNote = useCallback(async (title, subject, fileUri, fileName, fileSize, onProgress) => {
-    // Construct FormData (cross-platform compatible)
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('subject', subject);
+    // 1. Upload to Supabase Storage
+    const publicUrl = await uploadPDF(userId, fileUri, fileName, fileSize, onProgress);
 
-    if (Platform.OS === 'web') {
-      const response = await fetch(fileUri);
-      const blob = await response.blob();
-      formData.append('file', blob, fileName);
-    } else {
-      formData.append('file', {
-        uri: fileUri,
-        name: fileName,
-        type: 'application/pdf',
-      });
-    }
-
-    const uploadedNote = await uploadNoteService(formData, onProgress);
+    // 2. Save metadata to Firestore via backend API
+    const uploadedNote = await uploadNoteService({
+      title,
+      subject,
+      fileUrl: publicUrl,
+      fileName,
+      fileSize,
+    });
 
     // Update local state
     setNotes(prev => [uploadedNote, ...prev]);

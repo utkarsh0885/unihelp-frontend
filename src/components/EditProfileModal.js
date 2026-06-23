@@ -11,7 +11,11 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadProfileImage } from '../services/storageService';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -27,7 +31,10 @@ const EditProfileModal = ({ visible, onClose, user }) => {
   
   const [name, setName] = React.useState(user?.name || '');
   const [specialisation, setSpecialisation] = React.useState(user?.specialisation || '');
+  const [avatarUrl, setAvatarUrl] = React.useState(user?.avatarUrl || null);
   const [saving, setSaving] = React.useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
 
   const slideAnim = useRef(new Animated.Value(600)).current;
 
@@ -36,6 +43,7 @@ const EditProfileModal = ({ visible, onClose, user }) => {
     if (visible) {
       setName(user?.name || '');
       setSpecialisation(user?.specialisation || '');
+      setAvatarUrl(user?.avatarUrl || null);
     }
   }, [visible, user]);
 
@@ -62,6 +70,52 @@ const EditProfileModal = ({ visible, onClose, user }) => {
       duration: 200,
       useNativeDriver: true,
     }).start(() => onClose());
+  };
+
+  const handlePickAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showToast('Permission needed to access photo library.', 'error');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setUploadingAvatar(true);
+        setUploadProgress(0);
+
+        try {
+          const uploadedUrl = await uploadProfileImage(
+            user?.id || 'anonymous',
+            asset.uri,
+            asset.size || 0,
+            asset.mimeType || 'image/jpeg',
+            (progress) => setUploadProgress(progress)
+          );
+          
+          console.log('[EditProfileModal] Profile picture upload success! URL:', uploadedUrl);
+          setAvatarUrl(uploadedUrl);
+          showToast('Profile picture uploaded!', 'success');
+        } catch (uploadErr) {
+          console.error('[EditProfileModal] Avatar upload error:', uploadErr);
+          showToast(uploadErr.message || 'Failed to upload profile picture.', 'error');
+        } finally {
+          setUploadingAvatar(false);
+          setUploadProgress(0);
+        }
+      }
+    } catch (err) {
+      console.warn('[EditProfileModal] Picker error:', err);
+      showToast('Could not open image picker.', 'error');
+    }
   };
 
   const panResponder = useRef(
@@ -96,12 +150,22 @@ const EditProfileModal = ({ visible, onClose, user }) => {
       showToast("Specialisation cannot exceed 50 characters.", "error");
       return;
     }
+    if (uploadingAvatar) {
+      showToast("Please wait for profile photo upload to finish.", "error");
+      return;
+    }
 
     setSaving(true);
     try {
+      console.log('[EditProfileModal] Profile update payload being sent to updateUser:', {
+        name: name.trim(),
+        specialisation: specialisation.trim(),
+        avatarUrl: avatarUrl,
+      });
       const updated = await updateUser({
         name: name.trim(),
         specialisation: specialisation.trim(),
+        avatarUrl: avatarUrl,
       });
       if (updated) {
         showToast("Profile updated successfully!", "success");
@@ -154,9 +218,31 @@ const EditProfileModal = ({ visible, onClose, user }) => {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                <View style={[styles.avatarEdit, { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }]}>
-                  <Ionicons name="camera-outline" size={32} color={colors.primary} />
-                </View>
+                <TouchableOpacity 
+                  style={[styles.avatarEdit, { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }]}
+                  onPress={handlePickAvatar}
+                  disabled={uploadingAvatar || saving}
+                  activeOpacity={0.7}
+                >
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarTextPlaceholder}>
+                      {name.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  )}
+                  <View style={[styles.cameraOverlay, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+                    <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  </View>
+                  {uploadingAvatar && (
+                    <View style={styles.uploadLoader}>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.progressText}>
+                        {uploadProgress}%
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
                 <InputField
                   label="Display Name"
@@ -243,6 +329,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SIZES.lg,
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+  avatarTextPlaceholder: {
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  uploadLoader: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 40,
+  },
+  progressText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 2,
   },
 });
 

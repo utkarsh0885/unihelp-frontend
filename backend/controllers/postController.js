@@ -7,12 +7,18 @@ const { getEpoch } = require('../utils/dateUtils');
 const ALLOWED_CATEGORIES = ['General', 'Buy/Sell', 'Events', 'Lost & Found', 'Notes', 'Other'];
 
 exports.createPost = asyncHandler(async (req, res) => {
-  const { title, content, category, imageUrl, poll, price, condition } = req.body;
+  let { title, content, category, imageUrl, poll, price, condition, date, time, location, color, icon, description } = req.body;
 
   // Input validation
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Title is required');
   }
+
+  // Handle Event-specific description mapping to content to make content validation pass
+  if ((!content || !content.trim()) && category === 'Events' && description) {
+    content = description;
+  }
+
   if (!content || !content.trim()) {
     throw new ApiError(400, 'Content is required');
   }
@@ -43,6 +49,12 @@ exports.createPost = asyncHandler(async (req, res) => {
     imageUrl: imageUrl || null,
     price: price || null,
     condition: condition || null,
+    description: description ? description.trim() : (content ? content.trim() : ''),
+    date: date || null,
+    time: time || null,
+    location: location || null,
+    color: color || null,
+    icon: icon || null,
     author: req.user.id,
     authorName: req.user.name || 'User',
     likes: 0,
@@ -178,7 +190,7 @@ exports.updatePost = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Unauthorized to edit this post');
   }
 
-  const { title, content, category, imageUrl } = req.body;
+  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon } = req.body;
   const updates = {};
 
   if (title !== undefined) {
@@ -195,9 +207,15 @@ exports.updatePost = asyncHandler(async (req, res) => {
     }
     updates.category = category;
   }
-  if (imageUrl !== undefined) {
-    updates.imageUrl = imageUrl;
-  }
+  if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+  if (price !== undefined) updates.price = price;
+  if (condition !== undefined) updates.condition = condition;
+  if (description !== undefined) updates.description = description;
+  if (date !== undefined) updates.date = date;
+  if (time !== undefined) updates.time = time;
+  if (location !== undefined) updates.location = location;
+  if (color !== undefined) updates.color = color;
+  if (icon !== undefined) updates.icon = icon;
 
   await ref.update(updates);
   res.json({ id: doc.id, ...post, ...updates });

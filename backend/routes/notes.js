@@ -94,12 +94,14 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // ── POST /api/notes/upload ────────────────────────────────────────────────────
 // Upload a note PDF and save metadata in Firestore
-router.post('/upload', authenticateUser, upload.single('file'), asyncHandler(async (req, res) => {
-  const { title, subject } = req.body;
-
-  if (!req.file) {
-    throw new ApiError(400, 'No file was uploaded. Please attach a PDF file.');
+router.post('/upload', authenticateUser, (req, res, next) => {
+  if (req.body && req.body.fileUrl) {
+    return next();
   }
+  upload.single('file')(req, res, next);
+}, asyncHandler(async (req, res) => {
+  const { title, subject, fileUrl: bodyFileUrl, fileName: bodyFileName, fileSize: bodyFileSize } = req.body;
+
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Title is required');
   }
@@ -107,10 +109,23 @@ router.post('/upload', authenticateUser, upload.single('file'), asyncHandler(asy
     throw new ApiError(400, 'Subject is required');
   }
 
-  // Construct dynamic access URL using the incoming request protocol and host
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.get('host');
-  const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+  let fileUrl, fileName, fileSize;
+
+  if (bodyFileUrl) {
+    fileUrl = bodyFileUrl;
+    fileName = bodyFileName || 'notes.pdf';
+    fileSize = bodyFileSize || 0;
+  } else {
+    if (!req.file) {
+      throw new ApiError(400, 'No file was uploaded. Please attach a PDF file.');
+    }
+    // Construct dynamic access URL using the incoming request protocol and host
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    fileName = req.file.originalname;
+    fileSize = req.file.size;
+  }
 
   const noteMetadata = {
     title: title.trim(),
@@ -118,8 +133,8 @@ router.post('/upload', authenticateUser, upload.single('file'), asyncHandler(asy
     uploader: req.user.name || 'Anonymous Student',
     uploadedBy: req.user.name || 'Anonymous Student', // backward compatibility
     fileUrl: fileUrl,
-    fileName: req.file.originalname,
-    fileSize: req.file.size,
+    fileName: fileName,
+    fileSize: fileSize,
     downloads: 0,
     uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -127,7 +142,7 @@ router.post('/upload', authenticateUser, upload.single('file'), asyncHandler(asy
 
   const docRef = await db.collection('notes').add(noteMetadata);
 
-  console.log(`[Notes] Note uploaded successfully! Doc ID: ${docRef.id}, File: ${req.file.filename}`);
+  console.log(`[Notes] Note metadata saved successfully! Doc ID: ${docRef.id}, File: ${fileName}`);
 
   res.status(201).json({
     id: docRef.id,

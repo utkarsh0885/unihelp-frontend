@@ -49,7 +49,7 @@ exports.signup = async (req, res) => {
     });
 
     // Filter user object to omit sensitive DB values before returning
-    const safeUser = { id: docRef.id, email: newUser.email, name: newUser.name, role: newUser.role };
+    const safeUser = { id: docRef.id, email: newUser.email, name: newUser.name, role: newUser.role, avatarUrl: null, specialisation: '' };
 
     console.log(`[Auth] signup success: ${safeUser.email} (id=${safeUser.id})`);
     
@@ -101,7 +101,15 @@ exports.login = async (req, res) => {
     });
 
     // Output mapped safe user
-    const safeUser = { id: user.id, email: user.email, name: user.name, role: user.role, isVerified: user.isVerified };
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isVerified: user.isVerified,
+      avatarUrl: user.avatarUrl || null,
+      specialisation: user.specialisation || '',
+    };
 
     console.log(`[Auth] login success: ${safeUser.email} (id=${safeUser.id})`);
 
@@ -114,18 +122,27 @@ exports.login = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   const userId = req.user?.id;
-  const { name, specialisation } = req.body;
+  console.log('[Backend authController.updateProfile] Request body received:', req.body);
+  const { name, specialisation, avatarUrl } = req.body;
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized user context missing' });
   }
 
   try {
-    // 1. Update Firestore user document
-    await db.collection('users').doc(userId).update({
+    const updates = {
       name: name.trim(),
       specialisation: (specialisation || '').trim(),
-    });
+    };
+
+    if (avatarUrl !== undefined) {
+      updates.avatarUrl = avatarUrl;
+    }
+
+    console.log('[Backend authController.updateProfile] Firestore updates payload:', updates);
+
+    // 1. Update Firestore user document
+    await db.collection('users').doc(userId).update(updates);
 
     // 2. Fetch the updated user document to construct safe response
     const userDoc = await db.collection('users').doc(userId).get();
@@ -142,9 +159,10 @@ exports.updateProfile = async (req, res) => {
       role: userData.role,
       isVerified: userData.isVerified || false,
       specialisation: userData.specialisation || '',
+      avatarUrl: userData.avatarUrl || null,
     };
 
-    console.log(`[Auth] profile update success: ${safeUser.email} (id=${safeUser.id})`);
+    console.log('[Backend authController.updateProfile] Response safeUser payload:', safeUser);
 
     return res.json({ success: true, user: safeUser });
   } catch (error) {

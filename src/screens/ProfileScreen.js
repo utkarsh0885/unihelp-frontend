@@ -15,6 +15,7 @@ import {
   Alert,
   Animated,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -66,6 +67,7 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     width: 78, height: 78, borderRadius: SIZES.radiusFull,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarLgText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF' },
   nameOnGradient: { fontSize: 24, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
@@ -265,9 +267,13 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.avatarGlow}>
           <View style={styles.avatarRing}>
             <View style={styles.avatarLg}>
-              <Text style={styles.avatarLgText}>
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </Text>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : (
+                <Text style={styles.avatarLgText}>
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </Text>
+              )}
             </View>
           </View>
         </View>

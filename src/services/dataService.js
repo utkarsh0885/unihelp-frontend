@@ -129,24 +129,15 @@ export const subscribeToComments = (postId, callback) => {
 // ChatListScreen now manages its own polling via setInterval.
 // DataContext no longer subscribes to chats.
 
-export const initSeedData = async () => {};
+export const initSeedData = async () => { };
 
 export const fetchNotesService = async () => {
   const response = await apiClient.get('/api/notes');
   return response.data;
 };
 
-export const uploadNoteService = async (formData, onProgress) => {
-  const response = await apiClient.post('/api/notes/upload', formData, {
-    onUploadProgress: (progressEvent) => {
-      if (onProgress) {
-        const percent = progressEvent.total
-          ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          : (progressEvent.progress ? Math.round(progressEvent.progress * 100) : 0);
-        onProgress(percent);
-      }
-    },
-  });
+export const uploadNoteService = async (noteData) => {
+  const response = await apiClient.post('/api/notes/upload', noteData);
   return response.data;
 };
 

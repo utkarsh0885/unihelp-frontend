@@ -168,9 +168,11 @@ export const loginWithGoogle = async (accessToken, refreshToken, user) => {
  * Update user profile. (Dummy for now as it needs backend endpoint)
  */
 export const updateProfile = async (id, data) => {
+  console.log('[authService.updateProfile] PUT /api/auth/profile payload:', data);
   try {
     const response = await apiClient.put('/api/auth/profile', data);
     const updatedUser = response.data.user;
+    console.log('[authService.updateProfile] PUT /api/auth/profile response user:', updatedUser);
     await storeAuthData(null, null, updatedUser);
     return updatedUser;
   } catch (error) {

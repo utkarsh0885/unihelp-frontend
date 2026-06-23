@@ -17,7 +17,9 @@ import {
   Image,
   Alert,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
+import { uploadPostImage } from '../services/storageService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,6 +52,8 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
   const [selectedImage, setSelectedImage] = useState(existingPost?.imageUrl || null);
   const [attachedLink, setAttachedLink] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const CATEGORIES = [
     { id: 'General', icon: 'apps-outline', label: 'General' },
@@ -80,7 +84,12 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        setSelectedImage({
+          uri: asset.uri,
+          size: asset.fileSize || 0,
+          mimeType: asset.mimeType || 'image/jpeg',
+        });
       }
     } catch (e) {
       console.warn('ImagePicker error:', e);
@@ -114,6 +123,10 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
       Alert.alert('Empty Post', 'Write something before posting!');
       return;
     }
+    if (uploadingImage) {
+      Alert.alert('Please Wait', 'Please wait for the image upload to complete.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -123,12 +136,39 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         finalContent += '\n\n🔗 ' + attachedLink.trim();
       }
 
+      let imageUrl = null;
+      if (selectedImage) {
+        if (typeof selectedImage === 'string') {
+          imageUrl = selectedImage;
+        } else if (selectedImage.uri) {
+          setUploadingImage(true);
+          setUploadProgress(0);
+          try {
+            imageUrl = await uploadPostImage(
+              user?.id || 'anonymous',
+              selectedImage.uri,
+              selectedImage.size,
+              selectedImage.mimeType,
+              (progress) => setUploadProgress(progress)
+            );
+          } catch (uploadErr) {
+            Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload image. Please try again.');
+            setLoading(false);
+            setUploadingImage(false);
+            return;
+          } finally {
+            setUploadingImage(false);
+            setUploadProgress(0);
+          }
+        }
+      }
+
       if (isEdit) {
         await updatePost(existingPost?.id, {
           title: title.trim(),
           content: finalContent,
           category,
-          imageUrl: selectedImage,
+          imageUrl,
         });
         Alert.alert('Updated! ✨', 'Your post has been successfully modified.', [
           { text: 'OK', onPress: handleGoBack },
@@ -137,7 +177,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         await addPost(finalContent, { 
           title: title.trim(), 
           category, 
-          imageUrl: selectedImage 
+          imageUrl 
         });
 
         Alert.alert('Posted! 🎉', 'Your user-driven post is now live.', [
@@ -253,7 +293,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           {/* Image Preview */}
           {selectedImage && (
             <View style={styles.imagePreviewWrap}>
-              <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+              <Image source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }} style={styles.imagePreview} />
               <TouchableOpacity
                 style={styles.removeImageBtn}
                 onPress={() => setSelectedImage(null)}
@@ -261,6 +301,18 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
               >
                 <Ionicons name="close-circle" size={24} color={colors.accent} />
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Upload Progress Indicator */}
+          {uploadingImage && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
+              </View>
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                Uploading Image: {uploadProgress}%
+              </Text>
             </View>
           )}
 
@@ -390,6 +442,26 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   charCount: { fontSize: SIZES.fontXs, color: colors.textTertiary, fontWeight: '600', minWidth: 28, textAlign: 'right' },
   attachRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, marginTop: SIZES.md, paddingTop: SIZES.md, gap: SIZES.sm },
   attachBtn: { width: 44, height: 44, borderRadius: SIZES.radiusMd, backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  progressContainer: {
+    marginBottom: SIZES.md,
+    marginTop: SIZES.sm,
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceLight,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+    textAlign: 'center',
+  },
 });
 
 export default CreatePostScreen;
