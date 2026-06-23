@@ -42,7 +42,11 @@ const MyPostsScreen = ({ navigation }) => {
   }, [navigation]);
 
   const handleEditPost = useCallback((post) => {
-    navigation.navigate('CreatePost', { post });
+    if (post.category === 'Buy/Sell') {
+      navigation.navigate('BuySell', { editItem: post });
+    } else {
+      navigation.navigate('CreatePost', { post });
+    }
   }, [navigation]);
 
   const handleDeletePost = useCallback(async (postId) => {

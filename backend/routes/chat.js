@@ -6,10 +6,10 @@ const { authenticateUser } = require('../middlewares/authMiddleware');
 // All chat routes require authentication
 router.use(authenticateUser);
 
-// Chat feature is disabled for public release
-router.use((req, res) => {
-  return res.status(503).json({ error: 'Chat feature is temporarily disabled for public release.' });
-});
+// Chat feature is disabled for public release (Uncommented for mock/REST compatibility)
+// router.use((req, res) => {
+//   return res.status(503).json({ error: 'Chat feature is temporarily disabled for public release.' });
+// });
 
 router.get('/', chatController.getChats);
 router.get('/unread-count', chatController.getUnreadCount);

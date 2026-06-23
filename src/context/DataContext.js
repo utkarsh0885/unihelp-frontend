@@ -478,13 +478,14 @@ export const DataProvider = ({ children }) => {
       console.warn('[DataContext] downloadNote error:', e);
     }
   }, []);
-  const addItem = useCallback(async (title, price, condition) => {
+  const addItem = useCallback(async (title, price, condition, imageUrl = null) => {
     const item = { 
       title, 
       content: `Selling ${title}`, 
       price, 
       condition, 
       category: 'Buy/Sell',
+      imageUrl,
       username: user?.name || 'You',
       avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
       userId,
@@ -510,7 +511,13 @@ export const DataProvider = ({ children }) => {
     }
     return newEvent?.id || newEvent?._id;
   }, [user, userId]);
-  const reserveItem = useCallback(async () => {}, []);
+  const reserveItem = useCallback(async (postId) => {
+    const response = await updatePostService(postId, { status: 'Reserved' });
+    if (response) {
+      setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { ...p, status: 'Reserved' } : p));
+    }
+    return response;
+  }, []);
   const markAllNotificationsRead = useCallback(async () => {}, []);
 
   // ══════════ Context Value ══════════

@@ -33,6 +33,8 @@ const PostDetailScreen = lazy(() => import('../screens/PostDetailScreen'));
 const MyPostsScreen = lazy(() => import('../screens/MyPostsScreen'));
 const LostAndFoundScreen = lazy(() => import('../screens/LostAndFoundScreen'));
 const ProfileScreen = lazy(() => import('../screens/ProfileScreen'));
+const ChatScreen = lazy(() => import('../screens/ChatScreen'));
+const ChatListScreen = lazy(() => import('../screens/ChatListScreen'));
 
 // Lazy-load the Admin screen
 const AdminScreen = lazy(() => import('../screens/AdminScreen'));
@@ -102,6 +104,8 @@ const LazyMyPosts = wrapLazyComponent(MyPostsScreen, 'MyPosts');
 const LazyLostAndFound = wrapLazyComponent(LostAndFoundScreen, 'LostAndFound');
 const LazyProfile = wrapLazyComponent(ProfileScreen, 'Profile');
 const LazyPostDetail = wrapLazyComponent(PostDetailScreen, 'PostDetail');
+const LazyChat = wrapLazyComponent(ChatScreen, 'Chat');
+const LazyChatList = wrapLazyComponent(ChatListScreen, 'ChatList');
 const LazyPlaceholder = wrapLazyComponent(PlaceholderScreen, 'Placeholder');
 
 const LazyAdminDashboard = (props) => {
@@ -172,6 +176,8 @@ const AppNavigator = () => {
           <Stack.Screen name="LostAndFound" component={LazyLostAndFound} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Profile" component={LazyProfile} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="PostDetail" component={LazyPostDetail} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Chat" component={LazyChat} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="ChatList" component={LazyChatList} options={{ animation: 'slide_from_right' }} />
 
           {/* Role-Protected Admin Screen */}
           <Stack.Screen name="AdminDashboard" component={LazyAdminDashboard} options={{ animation: 'slide_from_right' }} />

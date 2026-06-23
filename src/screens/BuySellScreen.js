@@ -5,7 +5,7 @@
  * Uses DataContext for persistent data.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,13 +26,16 @@ import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedPostCard from '../components/AnimatedPostCard';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadPostImage } from '../services/storageService';
+import { initChat } from '../services/chatService';
 
-const BuySellScreen = ({ navigation }) => {
+const BuySellScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
   const { 
     items, itemsLoading, posts, 
     toggleLike, toggleSave, votePoll, userId, refreshData,
-    addItem, reserveItem 
+    addItem, reserveItem, updatePost, deletePost 
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
@@ -49,20 +52,14 @@ const BuySellScreen = ({ navigation }) => {
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
 
-  // Unified Feed: Items + Categorized Posts
+  // Unified Feed: Items mapped to product layout cleanly to prevent duplicate generic posts
   const mergedData = useMemo(() => {
-    const buySellPosts = posts
-      .filter(p => p.category === 'Buy/Sell' || p.category === 'Marketplace')
-      .map(p => ({ ...p, isGenericPost: true }));
-    
-    const marketItems = items.map(i => ({ ...i, isGenericPost: false }));
-
-    return [...marketItems, ...buySellPosts].sort((a, b) => {
+    return items.map(i => ({ ...i, isGenericPost: false })).sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt) : 0;
       const dateB = b.createdAt ? new Date(b.createdAt) : 0;
       return dateB - dateA;
     });
-  }, [items, posts]);
+  }, [items]);
 
   const CONDITION_COLORS = useMemo(() => ({
     'New': colors.accentGreen, 'Like New': colors.accentCyan, 'Good': colors.accentAmber, 'Used': colors.textSecondary,
@@ -78,6 +75,90 @@ const BuySellScreen = ({ navigation }) => {
   const [itemCondition, setItemCondition] = useState('Good');
   const [posting, setPosting] = useState(false);
   const [reservingId, setReservingId] = useState(null);
+  
+  // Photo upload and edit listing states
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow photo library access to upload listing images.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions ? ImagePicker.MediaTypeOptions.Images : 'images',
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setSelectedImage({
+          uri: asset.uri,
+          size: asset.fileSize || 0,
+          mimeType: asset.mimeType || 'image/jpeg',
+        });
+      }
+    } catch (e) {
+      console.warn('ImagePicker error:', e);
+      Alert.alert('Error', 'Could not open image picker.');
+    }
+  };
+
+  const handleEdit = useCallback((item) => {
+    setEditingItem(item);
+    setItemTitle(item.title || '');
+    setItemPrice(item.price ? item.price.toString().replace(/[^0-9]/g, '') : '');
+    setItemCondition(item.condition || 'Good');
+    setSelectedImage(item.imageUrl ? { uri: item.imageUrl } : null);
+    setShowSell(true);
+  }, []);
+
+  useEffect(() => {
+    if (route?.params?.editItem) {
+      handleEdit(route.params.editItem);
+      // Clear route parameters so it doesn't trigger repeatedly
+      navigation.setParams({ editItem: null });
+    }
+  }, [route?.params?.editItem, handleEdit, navigation]);
+
+  const handleDelete = useCallback(async (itemId) => {
+    if (Platform.OS === 'web') {
+      const confirmDelete = window.confirm('Are you sure you want to permanently delete this listing?');
+      if (confirmDelete) {
+        try {
+          await deletePost(itemId);
+          Alert.alert('Deleted', 'Listing deleted successfully.');
+        } catch (e) {
+          Alert.alert('Error', 'Failed to delete listing.');
+        }
+      }
+    } else {
+      Alert.alert(
+        'Delete Listing',
+        'Are you sure you want to delete this item listing?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Delete', 
+            style: 'destructive', 
+            onPress: async () => {
+              try {
+                await deletePost(itemId);
+                Alert.alert('Deleted', 'Listing deleted successfully.');
+              } catch (e) {
+                Alert.alert('Error', 'Failed to delete listing.');
+              }
+            } 
+          }
+        ]
+      );
+    }
+  }, [deletePost]);
 
   const handleSell = useCallback(async () => {
     if (!itemTitle.trim() || !itemPrice.trim()) {
@@ -86,26 +167,71 @@ const BuySellScreen = ({ navigation }) => {
     }
     setPosting(true);
     try {
-      const newItemId = await addItem(itemTitle.trim(), itemPrice.trim(), itemCondition);
-      console.log('[Marketplace] Successfully posted item to central DB. ID:', newItemId);
+      let imageUrl = selectedImage ? (typeof selectedImage === 'string' ? selectedImage : selectedImage.uri) : null;
       
+      if (selectedImage && selectedImage.uri && selectedImage.uri !== editingItem?.imageUrl) {
+        setUploadingImage(true);
+        setUploadProgress(0);
+        try {
+          imageUrl = await uploadPostImage(
+            userId || 'anonymous',
+            selectedImage.uri,
+            selectedImage.size,
+            selectedImage.mimeType,
+            (progress) => setUploadProgress(progress)
+          );
+        } catch (err) {
+          Alert.alert('Upload Failed', 'Failed to upload item image.');
+          setPosting(false);
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+          setUploadProgress(0);
+        }
+      }
+
+      if (editingItem) {
+        const id = editingItem.id || editingItem._id;
+        await updatePost(id, {
+          title: itemTitle.trim(),
+          price: `$${itemPrice.trim()}`,
+          condition: itemCondition,
+          imageUrl,
+        });
+        Alert.alert('Updated! ✨', 'Your listing has been updated.');
+      } else {
+        const newItemId = await addItem(itemTitle.trim(), `$${itemPrice.trim()}`, itemCondition, imageUrl);
+        console.log('[Marketplace] Successfully posted item to central DB. ID:', newItemId);
+        Alert.alert('Listed! 🛒', 'Your item is now visible to all students on campus!');
+      }
+      
+      // Clear form
       setItemTitle('');
       setItemPrice('');
+      setItemCondition('Good');
+      setSelectedImage(null);
+      setEditingItem(null);
       setShowSell(false);
-      Alert.alert('Listed! 🛒', 'Your item is now visible to all students on campus!');
+
+      // Navigate back to Home on successful creation (if not editing)
+      if (!editingItem && navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Main', { screen: 'Home' });
+      }
     } catch (e) {
-      Alert.alert('Error', 'Failed to list item.');
+      Alert.alert('Error', `Failed to ${editingItem ? 'update' : 'list'} item.`);
     } finally {
       setPosting(false);
     }
-  }, [itemTitle, itemPrice, itemCondition, addItem]);
+  }, [itemTitle, itemPrice, itemCondition, selectedImage, editingItem, addItem, updatePost, userId, navigation]);
 
   const handleReserve = useCallback(async (item) => {
+    const id = item.id || item._id;
     if (item.status === 'Reserved') return;
     
-    setReservingId(item.id);
+    setReservingId(id);
     try {
-      await reserveItem(item.id);
+      await reserveItem(id);
       Alert.alert('Reserved! 🤝', `You've reserved "${item.title}". The seller has been notified.`);
     } catch (e) {
       Alert.alert('Error', 'Failed to reserve item.');
@@ -113,6 +239,31 @@ const BuySellScreen = ({ navigation }) => {
       setReservingId(null);
     }
   }, [reserveItem]);
+
+  const handleContactSeller = useCallback(async (item) => {
+    const sellerId = item.userId || item.author;
+    const sellerName = item.username || item.authorName || 'Seller';
+    if (!sellerId) {
+      Alert.alert('Error', 'Seller information is not available.');
+      return;
+    }
+    if (sellerId === userId) {
+      Alert.alert('Info', 'You cannot contact yourself.');
+      return;
+    }
+    
+    try {
+      const chatObj = await initChat(sellerId, sellerName, item);
+      navigation.navigate('Chat', { chat: chatObj });
+    } catch (e) {
+      console.error('Failed to initialize chat:', e);
+      if (Platform.OS === 'web') {
+        alert('Failed to contact seller. Please try again later.');
+      } else {
+        Alert.alert('Error', 'Failed to contact seller. Please try again later.');
+      }
+    }
+  }, [userId, navigation]);
 
   const renderItem = useCallback(({ item, index }) => {
     if (item.isGenericPost) {
@@ -131,7 +282,8 @@ const BuySellScreen = ({ navigation }) => {
     }
 
     const isReserved = item.status === 'Reserved';
-    const isReserving = reservingId === item.id;
+    const isReserving = reservingId === item.id || reservingId === item._id;
+    const isOwner = userId && (userId === item.userId || userId === item.author);
 
     // Use placeholder image if none provided
     const itemImage = item.imageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=400&auto=format&fit=crop';
@@ -142,7 +294,7 @@ const BuySellScreen = ({ navigation }) => {
           <Image source={{ uri: itemImage }} style={styles.itemThumb} />
           <View style={styles.itemInfo}>
             <View style={styles.titleRow}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
               {isReserved && (
                 <View style={styles.inlineBadge}>
                   <Text style={styles.inlineBadgeText}>Reserved</Text>
@@ -150,7 +302,7 @@ const BuySellScreen = ({ navigation }) => {
               )}
             </View>
             <View style={styles.itemMeta}>
-              <Text style={styles.itemSeller}>{item.seller || 'Student'}</Text>
+              <Text style={styles.itemSeller} numberOfLines={1}>{item.username || item.authorName || 'Student'}</Text>
               <Text style={styles.dot}>·</Text>
               <Text style={styles.itemTime}>{item.time || 'Public'}</Text>
             </View>
@@ -173,34 +325,66 @@ const BuySellScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={[
-                styles.actionBtn, 
-                styles.reserveBtn, 
-                isReserved && styles.disabledBtn,
-                isReserving && styles.loadingBtn
-              ]} 
-              onPress={() => handleReserve(item)} 
-              activeOpacity={0.7}
-              disabled={isReserved || isReserving}
-            >
-              {isReserving ? (
-                <ActivityIndicator size="small" color={colors.accentAmber} />
-              ) : (
-                <>
-                  <Ionicons name={isReserved ? "lock-closed" : "bookmark-outline"} size={14} color={isReserved ? colors.textTertiary : colors.accentAmber} />
-                  <Text style={[styles.actionText, { color: isReserved ? colors.textTertiary : colors.accentAmber }]}>
-                    {isReserved ? 'Reserved' : 'Reserve'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {isOwner ? (
+              <>
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.editBtn]} 
+                  onPress={() => handleEdit(item)} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={14} color={colors.primary} />
+                  <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+                </TouchableOpacity>
 
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.deleteBtn]} 
+                  onPress={() => handleDelete(item.id || item._id)} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent} />
+                  <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={[
+                    styles.actionBtn, 
+                    styles.reserveBtn, 
+                    isReserved && styles.disabledBtn,
+                    isReserving && styles.loadingBtn
+                  ]} 
+                  onPress={() => handleReserve(item)} 
+                  activeOpacity={0.7}
+                  disabled={isReserved || isReserving}
+                >
+                  {isReserving ? (
+                    <ActivityIndicator size="small" color={colors.accentAmber} />
+                  ) : (
+                    <>
+                      <Ionicons name={isReserved ? "lock-closed" : "bookmark-outline"} size={14} color={isReserved ? colors.textTertiary : colors.accentAmber} />
+                      <Text style={[styles.actionText, { color: isReserved ? colors.textTertiary : colors.accentAmber }]}>
+                        {isReserved ? 'Reserved' : 'Reserve'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.chatBtn]} 
+                  onPress={() => handleContactSeller(item)} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
+                  <Text style={[styles.actionText, styles.chatText]}>Contact Seller</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </View>
     );
-  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation]);
+  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete]);
 
   return (
     <View style={styles.screen}>
@@ -217,7 +401,21 @@ const BuySellScreen = ({ navigation }) => {
             <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Buy / Sell</Text>
-          <TouchableOpacity style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7} onPress={() => setShowSell(!showSell)}>
+          <TouchableOpacity 
+            style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
+            activeOpacity={0.7} 
+            onPress={() => {
+              if (showSell) {
+                // Clear state when closing the Sell form
+                setItemTitle('');
+                setItemPrice('');
+                setItemCondition('Good');
+                setSelectedImage(null);
+                setEditingItem(null);
+              }
+              setShowSell(!showSell);
+            }}
+          >
             <Ionicons name={showSell ? 'close' : 'add'} size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </LinearGradient>
@@ -225,9 +423,48 @@ const BuySellScreen = ({ navigation }) => {
 
       {showSell && (
         <View style={styles.sellCard}>
-          <Text style={styles.sellTitle}>Sell an Item</Text>
+          <Text style={styles.sellTitle}>{editingItem ? 'Edit Listing' : 'Sell an Item'}</Text>
+          
+          {/* Image Picker Widget */}
+          {selectedImage ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image 
+                source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }} 
+                style={styles.imagePreview} 
+              />
+              <TouchableOpacity
+                style={styles.removeImageBtn}
+                onPress={() => setSelectedImage(null)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={24} color={colors.accent} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.imagePickerBtn}
+              onPress={handlePickImage}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="image-outline" size={24} color={colors.primary} />
+              <Text style={styles.imagePickerText}>Add Listing Image</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Upload Progress Indicator */}
+          {uploadingImage && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
+              </View>
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                Uploading Image: {uploadProgress}%
+              </Text>
+            </View>
+          )}
+
           <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Item name" placeholderTextColor={colors.textTertiary} value={itemTitle} onChangeText={setItemTitle} />
-          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Price (e.g. 500)" placeholderTextColor={colors.textTertiary} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} />
+          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Price (e.g. 50)" placeholderTextColor={colors.textTertiary} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} />
           <View style={styles.conditionRow}>
             {['New', 'Like New', 'Good', 'Used'].map((c) => (
               <TouchableOpacity key={c} style={[styles.conditionChip, itemCondition === c && styles.conditionChipActive]} onPress={() => setItemCondition(c)} activeOpacity={0.7}>
@@ -239,7 +476,7 @@ const BuySellScreen = ({ navigation }) => {
             {posting ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
               <>
                 <Ionicons name="storefront-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.sellBtnText}>List Item</Text>
+                <Text style={styles.sellBtnText}>{editingItem ? 'Save Changes' : 'List Item'}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -254,7 +491,7 @@ const BuySellScreen = ({ navigation }) => {
         <FlatList
           data={mergedData}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id || item._id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -272,7 +509,7 @@ const BuySellScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
+const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   appBarContainer: { ...shadows.medium, zIndex: 10 },
   header: {
@@ -314,13 +551,13 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'center' },
   itemThumb: { 
-    width: 50, height: 50, borderRadius: 12, 
+    width: 60, height: 60, borderRadius: 12, 
     marginRight: SIZES.md, backgroundColor: colors.surfaceLight 
   },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
   itemMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
-  itemSeller: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
+  itemSeller: { fontSize: 12, color: colors.textTertiary, fontWeight: '600', maxWidth: 120 },
   dot: { fontSize: 10, color: colors.textTertiary },
   itemTime: { fontSize: 12, color: colors.textTertiary },
   itemPrice: { fontSize: 18, fontWeight: '900', color: colors.accentGreen },
@@ -332,9 +569,10 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   conditionBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   conditionText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   
-  actionRow: { flexDirection: 'row', gap: 8 },
+  actionRow: { flexDirection: 'row', gap: 12, width: '100%', maxWidth: 320 },
   actionBtn: { 
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, 
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, 
     paddingVertical: 10, borderRadius: 12, borderWidth: 1,
   },
   reserveBtn: { 
@@ -355,7 +593,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   actionText: { fontSize: 13, fontWeight: '900' },
   chatText: { color: '#FFF' },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
   inlineBadge: { backgroundColor: colors.accentAmber, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   inlineBadgeText: { fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' },
   
@@ -398,6 +636,74 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     color: colors.textTertiary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+
+  // Image Picker & Uploading Styles
+  imagePickerBtn: {
+    height: 100,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SIZES.md,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  imagePreviewWrap: {
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: SIZES.md,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: colors.background,
+    borderRadius: SIZES.radiusFull,
+  },
+  progressContainer: {
+    marginBottom: SIZES.md,
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceLight,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  editBtn: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary + '30',
+  },
+  deleteBtn: {
+    backgroundColor: (colors.error || colors.accent) + '15',
+    borderColor: (colors.error || colors.accent) + '30',
   },
 });
 

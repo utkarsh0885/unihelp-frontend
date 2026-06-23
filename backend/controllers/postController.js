@@ -185,12 +185,20 @@ exports.updatePost = asyncHandler(async (req, res) => {
 
   const post = doc.data();
 
-  // Only author or admin can update
-  if (post.author !== req.user.id && req.user.role !== 'admin') {
+  // Only author or admin can update (unless it's a buyer reserving the item)
+  const isReserveAction = req.body.status === 'Reserved';
+  if (post.author !== req.user.id && req.user.role !== 'admin' && !isReserveAction) {
     throw new ApiError(403, 'Unauthorized to edit this post');
   }
 
-  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon } = req.body;
+  // If a non-author/non-admin is reserving it, strip all other update fields
+  if (post.author !== req.user.id && req.user.role !== 'admin') {
+    for (const key of Object.keys(req.body)) {
+      if (key !== 'status') delete req.body[key];
+    }
+  }
+
+  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon, status } = req.body;
   const updates = {};
 
   if (title !== undefined) {
@@ -216,6 +224,7 @@ exports.updatePost = asyncHandler(async (req, res) => {
   if (location !== undefined) updates.location = location;
   if (color !== undefined) updates.color = color;
   if (icon !== undefined) updates.icon = icon;
+  if (status !== undefined) updates.status = status;
 
   await ref.update(updates);
   res.json({ id: doc.id, ...post, ...updates });

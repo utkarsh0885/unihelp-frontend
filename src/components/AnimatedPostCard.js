@@ -5,7 +5,7 @@
  * Entry animations + like spring animation.
  */
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,10 +17,14 @@ import {
   Image,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
+import { useNavigation } from '@react-navigation/native';
+import { initChat } from '../services/chatService';
 
 const createStyles = (colors, shadows) => StyleSheet.create({
   card: {
@@ -96,6 +100,49 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     marginBottom: SIZES.md,
     fontWeight: '400',
   },
+  marketDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: SIZES.md,
+  },
+  marketPrice: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.accentGreen || '#34D399',
+  },
+  marketConditionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  marketConditionText: {
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  marketStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  marketStatusText: {
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  webModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    borderRadius: 18,
+  },
   imageContainer: {
     width: '100%',
     height: 240,
@@ -169,6 +216,56 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     marginBottom: SIZES.md,
     marginHorizontal: -4,
   },
+  marketActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: SIZES.md,
+    marginBottom: SIZES.md,
+    width: '100%',
+    maxWidth: 320,
+  },
+  marketActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  marketReserveBtn: {
+    backgroundColor: (colors.accentAmber || '#FBBF24') + '10',
+    borderColor: (colors.accentAmber || '#FBBF24') + '35',
+  },
+  marketChatBtn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  marketEditBtn: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary + '30',
+  },
+  marketDeleteBtn: {
+    backgroundColor: (colors.error || colors.accent || '#FF4B4B') + '15',
+    borderColor: (colors.error || colors.accent || '#FF4B4B') + '30',
+  },
+  marketDisabledBtn: {
+    opacity: 0.6,
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.borderLight,
+  },
+  marketLoadingBtn: {
+    opacity: 0.8,
+  },
+  marketChatText: {
+    color: '#FFF',
+  },
+  marketActionText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,56 +291,56 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     fontWeight: '800',
     marginLeft: -2,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  menuOverlay: {
+    position: 'absolute',
+    top: -2000,
+    bottom: -2000,
+    left: -2000,
+    right: -2000,
+    backgroundColor: 'transparent',
+    zIndex: 9998,
   },
-  modalContent: {
-    width: '85%',
-    maxWidth: 360,
+  floatingMenu: {
+    position: 'absolute',
+    top: 45,
+    right: 16,
+    width: 150,
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 14,
+    padding: 6,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    zIndex: 9999,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  modalBtn: {
+  floatingMenuBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    marginBottom: 10,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 8,
   },
-  modalBtnText: {
-    fontSize: 15,
+  floatingMenuBtnText: {
+    fontSize: 14,
     fontWeight: '700',
   },
-  deleteBtnBorder: {
-    borderColor: colors.accent + '30',
+  deleteMenuBtnBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    borderRadius: 0,
+    marginTop: 4,
+    paddingTop: 10,
   },
-  cancelBtn: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    marginTop: 6,
-    marginBottom: 0,
+  cancelMenuBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: 4,
   },
 });
 
@@ -252,13 +349,37 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
   const { colors, shadows, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+  const navigation = useNavigation();
+  const { reserveItem, deletePost, userId: contextUserId } = useData();
+  const activeUserId = userId || contextUserId;
+
+  const [reserving, setReserving] = useState(false);
+
+  const getConditionColor = (cond) => {
+    switch (cond) {
+      case 'New': return colors.accentGreen || '#34D399';
+      case 'Like New': return colors.accentCyan || '#22D3EE';
+      case 'Good': return colors.accentAmber || '#FBBF24';
+      case 'Used': return colors.textSecondary || '#A1A1AA';
+      default: return colors.textSecondary || '#A1A1AA';
+    }
+  };
+
+  const getStatusColor = (stat) => {
+    switch (stat) {
+      case 'Available': return colors.accentGreen || '#34D399';
+      case 'Reserved': return colors.accentAmber || '#FBBF24';
+      case 'Sold': return colors.accent || '#4F9DFF';
+      default: return colors.accentGreen || '#34D399';
+    }
+  };
 
   const likeScale = React.useRef(new Animated.Value(1)).current;
   const saveScale = React.useRef(new Animated.Value(1)).current;
   const cardScale = React.useRef(new Animated.Value(1)).current;
 
-  const isLiked = post.likedBy?.includes(userId);
-  const isSaved = post.savedBy?.includes(userId);
+  const isLiked = post.likedBy?.includes(activeUserId);
+  const isSaved = post.savedBy?.includes(activeUserId);
 
   // Click locks to prevent double-click spam
   const lastLikeClick = React.useRef(0);
@@ -343,7 +464,107 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     setMenuVisible(true);
   }, []);
 
-  const isOwner = userId && (userId === post.userId || userId === post.author);
+  const handleReserveItem = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const id = post.id || post._id;
+    if (post.status === 'Reserved') return;
+    
+    setReserving(true);
+    try {
+      await reserveItem(id);
+      if (Platform.OS === 'web') {
+        alert(`Reserved! 🤝 You've reserved "${post.title}". The seller has been notified.`);
+      } else {
+        Alert.alert('Reserved! 🤝', `You've reserved "${post.title}". The seller has been notified.`);
+      }
+    } catch (err) {
+      console.error('[AnimatedPostCard] Failed to reserve item:', err);
+      if (Platform.OS === 'web') {
+        alert('Failed to reserve item.');
+      } else {
+        Alert.alert('Error', 'Failed to reserve item.');
+      }
+    } finally {
+      setReserving(false);
+    }
+  }, [post.id, post._id, post.status, post.title, reserveItem]);
+
+  const handleContactSellerItem = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const sellerId = post.userId || post.author;
+    const sellerName = post.username || post.authorName || 'Seller';
+    if (!sellerId) {
+      if (Platform.OS === 'web') {
+        alert('Seller information is not available.');
+      } else {
+        Alert.alert('Error', 'Seller information is not available.');
+      }
+      return;
+    }
+
+    if (sellerId === activeUserId) {
+      if (Platform.OS === 'web') {
+        alert('You cannot chat with yourself!');
+      } else {
+        Alert.alert('Error', 'You cannot chat with yourself!');
+      }
+      return;
+    }
+
+    try {
+      const activeChat = await initChat(sellerId, sellerName);
+      navigation.navigate('Chat', { chat: activeChat });
+    } catch (err) {
+      console.error('Failed to initialize chat:', err);
+      if (Platform.OS === 'web') {
+        alert('Failed to contact seller. Please try again later.');
+      } else {
+        Alert.alert('Error', 'Failed to contact seller. Please try again later.');
+      }
+    }
+  }, [activeUserId, navigation, post.userId, post.author, post.username, post.authorName]);
+
+  const handleEditItem = useCallback((e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (onEdit) {
+      onEdit(post);
+    } else {
+      navigation.navigate('BuySell', { editItem: post });
+    }
+  }, [post, onEdit, navigation]);
+
+  const handleDeleteItem = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const id = post.id || post._id;
+    if (onDelete) {
+      onDelete(id);
+    } else {
+      const confirmDelete = Platform.OS === 'web' 
+        ? window.confirm('Are you sure you want to permanently delete this listing?')
+        : await new Promise((resolve) => {
+            Alert.alert(
+              'Delete Listing',
+              'Are you sure you want to permanently delete this listing? This action cannot be undone.',
+              [
+                { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+                { text: 'Delete', onPress: () => resolve(true), style: 'destructive' },
+              ]
+            );
+          });
+      if (confirmDelete) {
+        try {
+          await deletePost(id);
+          if (Platform.OS === 'web') alert('Listing deleted successfully.');
+          else Alert.alert('Deleted', 'Listing deleted successfully.');
+        } catch (err) {
+          if (Platform.OS === 'web') alert('Failed to delete listing.');
+          else Alert.alert('Error', 'Failed to delete listing.');
+        }
+      }
+    }
+  }, [post.id, post._id, onDelete, deletePost]);
+
+  const isOwner = activeUserId && (activeUserId === post.userId || activeUserId === post.author);
 
   return (
     <View style={{ position: 'relative' }}>
@@ -389,8 +610,31 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         <Text style={styles.title}>{post.title}</Text>
       ) : null}
 
+      {/* Marketplace details if Buy/Sell category */}
+      {(post.category === 'Buy/Sell' || post.price) && (
+        <View style={styles.marketDetailsRow}>
+          <Text style={styles.marketPrice}>{post.price || '$0'}</Text>
+          {post.condition && (
+            <View style={[styles.marketConditionBadge, { backgroundColor: getConditionColor(post.condition) + '15' }]}>
+              <Text style={[styles.marketConditionText, { color: getConditionColor(post.condition) }]}>
+                {post.condition}
+              </Text>
+            </View>
+          )}
+          {post.status && (
+            <View style={[styles.marketStatusBadge, { backgroundColor: getStatusColor(post.status) + '15' }]}>
+              <Text style={[styles.marketStatusText, { color: getStatusColor(post.status) }]}>
+                {post.status}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Content */}
-      <Text style={styles.content}>{post.content}</Text>
+      {post.content && post.content !== `Selling ${post.title}` && (
+        <Text style={styles.content}>{post.content}</Text>
+      )}
 
       {/* Optional Post Image */}
       {post.imageUrl && (
@@ -469,6 +713,67 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
               {post.poll.votedBy?.length || 0} votes · Interactive Poll
             </Text>
           </View>
+        </View>
+      )}
+
+      {/* Marketplace Action Row */}
+      {post.category === 'Buy/Sell' && (
+        <View style={styles.marketActionRow}>
+          {isOwner ? (
+            <>
+              <TouchableOpacity 
+                style={[styles.marketActionBtn, styles.marketEditBtn]} 
+                onPress={handleEditItem} 
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+                <Text style={[styles.marketActionText, { color: colors.primary }]}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.marketActionBtn, styles.marketDeleteBtn]} 
+                onPress={handleDeleteItem} 
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent || '#FF4B4B'} />
+                <Text style={[styles.marketActionText, { color: colors.error || colors.accent || '#FF4B4B' }]}>Delete</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity 
+                style={[
+                  styles.marketActionBtn, 
+                  styles.marketReserveBtn, 
+                  post.status === 'Reserved' && styles.marketDisabledBtn,
+                  reserving && styles.marketLoadingBtn
+                ]} 
+                onPress={handleReserveItem} 
+                activeOpacity={0.7}
+                disabled={post.status === 'Reserved' || reserving}
+              >
+                {reserving ? (
+                  <ActivityIndicator size="small" color={colors.accentAmber || '#FBBF24'} />
+                ) : (
+                  <>
+                    <Ionicons name={post.status === 'Reserved' ? "lock-closed" : "bookmark-outline"} size={14} color={post.status === 'Reserved' ? colors.textTertiary : (colors.accentAmber || '#FBBF24')} />
+                    <Text style={[styles.marketActionText, { color: post.status === 'Reserved' ? colors.textTertiary : (colors.accentAmber || '#FBBF24') }]}>
+                      {post.status === 'Reserved' ? 'Reserved' : 'Reserve'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.marketActionBtn, styles.marketChatBtn]} 
+                onPress={handleContactSellerItem} 
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
+                <Text style={[styles.marketActionText, styles.marketChatText]}>Contact Seller</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       )}
 
@@ -559,56 +864,44 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
       </View>
     </AnimatedTouchable>
 
-    {/* Options Menu Modal */}
-    <Modal
-      visible={menuVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setMenuVisible(false)}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
-        onPress={(e) => {
-          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-          setMenuVisible(false);
-        }}
-      >
-        <View 
-          style={styles.modalContent}
-          onStartShouldSetResponder={() => true}
-          onResponderRelease={(e) => {
+    {/* Clean Floating Options Menu */}
+    {menuVisible && (
+      <>
+        {/* Transparent click-outside overlay cover */}
+        <TouchableOpacity 
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={(e) => {
             if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            setMenuVisible(false);
           }}
-        >
-          <Text style={styles.modalTitle}>Post Options</Text>
-          
+        />
+        
+        {/* Floating dropdown menu */}
+        <View style={styles.floatingMenu} onStartShouldSetResponder={() => true}>
           {onEdit && (
             <TouchableOpacity 
-              style={styles.modalBtn} 
+              style={styles.floatingMenuBtn} 
               onPress={(e) => {
                 if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-                console.log('[AnimatedPostCard] edit selected');
                 setMenuVisible(false);
                 onEdit(post);
               }}
             >
-              <Ionicons name="create-outline" size={20} color={colors.textPrimary} style={{ marginRight: 12 }} />
-              <Text style={[styles.modalBtnText, { color: colors.textPrimary }]}>Edit Post</Text>
+              <Ionicons name="create-outline" size={18} color={colors.textPrimary} style={{ marginRight: 8 }} />
+              <Text style={[styles.floatingMenuBtnText, { color: colors.textPrimary }]}>Edit Post</Text>
             </TouchableOpacity>
           )}
 
           {onDelete && (
             <TouchableOpacity 
-              style={[styles.modalBtn, styles.deleteBtnBorder]} 
+              style={[styles.floatingMenuBtn, styles.deleteMenuBtnBorder]} 
               onPress={(e) => {
                 if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-                console.log('[AnimatedPostCard] delete selected');
                 setMenuVisible(false);
                 if (Platform.OS === 'web') {
                   const confirmDelete = window.confirm('Are you sure you want to permanently delete this post? This action cannot be undone.');
                   if (confirmDelete) {
-                    console.log('[AnimatedPostCard] confirmed delete (web)');
                     onDelete(post.id || post._id);
                   }
                 } else {
@@ -621,7 +914,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                         text: 'Delete', 
                         style: 'destructive', 
                         onPress: () => {
-                          console.log('[AnimatedPostCard] confirmed delete (mobile)');
                           onDelete(post.id || post._id);
                         } 
                       },
@@ -630,23 +922,23 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={20} color={colors.accent} style={{ marginRight: 12 }} />
-              <Text style={[styles.modalBtnText, { color: colors.accent }]}>Delete Post</Text>
+              <Ionicons name="trash-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
+              <Text style={[styles.floatingMenuBtnText, { color: colors.accent }]}>Delete Post</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity 
-            style={[styles.modalBtn, styles.cancelBtn]} 
+            style={[styles.floatingMenuBtn, styles.cancelMenuBtn]} 
             onPress={(e) => {
               if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
               setMenuVisible(false);
             }}
           >
-            <Text style={[styles.modalBtnText, { color: colors.textTertiary, textAlign: 'center', width: '100%' }]}>Cancel</Text>
+            <Text style={[styles.floatingMenuBtnText, { color: colors.textSecondary, textAlign: 'center', width: '100%' }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
-    </Modal>
+      </>
+    )}
   </View>
   );
 });

@@ -69,7 +69,21 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
 
     const unsubscribe = getCommentsForPost(post.id, (data) => {
       console.log(`[PostDetail] Fetched ${data.length} comments for postId: ${post.id}`);
-      setComments(data);
+      setComments(prev => {
+        const merged = [...prev];
+        data.forEach(item => {
+          const exists = merged.some(c => 
+            (c.id && c.id === item.id) || 
+            (c._id && c._id === item._id) || 
+            (c.id === item._id) || 
+            (c._id === item.id)
+          );
+          if (!exists) {
+            merged.push(item);
+          }
+        });
+        return merged.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
       setLoading(false);
     });
 
@@ -130,7 +144,11 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
   );
 
   const handleEditPost = useCallback((p) => {
-    navigation.navigate('CreatePost', { post: p });
+    if (p.category === 'Buy/Sell') {
+      navigation.navigate('BuySell', { editItem: p });
+    } else {
+      navigation.navigate('CreatePost', { post: p });
+    }
   }, [navigation]);
 
   const handleDeletePost = useCallback(async (postId) => {
