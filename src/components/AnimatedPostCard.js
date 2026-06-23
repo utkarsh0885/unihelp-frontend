@@ -15,6 +15,8 @@ import {
   Share,
   Animated,
   Image,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
@@ -192,6 +194,57 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     fontWeight: '800',
     marginLeft: -2,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    maxWidth: 360,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginBottom: 10,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modalBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  deleteBtnBorder: {
+    borderColor: colors.accent + '30',
+  },
+  cancelBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    marginTop: 6,
+    marginBottom: 0,
+  },
 });
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -216,8 +269,10 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   const [commentHovered, setCommentHovered] = React.useState(false);
   const [shareHovered, setShareHovered] = React.useState(false);
   const [saveHovered, setSaveHovered] = React.useState(false);
+  const [menuVisible, setMenuVisible] = React.useState(false);
 
-  const handleLike = useCallback(() => {
+  const handleLike = useCallback((e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     const now = Date.now();
     if (now - lastLikeClick.current < 350) return;
     lastLikeClick.current = now;
@@ -230,7 +285,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     onLike(post.id);
   }, [post.id, onLike, likeScale]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback((e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     const now = Date.now();
     if (now - lastSaveClick.current < 350) return;
     lastSaveClick.current = now;
@@ -243,7 +299,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     onSave(post.id);
   }, [post.id, onSave, saveScale]);
 
-  const handleComment = useCallback(() => {
+  const handleComment = useCallback((e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     if (onComment) onComment(post);
   }, [post, onComment]);
 
@@ -264,51 +321,39 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     }).start();
   };
 
-  const handleShare = useCallback(async () => {
+  const handleShare = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     try {
       await Share.share({
         message: `${post.username} on UNIHELP:\n\n"${post.content}"`,
       });
     } catch {
-      Alert.alert('Shared! 🔗', 'Post link copied to clipboard.');
+      if (Platform.OS === 'web') {
+        alert('Post link copied to clipboard.');
+      } else {
+        Alert.alert('Shared! 🔗', 'Post link copied to clipboard.');
+      }
     }
   }, [post.username, post.content]);
 
-  const handleOptions = useCallback(() => {
-    Alert.alert(
-      'Post Options',
-      'What would you like to do with this post?',
-      [
-        { text: 'Edit Post', onPress: () => onEdit && onEdit(post) },
-        { 
-          text: 'Delete Post', 
-          onPress: () => {
-            Alert.alert(
-              'Delete Post',
-              'Are you sure you want to permanently delete this post? This action cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => onDelete && onDelete(post.id) },
-              ]
-            );
-          },
-          style: 'destructive' 
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  }, [post, onEdit, onDelete]);
+  const handleOptions = useCallback((e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    console.log('[AnimatedPostCard] three dots clicked');
+    console.log('[AnimatedPostCard] opening options modal');
+    setMenuVisible(true);
+  }, []);
 
-  const isOwner = userId === post.userId;
+  const isOwner = userId && (userId === post.userId || userId === post.author);
 
   return (
-    <AnimatedTouchable
-      style={[styles.card, { transform: [{ scale: cardScale }] }]}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      onPress={() => onPress && onPress(post)}
-      activeOpacity={1}
-    >
+    <View style={{ position: 'relative' }}>
+      <AnimatedTouchable
+        style={[styles.card, { transform: [{ scale: cardScale }] }]}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={() => onPress && onPress(post)}
+        activeOpacity={1}
+      >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -331,7 +376,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
             </View>
           )}
           
-          {isOwner && (
+          {isOwner && (onEdit || onDelete) && (
             <TouchableOpacity style={styles.moreBtn} onPress={handleOptions}>
               <Ionicons name="ellipsis-vertical" size={20} color={colors.textTertiary} />
             </TouchableOpacity>
@@ -513,6 +558,96 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         </AnimatedTouchable>
       </View>
     </AnimatedTouchable>
+
+    {/* Options Menu Modal */}
+    <Modal
+      visible={menuVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setMenuVisible(false)}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={(e) => {
+          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+          setMenuVisible(false);
+        }}
+      >
+        <View 
+          style={styles.modalContent}
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={(e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+          }}
+        >
+          <Text style={styles.modalTitle}>Post Options</Text>
+          
+          {onEdit && (
+            <TouchableOpacity 
+              style={styles.modalBtn} 
+              onPress={(e) => {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                console.log('[AnimatedPostCard] edit selected');
+                setMenuVisible(false);
+                onEdit(post);
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.textPrimary} style={{ marginRight: 12 }} />
+              <Text style={[styles.modalBtnText, { color: colors.textPrimary }]}>Edit Post</Text>
+            </TouchableOpacity>
+          )}
+
+          {onDelete && (
+            <TouchableOpacity 
+              style={[styles.modalBtn, styles.deleteBtnBorder]} 
+              onPress={(e) => {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                console.log('[AnimatedPostCard] delete selected');
+                setMenuVisible(false);
+                if (Platform.OS === 'web') {
+                  const confirmDelete = window.confirm('Are you sure you want to permanently delete this post? This action cannot be undone.');
+                  if (confirmDelete) {
+                    console.log('[AnimatedPostCard] confirmed delete (web)');
+                    onDelete(post.id || post._id);
+                  }
+                } else {
+                  Alert.alert(
+                    'Delete Post',
+                    'Are you sure you want to permanently delete this post? This action cannot be undone.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Delete', 
+                        style: 'destructive', 
+                        onPress: () => {
+                          console.log('[AnimatedPostCard] confirmed delete (mobile)');
+                          onDelete(post.id || post._id);
+                        } 
+                      },
+                    ]
+                  );
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.accent} style={{ marginRight: 12 }} />
+              <Text style={[styles.modalBtnText, { color: colors.accent }]}>Delete Post</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            style={[styles.modalBtn, styles.cancelBtn]} 
+            onPress={(e) => {
+              if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+              setMenuVisible(false);
+            }}
+          >
+            <Text style={[styles.modalBtnText, { color: colors.textTertiary, textAlign: 'center', width: '100%' }]}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  </View>
   );
 });
 

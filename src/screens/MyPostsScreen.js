@@ -27,19 +27,32 @@ import AnimatedPostCard from '../components/AnimatedPostCard';
 
 const MyPostsScreen = ({ navigation }) => {
   const { colors, shadows } = useTheme();
-  const { posts, toggleLike, toggleSave, votePoll, postsLoading, userId } = useData();
+  const { posts, toggleLike, toggleSave, votePoll, postsLoading, userId, updatePost, deletePost } = useData();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const [sortOrder, setSortOrder] = useState('recent'); // 'recent' | 'oldest'
 
   // Filter posts created by the user
   const userPosts = useMemo(() => 
-    posts.filter(p => p.userId === userId), 
+    posts.filter(p => p.userId === userId || p.author === userId), 
     [posts, userId]
   );
 
   const handleComment = useCallback((post) => {
     navigation.navigate('PostDetail', { post });
   }, [navigation]);
+
+  const handleEditPost = useCallback((post) => {
+    navigation.navigate('CreatePost', { post });
+  }, [navigation]);
+
+  const handleDeletePost = useCallback(async (postId) => {
+    try {
+      await deletePost(postId);
+      Alert.alert('Deleted', 'Post deleted successfully.');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to delete post.');
+    }
+  }, [deletePost]);
 
   const backScale = React.useRef(new Animated.Value(1)).current;
   const onPressInBack = () => Animated.spring(backScale, { toValue: 0.85, useNativeDriver: true }).start();
@@ -68,10 +81,12 @@ const MyPostsScreen = ({ navigation }) => {
       onSave={toggleSave}
       onComment={handleComment}
       onVotePoll={votePoll}
+      onEdit={handleEditPost}
+      onDelete={handleDeletePost}
       userId={userId}
       index={index}
     />
-  ), [toggleLike, toggleSave, votePoll, userId, handleComment]);
+  ), [toggleLike, toggleSave, votePoll, userId, handleComment, handleEditPost, handleDeletePost]);
 
   const EmptyState = () => (
     <View style={styles.emptyContainer}>

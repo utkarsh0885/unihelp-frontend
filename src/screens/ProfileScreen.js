@@ -183,7 +183,7 @@ const ProfileScreen = ({ navigation }) => {
   const { isDark, toggleTheme, colors, shadows } = useTheme();
   const { posts, savedPosts, userId } = useData();
   
-  const userPosts = useMemo(() => posts.filter(p => p.userId === userId), [posts, userId]);
+  const userPosts = useMemo(() => posts.filter(p => p.userId === userId || p.author === userId), [posts, userId]);
   
   const [isEditVisible, setIsEditVisible] = useState(false);
 

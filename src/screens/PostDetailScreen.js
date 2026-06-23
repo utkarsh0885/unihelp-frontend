@@ -32,7 +32,9 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
     toggleLike, 
     toggleSave, 
     votePoll, 
-    userId 
+    userId,
+    updatePost,
+    deletePost
   } = useData();
 
   // Find the fresh post from context, falling back to routeParams.post
@@ -124,6 +126,20 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
     </View>
   );
 
+  const handleEditPost = useCallback((p) => {
+    navigation.navigate('CreatePost', { post: p });
+  }, [navigation]);
+
+  const handleDeletePost = useCallback(async (postId) => {
+    try {
+      await deletePost(postId);
+      Alert.alert('Deleted', 'Post deleted successfully.');
+      handleGoBack();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to delete post.');
+    }
+  }, [deletePost]);
+
   const renderHeader = () => (
     <View style={styles.postWrap}>
       <AnimatedPostCard
@@ -133,6 +149,8 @@ const PostDetailScreen = ({ route = {}, navigation }) => {
         // We do not pass onComment here because we are already in the comment view
         // onMessage removed — Messages feature disabled
         onVotePoll={votePoll}
+        onEdit={handleEditPost}
+        onDelete={handleDeletePost}
         userId={userId}
         index={0}
       />
