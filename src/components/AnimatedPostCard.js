@@ -257,6 +257,10 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     backgroundColor: (colors.error || colors.accent || '#FF4B4B') + '15',
     borderColor: (colors.error || colors.accent || '#FF4B4B') + '30',
   },
+  marketSoldBtn: {
+    backgroundColor: (colors.accentGreen || '#34D399') + '15',
+    borderColor: (colors.accentGreen || '#34D399') + '30',
+  },
   marketDisabledBtn: {
     opacity: 0.6,
     backgroundColor: colors.surfaceLight,
@@ -356,7 +360,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   const { colors, shadows, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const navigation = useNavigation();
-  const { reserveItem, deletePost, userId: contextUserId } = useData();
+  const { reserveItem, deletePost, updatePost, userId: contextUserId } = useData();
   const activeUserId = userId || contextUserId;
 
   const [reserving, setReserving] = useState(false);
@@ -473,7 +477,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   const handleReserveItem = useCallback(async (e) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     const id = post.id || post._id;
-    if (post.status === 'Reserved') return;
+    if (post.status === 'Reserved' || post.status === 'Sold') return;
     
     setReserving(true);
     try {
@@ -497,6 +501,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
 
   const handleContactSellerItem = useCallback(async (e) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (post.status === 'Sold') return;
     const sellerId = post.userId || post.author;
     const sellerName = post.username || post.authorName || 'Seller';
     if (!sellerId) {
@@ -528,7 +533,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         Alert.alert('Error', 'Failed to contact seller. Please try again later.');
       }
     }
-  }, [activeUserId, navigation, post.userId, post.author, post.username, post.authorName]);
+  }, [activeUserId, navigation, post.userId, post.author, post.username, post.authorName, post.status]);
 
   const handleEditItem = useCallback((e) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
@@ -570,12 +575,41 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     }
   }, [post.id, post._id, onDelete, deletePost]);
 
+  const handleMarkSoldItem = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const id = post.id || post._id;
+    const confirmSold = Platform.OS === 'web'
+      ? window.confirm('Are you sure you sold this item?')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Mark as Sold',
+            'Are you sure you sold this item?',
+            [
+              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+              { text: 'Confirm', onPress: () => resolve(true) },
+            ]
+          );
+        });
+    if (confirmSold) {
+      try {
+        await updatePost(id, { status: 'Sold', soldAt: new Date().toISOString() });
+        if (Platform.OS === 'web') alert('Item marked as sold.');
+        else Alert.alert('Success', 'Item marked as sold.');
+      } catch (error) {
+        console.error('Mark sold error:', error);
+        if (Platform.OS === 'web') alert('Failed to mark item as sold.');
+        else Alert.alert('Error', 'Failed to mark item as sold.');
+      }
+    }
+  }, [post.id, post._id, updatePost]);
+
   const isOwner = activeUserId && (activeUserId === post.userId || activeUserId === post.author);
+  const isSold = post.status === 'Sold';
 
   return (
     <View style={{ position: 'relative' }}>
       <AnimatedTouchable
-        style={[styles.card, { transform: [{ scale: cardScale }] }]}
+        style={[styles.card, { transform: [{ scale: cardScale }] }, isSold && { opacity: 0.85 }]}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={() => onPress && onPress(post)}
@@ -744,6 +778,22 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent || '#FF4B4B'} />
                 <Text style={[styles.marketActionText, { color: colors.error || colors.accent || '#FF4B4B' }]}>Delete</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[
+                  styles.marketActionBtn, 
+                  styles.marketSoldBtn,
+                  isSold && styles.marketDisabledBtn
+                ]} 
+                onPress={handleMarkSoldItem} 
+                activeOpacity={0.7}
+                disabled={isSold}
+              >
+                <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textTertiary : (colors.accentGreen || '#34D399')} />
+                <Text style={[styles.marketActionText, { color: isSold ? colors.textTertiary : (colors.accentGreen || '#34D399') }]}>
+                  {isSold ? 'Sold' : 'Mark Sold'}
+                </Text>
+              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -751,32 +801,41 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 style={[
                   styles.marketActionBtn, 
                   styles.marketReserveBtn, 
-                  post.status === 'Reserved' && styles.marketDisabledBtn,
+                  (post.status === 'Reserved' || isSold) && styles.marketDisabledBtn,
                   reserving && styles.marketLoadingBtn
                 ]} 
                 onPress={handleReserveItem} 
                 activeOpacity={0.7}
-                disabled={post.status === 'Reserved' || reserving}
+                disabled={post.status === 'Reserved' || isSold || reserving}
               >
                 {reserving ? (
                   <ActivityIndicator size="small" color={colors.accentAmber || '#FBBF24'} />
                 ) : (
                   <>
-                    <Ionicons name={post.status === 'Reserved' ? "lock-closed" : "bookmark-outline"} size={14} color={post.status === 'Reserved' ? colors.textTertiary : (colors.accentAmber || '#FBBF24')} />
-                    <Text style={[styles.marketActionText, { color: post.status === 'Reserved' ? colors.textTertiary : (colors.accentAmber || '#FBBF24') }]}>
-                      {post.status === 'Reserved' ? 'Reserved' : 'Reserve'}
+                    <Ionicons 
+                      name={isSold ? "checkmark-done-circle-outline" : (post.status === 'Reserved' ? "lock-closed" : "bookmark-outline")} 
+                      size={14} 
+                      color={(post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24')} 
+                    />
+                    <Text style={[styles.marketActionText, { color: (post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24') }]}>
+                      {isSold ? 'Sold' : (post.status === 'Reserved' ? 'Reserved' : 'Reserve')}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.marketActionBtn, styles.marketChatBtn]} 
+                style={[
+                  styles.marketActionBtn, 
+                  styles.marketChatBtn, 
+                  isSold && styles.marketDisabledBtn
+                ]} 
                 onPress={handleContactSellerItem} 
                 activeOpacity={0.7}
+                disabled={isSold}
               >
-                <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
-                <Text style={[styles.marketActionText, styles.marketChatText]}>Contact Seller</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
+                <Text style={[styles.marketActionText, styles.marketChatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
               </TouchableOpacity>
             </>
           )}

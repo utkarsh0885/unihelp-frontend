@@ -512,6 +512,10 @@ export const DataProvider = ({ children }) => {
     return newEvent?.id || newEvent?._id;
   }, [user, userId]);
   const reserveItem = useCallback(async (postId) => {
+    const targetPost = posts.find(p => (p.id === postId || p._id === postId));
+    if (targetPost && targetPost.status === 'Sold') {
+      throw new Error('This item has been sold and cannot be reserved.');
+    }
     console.log("AUTH USER", user);
     
     const payload = {
@@ -531,7 +535,7 @@ export const DataProvider = ({ children }) => {
       } : p));
     }
     return response;
-  }, [userId, user]);
+  }, [userId, user, posts]);
   const markAllNotificationsRead = useCallback(async () => {}, []);
 
   // ══════════ Context Value ══════════

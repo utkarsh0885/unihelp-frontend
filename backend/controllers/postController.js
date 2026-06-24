@@ -189,6 +189,9 @@ exports.updatePost = asyncHandler(async (req, res) => {
 
   // Only author or admin can update (unless it's a buyer reserving the item)
   const isReserveAction = req.body.status === 'Reserved';
+  if (post.status === 'Sold' && isReserveAction) {
+    throw new ApiError(400, 'Cannot reserve a sold item');
+  }
   if (post.author !== req.user.id && req.user.role !== 'admin' && !isReserveAction) {
     throw new ApiError(403, 'Unauthorized to edit this post');
   }
@@ -200,7 +203,7 @@ exports.updatePost = asyncHandler(async (req, res) => {
     }
   }
 
-  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon, status, reservedBy, reservedByName, reservedByEmail } = req.body;
+  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon, status, reservedBy, reservedByName, reservedByEmail, soldAt } = req.body;
   const updates = {};
 
   if (title !== undefined) {
@@ -262,10 +265,14 @@ exports.updatePost = asyncHandler(async (req, res) => {
     updates.reservedBy = null;
     updates.reservedByName = null;
     updates.reservedByEmail = null;
+    updates.soldAt = null;
+  } else if (status === 'Sold') {
+    updates.soldAt = soldAt || new Date().toISOString();
   } else {
     if (reservedBy !== undefined) updates.reservedBy = reservedBy;
     if (reservedByName !== undefined) updates.reservedByName = reservedByName;
     if (reservedByEmail !== undefined) updates.reservedByEmail = reservedByEmail;
+    if (soldAt !== undefined) updates.soldAt = soldAt;
   }
 
   console.log("UPDATES OBJECT", updates);

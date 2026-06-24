@@ -166,6 +166,38 @@ const BuySellScreen = ({ navigation, route }) => {
     }
   }, [deletePost]);
 
+  const handleMarkSold = useCallback(async (item) => {
+    const itemId = item.id || item._id;
+    const performMarkSold = async () => {
+      try {
+        await updatePost(itemId, { status: 'Sold', soldAt: new Date().toISOString() });
+        Alert.alert('Success', 'Item marked as sold.');
+      } catch (error) {
+        Alert.alert('Error', 'Failed to mark item as sold.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmSold = window.confirm('Are you sure you sold this item?');
+      if (confirmSold) {
+        await performMarkSold();
+      }
+    } else {
+      Alert.alert(
+        'Mark as Sold',
+        'Are you sure you sold this item?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Confirm', 
+            onPress: performMarkSold
+          }
+        ]
+      );
+    }
+  }, [updatePost]);
+
+
   const handleSell = useCallback(async () => {
     if (!itemTitle.trim() || !itemPrice.trim()) {
       Alert.alert('Missing Info', 'Please enter title and price.');
@@ -233,7 +265,7 @@ const BuySellScreen = ({ navigation, route }) => {
 
   const handleReserve = useCallback(async (item) => {
     const id = item.id || item._id;
-    if (item.status === 'Reserved') return;
+    if (item.status === 'Reserved' || item.status === 'Sold') return;
     
     setReservingId(id);
     try {
@@ -247,6 +279,7 @@ const BuySellScreen = ({ navigation, route }) => {
   }, [reserveItem]);
 
   const handleContactSeller = useCallback(async (item) => {
+    if (item.status === 'Sold') return;
     const sellerId = item.userId || item.author;
     const sellerName = item.username || item.authorName || 'Seller';
     if (!sellerId) {
@@ -288,11 +321,12 @@ const BuySellScreen = ({ navigation, route }) => {
     }
 
     const isReserved = item.status === 'Reserved';
+    const isSold = item.status === 'Sold';
     const isReserving = reservingId === item.id || reservingId === item._id;
     const isOwner = userId && (userId === item.userId || userId === item.author);
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, isSold && { opacity: 0.85 }]}>
         <View style={styles.cardTop}>
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
@@ -304,11 +338,15 @@ const BuySellScreen = ({ navigation, route }) => {
           <View style={styles.itemInfo}>
             <View style={styles.titleRow}>
               <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-              {isReserved && (
+              {isSold ? (
+                <View style={[styles.inlineBadge, styles.soldBadge]}>
+                  <Text style={[styles.inlineBadgeText, styles.soldBadgeText]}>Sold</Text>
+                </View>
+              ) : isReserved ? (
                 <View style={styles.inlineBadge}>
                   <Text style={styles.inlineBadgeText}>Reserved</Text>
                 </View>
-              )}
+              ) : null}
             </View>
             <View style={styles.itemMeta}>
               <Text style={styles.itemSeller} numberOfLines={1}>{item.username || item.authorName || 'Student'}</Text>
@@ -359,6 +397,22 @@ const BuySellScreen = ({ navigation, route }) => {
                   <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent} />
                   <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[
+                    styles.actionBtn, 
+                    styles.soldBtn,
+                    isSold && styles.disabledBtn
+                  ]} 
+                  onPress={() => handleMarkSold(item)} 
+                  activeOpacity={0.7}
+                  disabled={isSold}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textTertiary : colors.accentGreen} />
+                  <Text style={[styles.actionText, { color: isSold ? colors.textTertiary : colors.accentGreen }]}>
+                    {isSold ? 'Sold' : 'Mark Sold'}
+                  </Text>
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -366,32 +420,37 @@ const BuySellScreen = ({ navigation, route }) => {
                   style={[
                     styles.actionBtn, 
                     styles.reserveBtn, 
-                    isReserved && styles.disabledBtn,
+                    (isReserved || isSold) && styles.disabledBtn,
                     isReserving && styles.loadingBtn
                   ]} 
                   onPress={() => handleReserve(item)} 
                   activeOpacity={0.7}
-                  disabled={isReserved || isReserving}
+                  disabled={isReserved || isSold || isReserving}
                 >
                   {isReserving ? (
                     <ActivityIndicator size="small" color={colors.accentAmber} />
                   ) : (
                     <>
-                      <Ionicons name={isReserved ? "lock-closed" : "bookmark-outline"} size={14} color={isReserved ? colors.textTertiary : colors.accentAmber} />
-                      <Text style={[styles.actionText, { color: isReserved ? colors.textTertiary : colors.accentAmber }]}>
-                        {isReserved ? 'Reserved' : 'Reserve'}
+                      <Ionicons 
+                        name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
+                        size={14} 
+                        color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
+                      />
+                      <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
+                        {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
                       </Text>
                     </>
                   )}
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={[styles.actionBtn, styles.chatBtn]} 
+                  style={[styles.actionBtn, styles.chatBtn, isSold && styles.disabledBtn]} 
                   onPress={() => handleContactSeller(item)} 
                   activeOpacity={0.7}
+                  disabled={isSold}
                 >
-                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
-                  <Text style={[styles.actionText, styles.chatText]}>Contact Seller</Text>
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
+                  <Text style={[styles.actionText, styles.chatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -399,7 +458,7 @@ const BuySellScreen = ({ navigation, route }) => {
         </View>
       </View>
     );
-  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete]);
+  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete, handleMarkSold]);
 
   return (
     <View style={styles.screen}>
@@ -618,6 +677,13 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
   inlineBadge: { backgroundColor: colors.accentAmber, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   inlineBadgeText: { fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' },
+  soldBadge: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  soldBadgeText: { color: '#FFF' },
+  soldBtn: {
+    backgroundColor: colors.accentGreen + '10',
+    borderColor: colors.accentGreen + '40',
+  },
+
   reservedByContainer: {
     marginTop: 6,
     padding: 6,
