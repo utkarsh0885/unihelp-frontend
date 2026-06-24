@@ -285,13 +285,16 @@ const BuySellScreen = ({ navigation, route }) => {
     const isReserving = reservingId === item.id || reservingId === item._id;
     const isOwner = userId && (userId === item.userId || userId === item.author);
 
-    // Use placeholder image if none provided
-    const itemImage = item.imageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=400&auto=format&fit=crop';
-
     return (
       <View style={styles.card}>
         <View style={styles.cardTop}>
-          <Image source={{ uri: itemImage }} style={styles.itemThumb} />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
+          ) : (
+            <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
+              <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+            </View>
+          )}
           <View style={styles.itemInfo}>
             <View style={styles.titleRow}>
               <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
@@ -559,6 +562,13 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   itemThumb: { 
     width: 60, height: 60, borderRadius: 12, 
     marginRight: SIZES.md, backgroundColor: colors.surfaceLight 
+  },
+  itemThumbPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderStyle: 'dashed'
   },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
