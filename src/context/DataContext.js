@@ -512,12 +512,26 @@ export const DataProvider = ({ children }) => {
     return newEvent?.id || newEvent?._id;
   }, [user, userId]);
   const reserveItem = useCallback(async (postId) => {
-    const response = await updatePostService(postId, { status: 'Reserved' });
+    console.log("AUTH USER", user);
+    
+    const payload = {
+      status: 'Reserved',
+      reservedBy: user?.uid || user?.id || userId,
+      reservedByName: user?.name || user?.displayName || 'Unknown',
+      reservedByEmail: user?.email || 'Unknown'
+    };
+    
+    console.log("RESERVE PAYLOAD", payload);
+    
+    const response = await updatePostService(postId, payload);
     if (response) {
-      setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { ...p, status: 'Reserved' } : p));
+      setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { 
+        ...p, 
+        ...payload
+      } : p));
     }
     return response;
-  }, []);
+  }, [userId, user]);
   const markAllNotificationsRead = useCallback(async () => {}, []);
 
   // ══════════ Context Value ══════════

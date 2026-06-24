@@ -179,6 +179,8 @@ exports.getPostById = asyncHandler(async (req, res) => {
 });
 
 exports.updatePost = asyncHandler(async (req, res) => {
+  console.log("REQ BODY", req.body);
+  console.log('[updatePost] req.user:', req.user);
   const ref = db.collection('posts').doc(req.params.id);
   const doc = await ref.get();
   if (!doc.exists) throw new ApiError(404, 'Post not found');
@@ -194,11 +196,11 @@ exports.updatePost = asyncHandler(async (req, res) => {
   // If a non-author/non-admin is reserving it, strip all other update fields
   if (post.author !== req.user.id && req.user.role !== 'admin') {
     for (const key of Object.keys(req.body)) {
-      if (key !== 'status') delete req.body[key];
+      if (key !== 'status' && key !== 'reservedBy' && key !== 'reservedByName' && key !== 'reservedByEmail') delete req.body[key];
     }
   }
 
-  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon, status } = req.body;
+  const { title, content, category, imageUrl, price, condition, description, date, time, location, color, icon, status, reservedBy, reservedByName, reservedByEmail } = req.body;
   const updates = {};
 
   if (title !== undefined) {
@@ -225,6 +227,49 @@ exports.updatePost = asyncHandler(async (req, res) => {
   if (color !== undefined) updates.color = color;
   if (icon !== undefined) updates.icon = icon;
   if (status !== undefined) updates.status = status;
+
+  // Set reservation metadata on reserve action
+  if (status === 'Reserved') {
+    let resolvedBy = reservedBy || req.user.id;
+    let resolvedByName = reservedByName || req.user.name;
+    let resolvedByEmail = reservedByEmail || req.user.email;
+
+    // Fetch user document from users collection if the name is not resolved or is a placeholder
+    if (!resolvedByName || resolvedByName === 'Unknown' || resolvedByName === 'Student') {
+      try {
+        const userDoc = await db.collection('users').doc(req.user.id).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          resolvedByName = userData.authorName || userData.displayName || userData.name || userData.username || userData.fullName;
+          if (userData.email) {
+            resolvedByEmail = userData.email;
+          }
+        }
+      } catch (err) {
+        console.error('[updatePost] Error fetching buyer user from DB:', err.message);
+      }
+    }
+
+    // Fallback to email prefix or Unknown if name is still missing
+    if (!resolvedByName || resolvedByName === 'Unknown' || resolvedByName === 'Student') {
+      resolvedByName = resolvedByEmail ? resolvedByEmail.split('@')[0] : 'Unknown';
+    }
+
+    updates.reservedBy = resolvedBy;
+    updates.reservedByName = resolvedByName;
+    updates.reservedByEmail = resolvedByEmail || 'Unknown';
+  } else if (status === 'Available') {
+    updates.reservedBy = null;
+    updates.reservedByName = null;
+    updates.reservedByEmail = null;
+  } else {
+    if (reservedBy !== undefined) updates.reservedBy = reservedBy;
+    if (reservedByName !== undefined) updates.reservedByName = reservedByName;
+    if (reservedByEmail !== undefined) updates.reservedByEmail = reservedByEmail;
+  }
+
+  console.log("UPDATES OBJECT", updates);
+  console.log("FIRESTORE UPDATE PAYLOAD", updates);
 
   await ref.update(updates);
   res.json({ id: doc.id, ...post, ...updates });

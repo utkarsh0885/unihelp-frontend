@@ -306,6 +306,12 @@ const BuySellScreen = ({ navigation, route }) => {
               <Text style={styles.dot}>·</Text>
               <Text style={styles.itemTime}>{item.time || 'Public'}</Text>
             </View>
+            {isOwner && isReserved && (
+              <View style={styles.reservedByContainer}>
+                <Text style={styles.reservedByStatus}>Reserved</Text>
+                <Text style={styles.reservedByText}>Reserved By: {item.reservedByName || 'Unknown'}</Text>
+              </View>
+            )}
           </View>
           <View style={styles.priceContainer}>
             <Text style={styles.itemPrice}>{item.price}</Text>
@@ -596,6 +602,28 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
   inlineBadge: { backgroundColor: colors.accentAmber, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   inlineBadgeText: { fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' },
+  reservedByContainer: {
+    marginTop: 6,
+    padding: 6,
+    backgroundColor: colors.accentAmber + '12',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accentAmber + '25',
+    alignSelf: 'flex-start',
+  },
+  reservedByStatus: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.accentAmber,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  reservedByText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   
   priceContainer: { alignItems: 'flex-end' },
   statusLabel: { marginTop: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },

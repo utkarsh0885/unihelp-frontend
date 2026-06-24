@@ -45,6 +45,7 @@ export const deletePostService = async (postId) => {
 };
 
 export const updatePostService = async (postId, updates) => {
+  console.log("UPDATE POST REQUEST", postId, updates);
   const response = await apiClient.put(`/api/posts/${postId}`, updates);
   return response.data;
 };
