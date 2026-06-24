@@ -317,7 +317,7 @@ const BuySellScreen = ({ navigation, route }) => {
             )}
           </View>
           <View style={styles.priceContainer}>
-            <Text style={styles.itemPrice}>{item.price}</Text>
+            <Text style={styles.itemPrice}>{item.price ? String(item.price).replace(/^\$/, '₹') : '₹0'}</Text>
             <View style={[styles.statusLabel, { backgroundColor: (STATUS_COLORS[item.status || 'Available']) + '15' }]}>
               <Text style={[styles.statusLabelText, { color: STATUS_COLORS[item.status || 'Available'] }]}>
                 {item.status || 'Available'}

@@ -613,7 +613,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
       {/* Marketplace details if Buy/Sell category */}
       {(post.category === 'Buy/Sell' || post.price) && (
         <View style={styles.marketDetailsRow}>
-          <Text style={styles.marketPrice}>{post.price || '$0'}</Text>
+          <Text style={styles.marketPrice}>{post.price ? String(post.price).replace(/^\$/, '₹') : '₹0'}</Text>
           {post.condition && (
             <View style={[styles.marketConditionBadge, { backgroundColor: getConditionColor(post.condition) + '15' }]}>
               <Text style={[styles.marketConditionText, { color: getConditionColor(post.condition) }]}>
