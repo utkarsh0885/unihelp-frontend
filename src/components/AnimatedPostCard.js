@@ -523,7 +523,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     }
 
     try {
-      const activeChat = await initChat(sellerId, sellerName);
+      const activeChat = await initChat(sellerId, sellerName, post);
       navigation.navigate('Chat', { chat: activeChat });
     } catch (err) {
       console.error('Failed to initialize chat:', err);

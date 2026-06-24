@@ -278,7 +278,43 @@ exports.updatePost = asyncHandler(async (req, res) => {
   console.log("UPDATES OBJECT", updates);
   console.log("FIRESTORE UPDATE PAYLOAD", updates);
 
+  const oldStatus = post.status || 'Available';
+  const newStatus = updates.status;
+
   await ref.update(updates);
+
+  // Trigger notifications on status transition
+  if (newStatus && newStatus !== oldStatus) {
+    try {
+      const notifData = {
+        userId: post.author,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        postId: doc.id
+      };
+
+      if (newStatus === 'Reserved') {
+        const buyerName = updates.reservedByName || req.user.name || 'A student';
+        notifData.title = 'Item Reserved';
+        notifData.message = `${buyerName} reserved your item '${post.title}'`;
+        notifData.type = 'reserve';
+        await db.collection('notifications').add(notifData);
+      } else if (newStatus === 'Available' && oldStatus === 'Reserved') {
+        notifData.title = 'Reservation Cancelled';
+        notifData.message = `The reservation for your item '${post.title}' has been cancelled.`;
+        notifData.type = 'cancel_reserve';
+        await db.collection('notifications').add(notifData);
+      } else if (newStatus === 'Sold') {
+        notifData.title = 'Item Marked as Sold';
+        notifData.message = `Your item '${post.title}' has been successfully marked as sold.`;
+        notifData.type = 'sold';
+        await db.collection('notifications').add(notifData);
+      }
+    } catch (err) {
+      console.error('[updatePost] Error creating notification:', err.message);
+    }
+  }
+
   res.json({ id: doc.id, ...post, ...updates });
 });
 

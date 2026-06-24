@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { getMyChats } from '../services/chatService';
 import {
   View,
   Text,
@@ -42,7 +43,7 @@ const NotificationItem = ({ item, onRead, colors, shadows }) => {
         activeOpacity={1}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        onPress={() => onRead(item.id)}
+        onPress={() => onRead(item)}
       >
         <View style={[styles.iconWrap, { backgroundColor: item.color + '15' }]}>
           <Ionicons name={item.icon} size={18} color={item.color} />
@@ -69,8 +70,24 @@ const NotificationsScreen = ({ navigation }) => {
 
   const btnPress = (scale, to) => Animated.spring(scale, { toValue: to, useNativeDriver: true, tension: 120, friction: 10 }).start();
 
-  const handleRead = (id) => {
-    markNotificationRead(id);
+  const handleRead = async (item) => {
+    markNotificationRead(item.id);
+
+    if (item.type === 'chat' && item.chatId) {
+      try {
+        const chats = await getMyChats();
+        const fullChat = chats.find(c => c.id === item.chatId || c._id === item.chatId);
+        if (fullChat) {
+          navigation.navigate('Chat', { chat: fullChat });
+        } else {
+          navigation.navigate('Chat', { chat: { id: item.chatId, _id: item.chatId } });
+        }
+      } catch (err) {
+        navigation.navigate('Chat', { chat: { id: item.chatId, _id: item.chatId } });
+      }
+    } else if ((item.type === 'reserve' || item.type === 'cancel_reserve' || item.type === 'sold') && item.postId) {
+      navigation.navigate('PostDetail', { post: { id: item.postId, _id: item.postId, category: 'Buy/Sell' } });
+    }
   };
 
   const handleMarkAllRead = () => {

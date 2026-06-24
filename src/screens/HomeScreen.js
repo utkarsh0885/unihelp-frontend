@@ -355,7 +355,8 @@ const HomeScreen = ({ navigation }) => {
     votePoll,
     userId,
     refreshData,
-    deletePost
+    deletePost,
+    unreadCount
   } = useData();
 
   // Filter out placeholder 'Google User' posts
@@ -664,6 +665,12 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.appName}>UniHelp</Text>
             </View>
             <View style={styles.topBarRight}>
+              <AnimatedIconButton
+                icon="notifications-outline"
+                onPress={() => navigation.navigate('Notifications')}
+                badge={unreadCount > 0}
+                styles={styles}
+              />
               <AnimatedIconButton
                 icon="person-outline"
                 onPress={() => handleFABNavigation('Profile')}

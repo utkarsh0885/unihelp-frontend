@@ -110,7 +110,7 @@ exports.getUnreadCount = asyncHandler(async (req, res) => {
  * Initialize a chat room or fetch an existing one
  */
 exports.getOrCreateChat = asyncHandler(async (req, res) => {
-  const { recipientId, recipientName } = req.body;
+  const { recipientId, recipientName, item } = req.body;
   if (!recipientId) throw new ApiError(400, 'recipientId is required');
 
   const myId = req.user.id;
@@ -145,6 +145,26 @@ exports.getOrCreateChat = asyncHandler(async (req, res) => {
     chatId = docRef.id;
     chatData.id = chatId;
     chatData._id = chatId;
+
+    // Trigger notification for new chat started from marketplace
+    if (item) {
+      try {
+        const senderName = req.user.name || 'A buyer';
+        const itemTitle = item.title || 'your item';
+        await db.collection('notifications').add({
+          userId: recipientId,
+          title: 'New Chat Query',
+          message: `${senderName} started a chat about your item '${itemTitle}'`,
+          type: 'chat',
+          chatId: chatId,
+          postId: item.id || item._id || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          read: false
+        });
+      } catch (err) {
+        console.error('[getOrCreateChat] Error creating notification:', err.message);
+      }
+    }
   }
 
   // Populate participants info

@@ -37,6 +37,9 @@ import { Platform } from 'react-native';
 import { uploadPDF } from '../services/storageService';
 
 
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
+
 // ⚠️ socketService intentionally NOT imported — WebSockets removed.
 // All real-time updates use REST polling intervals instead.
 
@@ -64,6 +67,85 @@ export const DataProvider = ({ children }) => {
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(null);   // tracks API error message
   const [savedPosts, setSavedPosts] = useState([]);
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // ── Real-time Notifications Listener ──
+  useEffect(() => {
+    if (!userId || userId === 'local_user') {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    console.log(`[DataContext] Setting up notifications listener for user: ${userId}`);
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = [];
+      let unread = 0;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Format relative or friendly time
+        let formattedTime = 'Just now';
+        if (data.createdAt) {
+          try {
+            const dateObj = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+            const diff = (Date.now() - dateObj.getTime()) / 1000;
+            if (diff >= 86400) formattedTime = `${Math.floor(diff / 86400)}d ago`;
+            else if (diff >= 3600) formattedTime = `${Math.floor(diff / 3600)}h ago`;
+            else if (diff >= 60) formattedTime = `${Math.floor(diff / 60)}m ago`;
+          } catch (e) {
+            console.warn('[DataContext] Error formatting notification date:', e);
+          }
+        }
+
+        // Map icons and colors for NotificationsScreen rendering
+        let icon = 'notifications-outline';
+        let color = '#3B82F6';
+        if (data.type === 'reserve') {
+          icon = 'bookmark';
+          color = '#FBBF24';
+        } else if (data.type === 'cancel_reserve') {
+          icon = 'close-circle';
+          color = '#EF4444';
+        } else if (data.type === 'chat') {
+          icon = 'chatbubble-ellipses';
+          color = '#3B82F6';
+        } else if (data.type === 'sold') {
+          icon = 'checkmark-circle';
+          color = '#10B981';
+        }
+
+        list.push({
+          id: doc.id,
+          ...data,
+          time: formattedTime,
+          icon,
+          color,
+          text: data.message || data.title || '',
+        });
+
+        if (!data.read) {
+          unread++;
+        }
+      });
+
+      setNotifications(list);
+      setUnreadCount(unread);
+      console.log(`[DataContext] Real-time notifications update: count=${list.length}, unread=${unread}`);
+    }, (error) => {
+      console.error('[DataContext] Notifications snapshot listener error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
 
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
@@ -536,7 +618,34 @@ export const DataProvider = ({ children }) => {
     }
     return response;
   }, [userId, user, posts]);
-  const markAllNotificationsRead = useCallback(async () => {}, []);
+  const markNotificationRead = useCallback(async (notificationId) => {
+    try {
+      const docRef = doc(db, 'notifications', notificationId);
+      await updateDoc(docRef, { read: true });
+      console.log(`[DataContext] Notification marked read: ${notificationId}`);
+    } catch (err) {
+      console.error('[DataContext] Error marking notification read:', err);
+    }
+  }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!userId || userId === 'local_user') return;
+    try {
+      const batch = writeBatch(db);
+      const unreadNotifs = notifications.filter(n => !n.read);
+      if (unreadNotifs.length === 0) return;
+
+      unreadNotifs.forEach((n) => {
+        const docRef = doc(db, 'notifications', n.id);
+        batch.update(docRef, { read: true });
+      });
+
+      await batch.commit();
+      console.log(`[DataContext] All ${unreadNotifs.length} notifications marked read.`);
+    } catch (err) {
+      console.error('[DataContext] Error marking all notifications read:', err);
+    }
+  }, [notifications, userId]);
 
   // ══════════ Context Value ══════════
 
@@ -549,7 +658,7 @@ export const DataProvider = ({ children }) => {
     events, eventsLoading, addEvent,
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
-    markAllNotificationsRead,
+    notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
   }), [
     // ⚠️ FREEZE FIX: setUnreadCount is stable (from useState) — not a loop risk.
     // All functions wrapped in useCallback are stable references.
@@ -563,6 +672,7 @@ export const DataProvider = ({ children }) => {
     events, eventsLoading,
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
+    notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
   ]);
 
   return (
