@@ -9,7 +9,9 @@ const { authenticateUser } = require('../middlewares/authMiddleware');
 // Mobile/web clients may hit these before the token is attached on first render.
 router.get('/', postController.getPosts);
 router.get('/saved', authenticateUser, postController.getSavedPosts);
+router.post('/cleanup-mock-data', postController.cleanupMockPosts);
 router.get('/:id', postController.getPostById);
+
 
 // ── Protected routes (token required) ────────────────────────────────────────
 router.post('/', authenticateUser, postController.createPost);

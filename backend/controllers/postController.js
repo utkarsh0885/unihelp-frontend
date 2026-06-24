@@ -437,3 +437,59 @@ exports.deletePost = asyncHandler(async (req, res) => {
   await ref.delete();
   res.json({ success: true, message: 'Post deleted' });
 });
+
+exports.cleanupMockPosts = asyncHandler(async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== 'unihelp_cleanup_2026') {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const postsRef = db.collection('posts');
+  const snapshot = await postsRef.get();
+  const deletedPosts = [];
+  const batch = db.batch();
+  let count = 0;
+
+  const patterns = [
+    'verification',
+    'verification item',
+    'verification book',
+    'seller user',
+    'verification seller',
+    'demo',
+    'test',
+    'sample'
+  ];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    const title = (data.title || '').toLowerCase();
+    const authorName = (data.authorName || '').toLowerCase();
+    const content = (data.content || '').toLowerCase();
+    const description = (data.description || '').toLowerCase();
+
+    const matches = patterns.some(pattern => 
+      title.includes(pattern) || 
+      authorName.includes(pattern) || 
+      content.includes(pattern) ||
+      description.includes(pattern)
+    );
+
+    if (matches) {
+      batch.delete(doc.ref);
+      deletedPosts.push({ id: doc.id, title: data.title, authorName: data.authorName });
+      count++;
+    }
+  });
+
+  if (count > 0) {
+    await batch.commit();
+  }
+
+  res.json({
+    success: true,
+    message: `Deleted ${count} mock marketplace posts.`,
+    deleted: deletedPosts
+  });
+});
+
