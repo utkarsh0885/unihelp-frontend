@@ -30,6 +30,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadPostImage } from '../services/storageService';
 import { initChat } from '../services/chatService';
 
+const formatPrice = (price) => {
+  if (price === undefined || price === null || price === '') return '₹0';
+  const cleaned = String(price).replace(/[$₹\s]/g, '');
+  return `₹${cleaned}`;
+};
+
 const BuySellScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
   const { 
@@ -317,7 +323,7 @@ const BuySellScreen = ({ navigation, route }) => {
             )}
           </View>
           <View style={styles.priceContainer}>
-            <Text style={styles.itemPrice}>{item.price ? String(item.price).replace(/^\$/, '₹') : '₹0'}</Text>
+            <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
             <View style={[styles.statusLabel, { backgroundColor: (STATUS_COLORS[item.status || 'Available']) + '15' }]}>
               <Text style={[styles.statusLabelText, { color: STATUS_COLORS[item.status || 'Available'] }]}>
                 {item.status || 'Available'}

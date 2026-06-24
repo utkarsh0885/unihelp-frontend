@@ -26,6 +26,12 @@ import { useData } from '../context/DataContext';
 import { useNavigation } from '@react-navigation/native';
 import { initChat } from '../services/chatService';
 
+const formatPrice = (price) => {
+  if (price === undefined || price === null || price === '') return '₹0';
+  const cleaned = String(price).replace(/[$₹\s]/g, '');
+  return `₹${cleaned}`;
+};
+
 const createStyles = (colors, shadows) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
@@ -613,7 +619,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
       {/* Marketplace details if Buy/Sell category */}
       {(post.category === 'Buy/Sell' || post.price) && (
         <View style={styles.marketDetailsRow}>
-          <Text style={styles.marketPrice}>{post.price ? String(post.price).replace(/^\$/, '₹') : '₹0'}</Text>
+          <Text style={styles.marketPrice}>{formatPrice(post.price)}</Text>
           {post.condition && (
             <View style={[styles.marketConditionBadge, { backgroundColor: getConditionColor(post.condition) + '15' }]}>
               <Text style={[styles.marketConditionText, { color: getConditionColor(post.condition) }]}>
