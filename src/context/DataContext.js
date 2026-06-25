@@ -79,14 +79,17 @@ export const DataProvider = ({ children }) => {
       return;
     }
 
-    console.log(`[DataContext] Setting up notifications listener for user: ${userId}`);
+    console.log("CURRENT USER", user);
+    console.log("CURRENT USER ID", userId);
+    console.log("NOTIFICATION QUERY USER", userId);
+
     const q = query(
       collection(db, 'notifications'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("NOTIFICATIONS RECEIVED", snapshot.docs.length);
       const list = [];
       let unread = 0;
       snapshot.forEach((doc) => {
@@ -137,6 +140,13 @@ export const DataProvider = ({ children }) => {
         }
       });
 
+      // Sort in-memory by createdAt descending
+      list.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
+
       setNotifications(list);
       setUnreadCount(unread);
       console.log(`[DataContext] Real-time notifications update: count=${list.length}, unread=${unread}`);
@@ -145,7 +155,7 @@ export const DataProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, user]);
 
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
