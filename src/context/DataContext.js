@@ -118,7 +118,7 @@ export const DataProvider = ({ children }) => {
         } else if (data.type === 'cancel_reserve') {
           icon = 'close-circle';
           color = '#EF4444';
-        } else if (data.type === 'chat') {
+        } else if (data.type === 'chat' || data.type === 'chat_message') {
           icon = 'chatbubble-ellipses';
           color = '#3B82F6';
         } else if (data.type === 'sold') {
@@ -190,6 +190,34 @@ export const DataProvider = ({ children }) => {
       console.log(`[DataContext] Unsubscribing from chat unread counter for user: ${userId}`);
       unsubscribe();
     };
+  }, [userId]);
+
+  const [activeChatId, setActiveChatId] = useState(null);
+
+  const setActiveChat = useCallback(async (chatId) => {
+    setActiveChatId(chatId);
+    if (userId && userId !== 'local_user') {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { activeChatId: chatId });
+        console.log(`[DataContext] Set activeChatId to ${chatId} in Firestore for user ${userId}`);
+      } catch (err) {
+        console.warn('[DataContext] Failed to set activeChatId in Firestore:', err);
+      }
+    }
+  }, [userId]);
+
+  const clearActiveChat = useCallback(async () => {
+    setActiveChatId(null);
+    if (userId && userId !== 'local_user') {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { activeChatId: null });
+        console.log(`[DataContext] Cleared activeChatId in Firestore for user ${userId}`);
+      } catch (err) {
+        console.warn('[DataContext] Failed to clear activeChatId in Firestore:', err);
+      }
+    }
   }, [userId]);
 
   const [notes, setNotes] = useState([]);
@@ -704,7 +732,7 @@ export const DataProvider = ({ children }) => {
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
-    unreadChatCount,
+    unreadChatCount, activeChatId, setActiveChat, clearActiveChat,
   }), [
     // ⚠️ FREEZE FIX: setUnreadCount is stable (from useState) — not a loop risk.
     // All functions wrapped in useCallback are stable references.
@@ -719,7 +747,7 @@ export const DataProvider = ({ children }) => {
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
-    unreadChatCount,
+    unreadChatCount, activeChatId, setActiveChat, clearActiveChat,
   ]);
 
   return (

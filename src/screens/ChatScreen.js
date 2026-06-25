@@ -30,7 +30,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, onSnapshot, addDoc, doc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { useData } from '../context/DataContext';
+import { collection, query, onSnapshot, addDoc, doc, getDoc, updateDoc, serverTimestamp, increment, getDocs, writeBatch, where } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
 // ── Polling interval while chat is open (ms) ─────────────────────────────────
@@ -124,6 +125,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
   const chat = routeParams?.chat;
   const { user } = useAuth();
   const userId = user?.id;
+  const { setActiveChat, clearActiveChat } = useData();
 
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -149,6 +151,17 @@ const ChatScreen = ({ navigation, route = {} }) => {
       window.history.back();
     }
   };
+
+  // ── Track Active Chat ID ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const chatId = chat?._id || chat?.id;
+    if (chatId) {
+      setActiveChat(chatId);
+    }
+    return () => {
+      clearActiveChat();
+    };
+  }, [chat?._id, chat?.id, setActiveChat, clearActiveChat]);
 
   // ── Listen to messages in real time via Firestore ───────────────────────────
   useEffect(() => {
@@ -202,18 +215,37 @@ const ChatScreen = ({ navigation, route = {} }) => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
 
-      // Reset unread count for current user
-      const resetUnread = async () => {
+      // Reset unread count and notifications for current user
+      const resetUnreadAndNotifs = async () => {
         try {
           const chatRef = doc(db, 'chats', chatId);
           await updateDoc(chatRef, {
             [`unreadCounts.${userId}`]: 0
           });
+
+          // Query unread chat_message notifications for this chatId
+          const notifQuery = query(
+            collection(db, 'notifications'),
+            where('userId', '==', userId),
+            where('chatId', '==', chatId),
+            where('type', '==', 'chat_message'),
+            where('read', '==', false)
+          );
+          
+          const notifSnap = await getDocs(notifQuery);
+          if (!notifSnap.empty) {
+            const batch = writeBatch(db);
+            notifSnap.forEach((docSnap) => {
+              batch.update(docSnap.ref, { read: true });
+            });
+            await batch.commit();
+            console.log(`[ChatScreen] Marked ${notifSnap.size} chat_message notifications as read.`);
+          }
         } catch (err) {
-          console.warn('[ChatScreen] Error resetting unread count:', err);
+          console.warn('[ChatScreen] Error resetting unread/notifications:', err);
         }
       };
-      resetUnread();
+      resetUnreadAndNotifs();
     }, (error) => {
       console.error('[ChatScreen] Error listening to messages:', error);
       setLoading(false);
@@ -283,6 +315,49 @@ const ChatScreen = ({ navigation, route = {} }) => {
       }
 
       await updateDoc(chatRef, updateData);
+
+      // Create notification if the receiver is not viewing this chat
+      if (recipientId) {
+        try {
+          const recipientDocSnap = await getDoc(doc(db, 'users', recipientId));
+          const recipientActiveChatId = recipientDocSnap.exists() ? recipientDocSnap.data().activeChatId : null;
+          
+          if (recipientActiveChatId !== chatId) {
+            // Check for existing unread chat_message notification for this chat
+            const notifQuery = query(
+              collection(db, 'notifications'),
+              where('userId', '==', recipientId),
+              where('chatId', '==', chatId),
+              where('type', '==', 'chat_message'),
+              where('read', '==', false)
+            );
+            const notifSnap = await getDocs(notifQuery);
+            
+            if (notifSnap.empty) {
+              const senderName = user?.name || 'UniHelp User';
+              const shortText = text.length > 60 ? text.substring(0, 60) + '...' : text;
+              
+              await addDoc(collection(db, 'notifications'), {
+                userId: recipientId,
+                type: 'chat_message',
+                title: 'New Message',
+                message: `${senderName}: ${shortText}`,
+                chatId: chatId,
+                senderId: userId,
+                createdAt: serverTimestamp(),
+                read: false
+              });
+              console.log(`[ChatScreen] Created chat_message notification for user: ${recipientId}`);
+            } else {
+              console.log('[ChatScreen] Unread chat notification already exists, skipped duplicate.');
+            }
+          } else {
+            console.log('[ChatScreen] Recipient is currently viewing this chat, skipped notification.');
+          }
+        } catch (notifErr) {
+          console.warn('[ChatScreen] Error creating chat notification:', notifErr);
+        }
+      }
 
       // Replace temp message with server-confirmed message
       setMessages((prev) =>

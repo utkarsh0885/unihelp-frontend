@@ -76,7 +76,7 @@ const NotificationsScreen = ({ navigation }) => {
   const handleRead = async (item) => {
     markNotificationRead(item.id);
 
-    if (item.type === 'chat' && item.chatId) {
+    if ((item.type === 'chat' || item.type === 'chat_message') && item.chatId) {
       try {
         const chatDocSnap = await getDoc(doc(db, 'chats', item.chatId));
         if (chatDocSnap.exists()) {
