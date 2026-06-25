@@ -356,7 +356,8 @@ const HomeScreen = ({ navigation }) => {
     userId,
     refreshData,
     deletePost,
-    unreadCount
+    unreadCount,
+    unreadChatCount
   } = useData();
 
   // Filter out placeholder 'Google User' posts
@@ -665,6 +666,12 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.appName}>UniHelp</Text>
             </View>
             <View style={styles.topBarRight}>
+              <AnimatedIconButton
+                icon="chatbubble-ellipses-outline"
+                onPress={() => navigation.navigate('Messages')}
+                badge={unreadChatCount > 0}
+                styles={styles}
+              />
               <AnimatedIconButton
                 icon="notifications-outline"
                 onPress={() => navigation.navigate('Notifications')}

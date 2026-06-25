@@ -157,6 +157,41 @@ export const DataProvider = ({ children }) => {
     return () => unsubscribe();
   }, [userId, user]);
 
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // ── Real-time Chat Unread Counter ──
+  useEffect(() => {
+    if (!userId || userId === 'local_user') {
+      setUnreadChatCount(0);
+      return;
+    }
+
+    console.log(`[DataContext] Subscribing to chat unread counter for user: ${userId}`);
+
+    const q = query(
+      collection(db, 'chats'),
+      where('participantIds', 'array-contains', userId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let totalUnread = 0;
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const count = data.unreadCounts?.[userId] || 0;
+        totalUnread += count;
+      });
+      setUnreadChatCount(totalUnread);
+      console.log(`[DataContext] Real-time total unread chat count: ${totalUnread}`);
+    }, (error) => {
+      console.error('[DataContext] Unread chats listener error:', error);
+    });
+
+    return () => {
+      console.log(`[DataContext] Unsubscribing from chat unread counter for user: ${userId}`);
+      unsubscribe();
+    };
+  }, [userId]);
+
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [notesError, setNotesError] = useState(null);
@@ -669,6 +704,7 @@ export const DataProvider = ({ children }) => {
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
+    unreadChatCount,
   }), [
     // ⚠️ FREEZE FIX: setUnreadCount is stable (from useState) — not a loop risk.
     // All functions wrapped in useCallback are stable references.
@@ -683,6 +719,7 @@ export const DataProvider = ({ children }) => {
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
+    unreadChatCount,
   ]);
 
   return (

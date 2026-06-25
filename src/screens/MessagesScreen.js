@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,24 +17,49 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
-const ChatListScreen = ({ navigation }) => {
+const formatChatTime = (timestampStr) => {
+  if (!timestampStr) return '';
+  try {
+    const date = new Date(timestampStr);
+    const now = new Date();
+    
+    // Check if today
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // Check if yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+    
+    // Check if within 7 days
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'long' });
+    }
+    
+    // Older
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch (e) {
+    return '';
+  }
+};
+
+const MessagesScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
   const { user } = useAuth();
+  
   const [chats, setChats] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const usersCacheRef = React.useRef({});
+  const usersCacheRef = useRef({});
 
-  const fetchChats = useCallback(() => {
-    setRefreshing(true);
-    // Real-time listener keeps data in sync. Just reset refreshing state.
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 500);
-  }, []);
-
-  // ── Listen to chats list in real time via Firestore ────────────────────────
+  // ── Listen to user's chat list in Firestore ────────────────────────────────
   useEffect(() => {
     if (!user?.id) {
       setLoading(false);
@@ -42,8 +67,8 @@ const ChatListScreen = ({ navigation }) => {
     }
 
     setLoading(true);
-    console.log(`[ChatListScreen] Listening to chats list for user: ${user.id}`);
-    
+    console.log(`[MessagesScreen] Subscribing to chats for user: ${user.id}`);
+
     const q = query(
       collection(db, 'chats'),
       where('participantIds', 'array-contains', user.id)
@@ -58,7 +83,7 @@ const ChatListScreen = ({ navigation }) => {
           const chatData = docSnap.data();
           const chatId = docSnap.id;
 
-          // Resolve participants list from cache or Firestore
+          // Resolve participants list from cache or fetch from Firestore
           const participants = [];
           for (const pid of (chatData.participantIds || [])) {
             if (cache[pid]) {
@@ -114,10 +139,11 @@ const ChatListScreen = ({ navigation }) => {
             participantIds: participants,
             lastMessage,
             createdAt: createdAtStr,
+            unreadCounts: chatData.unreadCounts || {},
           });
         }
 
-        // Sort chats by lastMessage timestamp or createdAt descending
+        // Sort by lastMessage timestamp or createdAt descending
         chatsList.sort((a, b) => {
           const timeA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : new Date(a.createdAt).getTime();
           const timeB = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : new Date(b.createdAt).getTime();
@@ -126,31 +152,38 @@ const ChatListScreen = ({ navigation }) => {
 
         setChats(chatsList);
         setLoading(false);
-        setRefreshing(false);
       };
 
       processSnapshot();
     }, (error) => {
-      console.error('[ChatListScreen] onSnapshot chats error:', error);
+      console.error('[MessagesScreen] Error in chat snapshot:', error);
       setLoading(false);
-      setRefreshing(false);
     });
 
     return () => {
-      console.log(`[ChatListScreen] Unsubscribing from chats list for user: ${user.id}`);
+      console.log(`[MessagesScreen] Unsubscribing from chats list for user: ${user.id}`);
       unsubscribe();
     };
   }, [user?.id]);
 
+  // ── Local filtering of chats ────────────────────────────────────────────────
+  const filteredChats = useMemo(() => {
+    if (!searchQuery.trim()) return chats;
+    return chats.filter((chat) => {
+      const recipient = chat.participantIds.find((p) => p.id !== user.id);
+      return recipient?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [chats, searchQuery, user?.id]);
+
   const renderChatItem = ({ item }) => {
-    // Determine the recipient (other participant)
-    const recipient = item.participantIds.find(p => p._id !== user.id);
+    const recipient = item.participantIds.find((p) => p.id !== user.id);
     const unreadCount = item.unreadCounts?.[user.id] || 0;
-    
+
     return (
       <TouchableOpacity
         style={[styles.chatItem, { backgroundColor: colors.surface }]}
         onPress={() => navigation.navigate('Chat', { chat: item })}
+        activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
           {recipient?.avatar ? (
@@ -162,7 +195,6 @@ const ChatListScreen = ({ navigation }) => {
               </Text>
             </View>
           )}
-          {recipient?.isOnline && <View style={styles.onlineBadge} />}
         </View>
 
         <View style={styles.chatInfo}>
@@ -171,10 +203,10 @@ const ChatListScreen = ({ navigation }) => {
               {recipient?.name || 'UniHelp User'}
             </Text>
             <Text style={[styles.chatTime, { color: colors.textTertiary }]}>
-              {item.lastMessage?.timestamp ? new Date(item.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+              {item.lastMessage?.timestamp ? formatChatTime(item.lastMessage.timestamp) : ''}
             </Text>
           </View>
-          
+
           <View style={styles.chatFooter}>
             <Text style={[styles.lastMessage, { color: colors.textSecondary }]} numberOfLines={1}>
               {item.lastMessage?.text || 'Start a conversation'}
@@ -192,29 +224,49 @@ const ChatListScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Messages</Text>
-        <TouchableOpacity onPress={fetchChats}>
-          <Ionicons name="search-outline" size={24} color={colors.textPrimary} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Messages</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <ResponsiveContainer maxWidth={700}>
+        {/* Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+          <Ionicons name="search-outline" size={18} color={colors.textTertiary} style={styles.searchIcon} />
+          <TextInput
+            placeholder="Search conversations..."
+            placeholderTextColor={colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <FlatList
-            data={chats}
+            data={filteredChats}
             renderItem={renderChatItem}
-            keyExtractor={item => item._id}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={fetchChats} tintColor={colors.primary} />
-            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="chatbubbles-outline" size={64} color={colors.textTertiary} />
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No messages yet</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  {searchQuery.trim() 
+                    ? "No matches found." 
+                    : "No conversations yet. Start chatting from Marketplace."}
+                </Text>
               </View>
             }
           />
@@ -232,13 +284,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingVertical: 15,
   },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    height: 44,
+    borderWidth: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 8,
   },
   listContent: {
     paddingHorizontal: 15,
@@ -255,31 +332,20 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   avatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-  },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   chatInfo: {
     flex: 1,
@@ -292,7 +358,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chatName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     flex: 1,
     marginRight: 10,
@@ -311,28 +377,31 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
   },
   unreadCount: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 100,
+    paddingHorizontal: 30,
   },
   emptyText: {
     marginTop: 15,
     fontSize: 16,
     fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
 
-export default ChatListScreen;
+export default MessagesScreen;

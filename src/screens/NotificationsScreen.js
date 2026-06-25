@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { getMyChats } from '../services/chatService';
+import { useAuth } from '../context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
 import {
   View,
   Text,
@@ -62,6 +64,7 @@ const NotificationItem = ({ item, onRead, colors, shadows }) => {
 
 const NotificationsScreen = ({ navigation }) => {
   const { colors, shadows } = useTheme();
+  const { user } = useAuth();
   const { notifications, markNotificationRead, markAllNotificationsRead } = useData();
   const screenStyles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
@@ -75,14 +78,39 @@ const NotificationsScreen = ({ navigation }) => {
 
     if (item.type === 'chat' && item.chatId) {
       try {
-        const chats = await getMyChats();
-        const fullChat = chats.find(c => c.id === item.chatId || c._id === item.chatId);
-        if (fullChat) {
+        const chatDocSnap = await getDoc(doc(db, 'chats', item.chatId));
+        if (chatDocSnap.exists()) {
+          const chatData = chatDocSnap.data();
+          const pids = chatData.participantIds || [];
+          
+          const participants = [];
+          for (const pid of pids) {
+            try {
+              const userDocSnap = await getDoc(doc(db, 'users', pid));
+              const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+              participants.push({
+                _id: pid,
+                id: pid,
+                name: userData.name || 'Student',
+                avatar: userData.avatarUrl || null,
+              });
+            } catch (e) {
+              participants.push({ _id: pid, id: pid, name: 'Student', avatar: null });
+            }
+          }
+
+          const fullChat = {
+            id: chatDocSnap.id,
+            _id: chatDocSnap.id,
+            ...chatData,
+            participantIds: participants,
+          };
           navigation.navigate('Chat', { chat: fullChat });
         } else {
           navigation.navigate('Chat', { chat: { id: item.chatId, _id: item.chatId } });
         }
       } catch (err) {
+        console.error('[NotificationsScreen] Error fetching chat room:', err);
         navigation.navigate('Chat', { chat: { id: item.chatId, _id: item.chatId } });
       }
     } else if ((item.type === 'reserve' || item.type === 'cancel_reserve' || item.type === 'sold') && item.postId) {

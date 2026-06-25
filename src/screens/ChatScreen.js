@@ -30,8 +30,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { getChatMessages } from '../services/chatService';
-import apiClient from '../services/apiClient';
+import { collection, query, onSnapshot, addDoc, doc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
 
 // ── Polling interval while chat is open (ms) ─────────────────────────────────
 const POLL_INTERVAL_MS = 3000;
@@ -150,15 +150,50 @@ const ChatScreen = ({ navigation, route = {} }) => {
     }
   };
 
-  // ── Fetch messages ──────────────────────────────────────────────────────────
-  const fetchMessages = useCallback(async (silent = false) => {
+  // ── Listen to messages in real time via Firestore ───────────────────────────
+  useEffect(() => {
     if (!chat?._id && !chat?.id) {
       setLoading(false);
       return;
     }
-    try {
-      const history = await getChatMessages(chat?._id || chat?.id);
+
+    setLoading(true);
+    const chatId = chat?._id || chat?.id;
+    console.log(`[ChatScreen] Subscribing to messages for chatId: ${chatId}`);
+
+    const q = query(
+      collection(db, 'chats', chatId, 'messages')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const history = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        let formattedDate = new Date().toISOString();
+        if (data.createdAt) {
+          try {
+            const dateObj = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+            formattedDate = dateObj.toISOString();
+          } catch (e) {}
+        }
+        history.push({
+          id: docSnap.id,
+          _id: docSnap.id,
+          ...data,
+          createdAt: formattedDate,
+          timestamp: formattedDate,
+        });
+      });
+
+      // Sort in-memory by createdAt ascending
+      history.sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        return timeA - timeB;
+      });
+
       setMessages(history);
+      setLoading(false);
 
       // Scroll to bottom only when new messages arrive
       const latestId = history[history.length - 1]?._id;
@@ -166,28 +201,31 @@ const ChatScreen = ({ navigation, route = {} }) => {
         lastMessageIdRef.current = latestId;
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
-    } catch (err) {
-      if (!silent) {
-        console.error('[ChatScreen] Failed to fetch messages:', err?.message);
-      }
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [chat?._id, chat?.id]);
 
-  // ── Mount: initial fetch + start polling ────────────────────────────────────
-  useEffect(() => {
-    fetchMessages(false); // initial — show loader
-
-    // Poll for new messages while screen is open
-    pollRef.current = setInterval(() => fetchMessages(true), POLL_INTERVAL_MS);
+      // Reset unread count for current user
+      const resetUnread = async () => {
+        try {
+          const chatRef = doc(db, 'chats', chatId);
+          await updateDoc(chatRef, {
+            [`unreadCounts.${userId}`]: 0
+          });
+        } catch (err) {
+          console.warn('[ChatScreen] Error resetting unread count:', err);
+        }
+      };
+      resetUnread();
+    }, (error) => {
+      console.error('[ChatScreen] Error listening to messages:', error);
+      setLoading(false);
+    });
 
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      console.log(`[ChatScreen] Unsubscribing from messages for chatId: ${chatId}`);
+      unsubscribe();
     };
-  }, [fetchMessages]);
+  }, [chat?._id, chat?.id, userId]);
 
-  // ── Send message via REST ───────────────────────────────────────────────────
+  // ── Send message via Firestore ──────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     if (!chat?._id && !chat?.id) return;
     if (!inputText.trim() || sending) return;
@@ -195,10 +233,12 @@ const ChatScreen = ({ navigation, route = {} }) => {
     setInputText('');
     setSending(true);
 
+    const chatId = chat?._id || chat?.id;
+
     // Optimistic UI — show message immediately
     const tempMsg = {
       _id: `temp_${Date.now()}`,
-      chatId: chat?._id || chat?.id,
+      chatId: chatId,
       senderId: userId,
       text,
       status: 'sending',
@@ -208,8 +248,41 @@ const ChatScreen = ({ navigation, route = {} }) => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const response = await apiClient.post(`/api/chat/${chat?._id || chat?.id}/messages`, { text });
-      const savedMsg = response.data;
+      const messagesRef = collection(db, 'chats', chatId, 'messages');
+      const messageData = {
+        chatId: chatId,
+        senderId: userId,
+        text,
+        createdAt: serverTimestamp(),
+      };
+
+      // Write to messages subcollection
+      const docRef = await addDoc(messagesRef, messageData);
+      const savedMsg = {
+        id: docRef.id,
+        _id: docRef.id,
+        ...messageData,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Update parent chat document and increment recipient unread count
+      const chatRef = doc(db, 'chats', chatId);
+      const recipientId = recipient?._id || recipient?.id || recipient;
+      
+      const updateData = {
+        lastMessage: {
+          text,
+          senderId: userId,
+          timestamp: serverTimestamp(),
+        },
+        lastMessageAt: serverTimestamp(),
+      };
+
+      if (recipientId) {
+        updateData[`unreadCounts.${recipientId}`] = increment(1);
+      }
+
+      await updateDoc(chatRef, updateData);
 
       // Replace temp message with server-confirmed message
       setMessages((prev) =>
@@ -222,7 +295,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
     } finally {
       setSending(false);
     }
-  }, [inputText, sending, chat._id, chat.id, userId]);
+  }, [inputText, sending, chat._id, chat.id, userId, recipient]);
 
   // ── Render a single message bubble ─────────────────────────────────────────
   const renderMessage = useCallback(({ item }) => {

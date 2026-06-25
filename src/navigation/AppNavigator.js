@@ -34,7 +34,7 @@ const MyPostsScreen = lazy(() => import('../screens/MyPostsScreen'));
 const LostAndFoundScreen = lazy(() => import('../screens/LostAndFoundScreen'));
 const ProfileScreen = lazy(() => import('../screens/ProfileScreen'));
 const ChatScreen = lazy(() => import('../screens/ChatScreen'));
-const ChatListScreen = lazy(() => import('../screens/ChatListScreen'));
+const MessagesScreen = lazy(() => import('../screens/MessagesScreen'));
 const NotificationsScreen = lazy(() => import('../screens/NotificationsScreen'));
 
 // Lazy-load the Admin screen
@@ -106,7 +106,7 @@ const LazyLostAndFound = wrapLazyComponent(LostAndFoundScreen, 'LostAndFound');
 const LazyProfile = wrapLazyComponent(ProfileScreen, 'Profile');
 const LazyPostDetail = wrapLazyComponent(PostDetailScreen, 'PostDetail');
 const LazyChat = wrapLazyComponent(ChatScreen, 'Chat');
-const LazyChatList = wrapLazyComponent(ChatListScreen, 'ChatList');
+const LazyMessages = wrapLazyComponent(MessagesScreen, 'Messages');
 const LazyNotifications = wrapLazyComponent(NotificationsScreen, 'Notifications');
 const LazyPlaceholder = wrapLazyComponent(PlaceholderScreen, 'Placeholder');
 
@@ -179,7 +179,8 @@ const AppNavigator = () => {
           <Stack.Screen name="Profile" component={LazyProfile} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="PostDetail" component={LazyPostDetail} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Chat" component={LazyChat} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="ChatList" component={LazyChatList} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="Messages" component={LazyMessages} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="ChatList" component={LazyMessages} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Notifications" component={LazyNotifications} options={{ animation: 'slide_from_right' }} />
 
           {/* Role-Protected Admin Screen */}
