@@ -180,8 +180,13 @@ const ChatScreen = ({ navigation, route = {} }) => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const history = [];
+      const batch = writeBatch(db);
+      let needsCommit = false;
+
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
+        const docRef = docSnap.ref;
+
         let formattedDate = new Date().toISOString();
         if (data.createdAt) {
           try {
@@ -196,7 +201,31 @@ const ChatScreen = ({ navigation, route = {} }) => {
           createdAt: formattedDate,
           timestamp: formattedDate,
         });
+
+        // Update deliveredAt & seenAt if receiver is current user and values are missing
+        if (data.receiverId === userId) {
+          const updates = {};
+          let needsUpdate = false;
+
+          if (!data.deliveredAt) {
+            updates.deliveredAt = serverTimestamp();
+            needsUpdate = true;
+          }
+          if (!data.seenAt) {
+            updates.seenAt = serverTimestamp();
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            batch.update(docRef, updates);
+            needsCommit = true;
+          }
+        }
       });
+
+      if (needsCommit) {
+        batch.commit().catch((e) => console.warn('[ChatScreen] Error updating message receipts:', e));
+      }
 
       // Sort in-memory by createdAt ascending
       history.sort((a, b) => {
@@ -257,6 +286,15 @@ const ChatScreen = ({ navigation, route = {} }) => {
     };
   }, [chat?._id, chat?.id, userId]);
 
+  // ── Auto Scroll ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
   // ── Send message via Firestore ──────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     if (!chat?._id && !chat?.id) return;
@@ -266,15 +304,19 @@ const ChatScreen = ({ navigation, route = {} }) => {
     setSending(true);
 
     const chatId = chat?._id || chat?.id;
+    const recipientId = recipient?._id || recipient?.id || recipient;
 
     // Optimistic UI — show message immediately
     const tempMsg = {
       _id: `temp_${Date.now()}`,
       chatId: chatId,
       senderId: userId,
+      receiverId: recipientId,
       text,
       status: 'sending',
       createdAt: new Date().toISOString(),
+      deliveredAt: null,
+      seenAt: null,
     };
     setMessages((prev) => [...prev, tempMsg]);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -284,8 +326,11 @@ const ChatScreen = ({ navigation, route = {} }) => {
       const messageData = {
         chatId: chatId,
         senderId: userId,
+        receiverId: recipientId,
         text,
         createdAt: serverTimestamp(),
+        deliveredAt: null,
+        seenAt: null,
       };
 
       // Write to messages subcollection
@@ -299,7 +344,6 @@ const ChatScreen = ({ navigation, route = {} }) => {
 
       // Update parent chat document and increment recipient unread count
       const chatRef = doc(db, 'chats', chatId);
-      const recipientId = recipient?._id || recipient?.id || recipient;
       
       const updateData = {
         lastMessage: {
@@ -395,11 +439,15 @@ const ChatScreen = ({ navigation, route = {} }) => {
               {item.status === 'sending' ? 'Sending...' : time}
             </Text>
             {isMe && item.status !== 'sending' && (
-              <Ionicons
-                name={item.status === 'seen' ? 'checkmark-done' : 'checkmark'}
-                size={12}
-                color={item.status === 'seen' ? '#4ade80' : 'rgba(255,255,255,0.6)'}
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {item.seenAt ? (
+                  <Text style={[styles.messageTime, { color: '#4ade80', fontWeight: 'bold' }]}>Seen</Text>
+                ) : item.deliveredAt ? (
+                  <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" />
+                ) : (
+                  <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.6)" />
+                )}
+              </View>
             )}
           </View>
         </View>
