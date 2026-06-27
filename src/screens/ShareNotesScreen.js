@@ -17,6 +17,7 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +36,8 @@ const ShareNotesScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [deletingId, setDeletingId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('All');
   const { 
     notes, notesLoading, posts,
     addNote, downloadNote, deleteNote,
@@ -77,6 +80,38 @@ const ShareNotesScreen = ({ navigation }) => {
       return dateB - dateA;
     });
   }, [notes, posts]);
+
+  // Extract unique subjects from unfiltered mergedData
+  const uniqueSubjects = useMemo(() => {
+    const subjects = new Set();
+    mergedData.forEach(item => {
+      if (item.subject) {
+        subjects.add(item.subject.trim().toUpperCase());
+      }
+    });
+    return ['All', ...Array.from(subjects).sort()];
+  }, [mergedData]);
+
+  // Filter notes locally on subject and search query
+  const filteredData = useMemo(() => {
+    return mergedData.filter(item => {
+      const matchesSubject = selectedSubject === 'All' || 
+        (item.subject && item.subject.toUpperCase() === selectedSubject.toUpperCase());
+
+      const query = searchQuery.trim().toLowerCase();
+      if (!query) return matchesSubject;
+
+      const title = (item.title || '').toLowerCase();
+      const subject = (item.subject || '').toLowerCase();
+      const uploader = (item.uploader || item.uploadedBy || item.author || item.authorName || '').toLowerCase();
+
+      const matchesSearch = title.includes(query) || 
+        subject.includes(query) || 
+        uploader.includes(query);
+
+      return matchesSubject && matchesSearch;
+    });
+  }, [mergedData, selectedSubject, searchQuery]);
 
   const [showUpload, setShowUpload] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
@@ -391,13 +426,66 @@ const ShareNotesScreen = ({ navigation }) => {
         </View>
       )}
 
+      {/* Premium Search Bar */}
+      <View style={styles.searchBarContainer}>
+        <Ionicons name="search-outline" size={20} color={colors.textTertiary} style={styles.searchIcon} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.textPrimary }]}
+          placeholder="Search title, subject, or uploader..."
+          placeholderTextColor={colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn} activeOpacity={0.7}>
+            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Horizontally Scrollable Subject Chips */}
+      {uniqueSubjects.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsScrollContainer}
+          style={styles.chipsScrollView}
+        >
+          {uniqueSubjects.map((subj) => {
+            const isActive = selectedSubject === subj;
+            return (
+              <TouchableOpacity
+                key={subj}
+                style={[
+                  styles.chipBtn,
+                  isActive ? styles.chipBtnActive : null
+                ]}
+                onPress={() => setSelectedSubject(subj)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    isActive ? styles.chipTextActive : { color: colors.textSecondary }
+                  ]}
+                >
+                  {subj}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {notesLoading ? (
         <View style={styles.loaderWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={mergedData}
+          data={filteredData}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
@@ -407,8 +495,14 @@ const ShareNotesScreen = ({ navigation }) => {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="document-text-outline" size={40} color={colors.primary} />
               </View>
-              <Text style={styles.emptyTitle}>No notes yet 📝</Text>
-              <Text style={styles.emptySubtitle}>Be the first to share PDF study resources with your peers!</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery.trim() !== '' || selectedSubject !== 'All' ? 'No matches found 🔍' : 'No notes yet 📝'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery.trim() !== '' || selectedSubject !== 'All' 
+                  ? 'Try broadening your search query or choosing another subject filter.'
+                  : 'Be the first to share PDF study resources with your peers!'}
+              </Text>
             </View>
           }
         />
@@ -419,6 +513,63 @@ const ShareNotesScreen = ({ navigation }) => {
 };
 
 const createStyles = (colors, shadows) => StyleSheet.create({
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    marginHorizontal: SIZES.md,
+    marginTop: SIZES.md,
+    marginBottom: SIZES.sm,
+    paddingHorizontal: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 8,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  chipsScrollView: {
+    maxHeight: 50,
+    marginHorizontal: SIZES.md,
+    marginBottom: SIZES.xs,
+  },
+  chipsScrollContainer: {
+    paddingHorizontal: 2,
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  chipBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  chipBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+
   screen: { flex: 1, backgroundColor: colors.background },
   appBarContainer: { ...shadows.medium, zIndex: 10 },
   header: {
