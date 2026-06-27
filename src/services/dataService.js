@@ -132,8 +132,10 @@ export const subscribeToComments = (postId, callback) => {
 
 export const initSeedData = async () => { };
 
-export const fetchNotesService = async () => {
-  const response = await apiClient.get('/api/notes');
+export const fetchNotesService = async (limit = 20, cursor = null) => {
+  const params = { limit };
+  if (cursor) params.cursor = cursor;
+  const response = await apiClient.get('/api/notes', { params });
   return response.data;
 };
 

@@ -47,11 +47,23 @@ const upload = multer({
 });
 
 // ── GET /api/notes ───────────────────────────────────────────────────────────
-// List all uploaded notes, sorted by upload date descending
+// List uploaded notes with cursor-based pagination, sorted by createdAt descending
 router.get('/', asyncHandler(async (req, res) => {
-  console.log('[Notes] GET /api/notes | Fetching all study resources');
+  const limit = parseInt(req.query.limit, 10) || 20;
+  console.log(`[Notes] GET /api/notes | Fetching study resources (limit: ${limit}, cursor: ${req.query.cursor || 'none'})`);
   
-  const snapshot = await db.collection('notes').orderBy('createdAt', 'desc').limit(100).get();
+  let query = db.collection('notes').orderBy('createdAt', 'desc').limit(limit);
+
+  if (req.query.cursor) {
+    const cursorDoc = await db.collection('notes').doc(req.query.cursor).get();
+    if (cursorDoc.exists) {
+      query = query.startAfter(cursorDoc);
+    } else {
+      console.warn(`[Notes] Cursor doc ${req.query.cursor} not found`);
+    }
+  }
+
+  const snapshot = await query.get();
   const list = [];
   
   snapshot.forEach((doc) => {

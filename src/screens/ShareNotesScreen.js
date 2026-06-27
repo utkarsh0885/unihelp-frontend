@@ -39,7 +39,7 @@ const ShareNotesScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
   const { 
-    notes, notesLoading, posts,
+    notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, refreshData, posts,
     addNote, downloadNote, deleteNote,
     toggleLike, toggleSave, votePoll, userId 
   } = useData();
@@ -497,6 +497,21 @@ const ShareNotesScreen = ({ navigation }) => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (notesHasMore && !notesLoadingMore && !notesLoading) {
+              loadMoreNotes();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          refreshing={notesLoading}
+          onRefresh={refreshData}
+          ListFooterComponent={
+            notesLoadingMore ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>

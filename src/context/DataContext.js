@@ -225,6 +225,11 @@ export const DataProvider = ({ children }) => {
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [notesError, setNotesError] = useState(null);
+  const [notesHasMore, setNotesHasMore] = useState(true);
+  const [notesLoadingMore, setNotesLoadingMore] = useState(false);
+  const notesLoadingMoreRef = useRef(false);
+  const notesRef = useRef([]);
+  useEffect(() => { notesRef.current = notes; }, [notes]);
 
   // ── Fetch saved posts from backend ──
   useEffect(() => {
@@ -254,19 +259,46 @@ export const DataProvider = ({ children }) => {
     };
   }, [userId]);
 
-  const fetchNotes = useCallback(async () => {
-    setNotesLoading(true);
+  const fetchNotes = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setNotesLoading(true);
     try {
-      const data = await fetchNotesService();
+      const data = await fetchNotesService(20, null);
       setNotes(data || []);
+      setNotesHasMore((data || []).length >= 20);
       setNotesError(null);
     } catch (e) {
       console.warn('[DataContext] fetchNotesService error:', e);
       setNotesError(e.message || 'Failed to load notes');
     } finally {
-      setNotesLoading(false);
+      if (!isRefresh) setNotesLoading(false);
     }
   }, []);
+
+  const loadMoreNotes = useCallback(async () => {
+    const currentNotes = notesRef.current;
+    if (notesLoading || notesLoadingMoreRef.current || !notesHasMore || currentNotes.length === 0) return;
+    notesLoadingMoreRef.current = true;
+    setNotesLoadingMore(true);
+    try {
+      const lastNote = currentNotes[currentNotes.length - 1];
+      const data = await fetchNotesService(20, lastNote.id);
+      if (data && data.length > 0) {
+        setNotes(prev => {
+          const existingIds = new Set(prev.map(n => n.id));
+          const uniqueNewNotes = data.filter(n => !existingIds.has(n.id));
+          return [...prev, ...uniqueNewNotes];
+        });
+        setNotesHasMore(data.length >= 20);
+      } else {
+        setNotesHasMore(false);
+      }
+    } catch (e) {
+      console.warn('[DataContext] loadMoreNotes error:', e);
+    } finally {
+      notesLoadingMoreRef.current = false;
+      setNotesLoadingMore(false);
+    }
+  }, [notesLoading, notesHasMore]);
 
   useEffect(() => {
     fetchNotes();
@@ -301,8 +333,9 @@ export const DataProvider = ({ children }) => {
     });
 
     try {
-      const data = await fetchNotesService();
+      const data = await fetchNotesService(20, null);
       setNotes(data || []);
+      setNotesHasMore((data || []).length >= 20);
       setNotesError(null);
     } catch (e) {
       console.warn('[DataContext] refresh notes error:', e);
@@ -744,7 +777,7 @@ export const DataProvider = ({ children }) => {
     posts, postsLoading, postsError, addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
     doubts, doubtsLoading, addDoubt, upvoteDoubt,
-    notes, notesLoading, addNote, downloadNote, deleteNote,
+    notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, addNote, downloadNote, deleteNote,
     items, itemsLoading, addItem, reserveItem,
     events, eventsLoading, addEvent,
     userId, refreshData, activeUsersCount,
@@ -759,7 +792,7 @@ export const DataProvider = ({ children }) => {
     addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
     doubts, doubtsLoading,
-    notes, notesLoading, addNote, downloadNote, deleteNote,
+    notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, addNote, downloadNote, deleteNote,
     items, itemsLoading,
     events, eventsLoading,
     userId, refreshData, activeUsersCount,
