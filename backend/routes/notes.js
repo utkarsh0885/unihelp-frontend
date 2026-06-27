@@ -256,6 +256,7 @@ router.put('/:id/download', authenticateUser, asyncHandler(async (req, res) => {
 // Secure note deletion (owner or admin only)
 router.delete('/:id', authenticateUser, asyncHandler(async (req, res) => {
   const noteId = req.params.id;
+  console.log('[DEBUG Flow 4] Backend received DELETE /api/notes/' + noteId);
   const noteRef = db.collection('notes').doc(noteId);
   const docSnap = await noteRef.get();
 

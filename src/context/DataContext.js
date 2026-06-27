@@ -636,7 +636,8 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   const deleteNote = useCallback(async (noteId) => {
-    await deleteNoteService(noteId);
+    console.log('[FLOW 5] DataContext.deleteNote() | noteId:', noteId);
+    const res = await deleteNoteService(noteId);
     setNotes(prev => prev.filter(n => n.id !== noteId));
   }, []);
   const addItem = useCallback(async (title, price, condition, imageUrl = null) => {

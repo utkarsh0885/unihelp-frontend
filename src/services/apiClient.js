@@ -25,6 +25,9 @@ apiClient.interceptors.request.use(
       } else {
         console.warn(`[apiClient] → ${config.method?.toUpperCase()} ${config.baseURL}${config.url} [NO token]`);
       }
+      if (config.method?.toLowerCase() === 'delete' && config.url?.includes('/api/notes/')) {
+        console.log('[FLOW 7] apiClient.delete() | url:', config.url);
+      }
     } catch (e) {
       console.warn('[apiClient] Error getting token for request', e);
     }

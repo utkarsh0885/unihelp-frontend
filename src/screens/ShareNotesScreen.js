@@ -170,28 +170,49 @@ const ShareNotesScreen = ({ navigation }) => {
   }, [downloadNote]);
 
   const handleDeleteNote = useCallback((note) => {
-    Alert.alert(
-      'Delete Note',
-      `Are you sure you want to delete "${note.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingId(note.id);
-            try {
-              await deleteNote(note.id);
-              showToast('Note deleted successfully', 'success');
-            } catch (err) {
-              Alert.alert('Error', err.message || 'Failed to delete note');
-            } finally {
-              setDeletingId(null);
-            }
+    console.log('[FLOW 2] handleDeleteNote entered | note.id:', note?.id, '| typeof deleteNote:', typeof deleteNote);
+
+    const performDeletion = async () => {
+      setDeletingId(note.id);
+      try {
+        console.log('[FLOW 4] Calling deleteNote()');
+        await deleteNote(note.id);
+        showToast('Note deleted successfully', 'success');
+      } catch (err) {
+        console.error('[FLOW Error] handleDeleteNote error:', err);
+        if (Platform.OS === 'web') {
+          alert(err.message || 'Failed to delete note');
+        } else {
+          Alert.alert('Error', err.message || 'Failed to delete note');
+        }
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Are you sure you want to delete "${note.title}"?`);
+      if (confirmed) {
+        console.log('[FLOW 3] window.confirm returned true');
+        performDeletion();
+      }
+    } else {
+      Alert.alert(
+        'Delete Note',
+        `Are you sure you want to delete "${note.title}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('[FLOW 3] Alert Delete button pressed');
+              await performDeletion();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   }, [deleteNote, showToast]);
 
   const renderItem = useCallback(({ item, index }) => {
@@ -256,7 +277,10 @@ const ShareNotesScreen = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   style={styles.deleteNoteBtn}
-                  onPress={() => handleDeleteNote(item)}
+                  onPress={() => {
+                    console.log('[FLOW 1] Trash button pressed');
+                    handleDeleteNote(item);
+                  }}
                   activeOpacity={0.7}
                   disabled={isDeleting}
                 >

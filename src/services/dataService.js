@@ -148,6 +148,7 @@ export const incrementNoteDownloadsService = async (noteId) => {
 };
 
 export const deleteNoteService = async (noteId) => {
+  console.log('[FLOW 6] deleteNoteService() | noteId:', noteId);
   const response = await apiClient.delete(`/api/notes/${noteId}`);
   return response.data;
 };
