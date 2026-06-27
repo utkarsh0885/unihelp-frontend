@@ -23,6 +23,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import AnimatedPostCard from '../components/AnimatedPostCard';
@@ -30,9 +32,12 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const ShareNotesScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const [deletingId, setDeletingId] = useState(null);
   const { 
     notes, notesLoading, posts,
-    addNote, downloadNote, 
+    addNote, downloadNote, deleteNote,
     toggleLike, toggleSave, votePoll, userId 
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
@@ -164,6 +169,31 @@ const ShareNotesScreen = ({ navigation }) => {
     }
   }, [downloadNote]);
 
+  const handleDeleteNote = useCallback((note) => {
+    Alert.alert(
+      'Delete Note',
+      `Are you sure you want to delete "${note.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(note.id);
+            try {
+              await deleteNote(note.id);
+              showToast('Note deleted successfully', 'success');
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Failed to delete note');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [deleteNote, showToast]);
+
   const renderItem = useCallback(({ item, index }) => {
     if (item.isGenericPost) {
       return (
@@ -213,13 +243,37 @@ const ShareNotesScreen = ({ navigation }) => {
             ) : null}
           </View>
         </View>
-        <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)} activeOpacity={0.7}>
-          <Ionicons name="eye-outline" size={18} color={colors.primary} />
-          <Text style={styles.downloadCount}>View</Text>
-        </TouchableOpacity>
+        <View style={styles.noteActions}>
+          <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)} activeOpacity={0.7}>
+            <Ionicons name="eye-outline" size={18} color={colors.primary} />
+            <Text style={styles.downloadCount}>View</Text>
+          </TouchableOpacity>
+          {(() => {
+            const isAdmin = user && (user.role === 'admin' || user.isAdmin === true);
+            const isOwner = userId && item.userId && String(userId) === String(item.userId);
+            if (isAdmin || isOwner) {
+              const isDeleting = deletingId === item.id;
+              return (
+                <TouchableOpacity
+                  style={styles.deleteNoteBtn}
+                  onPress={() => handleDeleteNote(item)}
+                  activeOpacity={0.7}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  )}
+                </TouchableOpacity>
+              );
+            }
+            return null;
+          })()}
+        </View>
       </View>
     );
-  }, [styles, colors, handleDownload, handleLike, handleSave, votePoll, userId, navigation]);
+  }, [styles, colors, handleDownload, handleDeleteNote, handleLike, handleSave, votePoll, userId, user, deletingId, navigation]);
 
   return (
     <View style={styles.screen}>
@@ -384,12 +438,18 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   noteAuthor: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
   noteDot: { fontSize: 12, color: colors.textTertiary },
   noteTime: { fontSize: 12, color: colors.textTertiary },
+  noteActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   downloadBtn: {
     alignItems: 'center', justifyContent: 'center',
     width: 60, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
     borderWidth: 1, borderColor: colors.borderLight,
   },
   downloadCount: { fontSize: 11, color: colors.primary, fontWeight: '900', marginTop: 2 },
+  deleteNoteBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 12, backgroundColor: '#EF444415',
+    borderWidth: 1, borderColor: '#EF444430',
+  },
 
   pdfSelectBtn: {
     flexDirection: 'row',

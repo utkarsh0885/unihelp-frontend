@@ -83,6 +83,9 @@ const env = Object.freeze({
   PORT:                process.env.PORT || '3000',
   NODE_ENV:            process.env.NODE_ENV || 'development',
   BASE_URL:            process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+  SUPABASE_URL:        process.env.SUPABASE_URL || 'https://ncjurvdrhdncwcvdoxao.supabase.co',
+  SUPABASE_KEY:        process.env.SUPABASE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_jHt42GCpZ9JpYzL6oSdszA_2Bw2gVpG',
+  SUPABASE_NOTES_BUCKET: process.env.SUPABASE_NOTES_BUCKET || 'notes',
 });
 
 module.exports = env;

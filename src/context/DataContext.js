@@ -30,6 +30,7 @@ import {
   fetchNotesService,
   uploadNoteService,
   incrementNoteDownloadsService,
+  deleteNoteService,
 } from '../services/dataService';
 // Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
@@ -633,6 +634,11 @@ export const DataProvider = ({ children }) => {
       console.warn('[DataContext] downloadNote error:', e);
     }
   }, []);
+
+  const deleteNote = useCallback(async (noteId) => {
+    await deleteNoteService(noteId);
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+  }, []);
   const addItem = useCallback(async (title, price, condition, imageUrl = null) => {
     const item = { 
       title, 
@@ -726,7 +732,7 @@ export const DataProvider = ({ children }) => {
     posts, postsLoading, postsError, addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
     doubts, doubtsLoading, addDoubt, upvoteDoubt,
-    notes, notesLoading, addNote, downloadNote,
+    notes, notesLoading, addNote, downloadNote, deleteNote,
     items, itemsLoading, addItem, reserveItem,
     events, eventsLoading, addEvent,
     userId, refreshData, activeUsersCount,
@@ -741,7 +747,7 @@ export const DataProvider = ({ children }) => {
     addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
     doubts, doubtsLoading,
-    notes, notesLoading,
+    notes, notesLoading, addNote, downloadNote, deleteNote,
     items, itemsLoading,
     events, eventsLoading,
     userId, refreshData, activeUsersCount,

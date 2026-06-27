@@ -147,3 +147,8 @@ export const incrementNoteDownloadsService = async (noteId) => {
   return response.data;
 };
 
+export const deleteNoteService = async (noteId) => {
+  const response = await apiClient.delete(`/api/notes/${noteId}`);
+  return response.data;
+};
+
