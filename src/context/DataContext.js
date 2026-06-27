@@ -62,6 +62,7 @@ export const DataProvider = ({ children }) => {
 
   const { user } = useAuth();
   const userId = user?.id || 'local_user';
+  const downloadCooldownsRef = useRef({});
 
   // ── State ──
   const [posts, setPosts] = useState([]);
@@ -627,11 +628,21 @@ export const DataProvider = ({ children }) => {
   }, [userId, user]);
 
   const downloadNote = useCallback(async (noteId) => {
+    const now = Date.now();
+    const lastTime = downloadCooldownsRef.current[noteId] || 0;
+    // 3000ms cooldown per noteId to prevent rapid clicks from triggering duplicate API calls
+    if (now - lastTime < 3000) {
+      console.log(`[DataContext] Debounced download increment for note ${noteId} (cooldown active)`);
+      return;
+    }
+    downloadCooldownsRef.current[noteId] = now;
+
     try {
       await incrementNoteDownloadsService(noteId);
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, downloads: (n.downloads || 0) + 1 } : n));
     } catch (e) {
       console.warn('[DataContext] downloadNote error:', e);
+      delete downloadCooldownsRef.current[noteId];
     }
   }, []);
 

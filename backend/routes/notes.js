@@ -245,11 +245,12 @@ router.put('/:id/download', authenticateUser, asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Note not found');
   }
 
+  const currentDownloads = doc.data().downloads || 0;
   await ref.update({
     downloads: admin.firestore.FieldValue.increment(1)
   });
 
-  res.json({ success: true, message: 'Downloads count incremented' });
+  res.json({ success: true, downloads: currentDownloads + 1, message: 'Downloads count incremented' });
 }));
 
 // ── DELETE /api/notes/:id ────────────────────────────────────────────────────

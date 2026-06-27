@@ -297,12 +297,19 @@ const ShareNotesScreen = ({ navigation }) => {
                 <Text style={styles.noteTime}>{formattedDate}</Text>
               </>
             ) : null}
+            <Text style={styles.noteDot}>·</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="download-outline" size={12} color={colors.primary} />
+              <Text style={[styles.noteTime, { color: colors.primary, fontWeight: '700' }]}>
+                {item.downloads || 0} {item.downloads === 1 ? 'download' : 'downloads'}
+              </Text>
+            </View>
           </View>
         </View>
         <View style={styles.noteActions}>
           <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)} activeOpacity={0.7}>
-            <Ionicons name="eye-outline" size={18} color={colors.primary} />
-            <Text style={styles.downloadCount}>View</Text>
+            <Ionicons name="eye-outline" size={16} color={colors.primary} />
+            <Text style={styles.downloadCount}>View ({item.downloads || 0})</Text>
           </TouchableOpacity>
           {(() => {
             const isAdmin = user && (user.role === 'admin' || user.isAdmin === true);
@@ -615,11 +622,12 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   noteTime: { fontSize: 12, color: colors.textTertiary },
   noteActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   downloadBtn: {
+    flexDirection: 'row', gap: 4,
     alignItems: 'center', justifyContent: 'center',
-    width: 60, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
+    paddingHorizontal: 10, minWidth: 64, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
     borderWidth: 1, borderColor: colors.borderLight,
   },
-  downloadCount: { fontSize: 11, color: colors.primary, fontWeight: '900', marginTop: 2 },
+  downloadCount: { fontSize: 11, color: colors.primary, fontWeight: '900' },
   deleteNoteBtn: {
     alignItems: 'center', justifyContent: 'center',
     width: 44, height: 44, borderRadius: 12, backgroundColor: '#EF444415',
