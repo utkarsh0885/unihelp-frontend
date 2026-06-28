@@ -37,6 +37,210 @@ const formatPrice = (price) => {
   return `₹${cleaned}`;
 };
 
+const LazyImage = React.memo(({ uri, style, colors }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  return (
+    <View style={style}>
+      {loading && !error && (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+      {error ? (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+          <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+        </View>
+      ) : (
+        <Image
+          source={{ uri }}
+          style={style}
+          onLoadEnd={() => setLoading(false)}
+          onError={() => setError(true)}
+        />
+      )}
+    </View>
+  );
+});
+
+const MarketplaceItemCard = React.memo(({
+  item,
+  colors,
+  styles,
+  STATUS_COLORS,
+  CONDITION_COLORS,
+  userId,
+  reservingId,
+  onEdit,
+  onDelete,
+  onCancelReservation,
+  onMarkSold,
+  onReserve,
+  onContactSeller
+}) => {
+  const isReserved = item.status === 'Reserved';
+  const isSold = item.status === 'Sold';
+  const isReserving = reservingId === item.id || reservingId === item._id;
+  const isOwner = userId && (userId === item.userId || userId === item.author);
+
+  return (
+    <View style={[styles.card, isSold && { opacity: 0.85 }]}>
+      <View style={styles.cardTop}>
+        {item.imageUrl ? (
+          <LazyImage uri={item.imageUrl} style={styles.itemThumb} colors={colors} />
+        ) : (
+          <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
+            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+          </View>
+        )}
+        <View style={styles.itemInfo}>
+          <View style={styles.titleRow}>
+            <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
+            {isSold ? (
+              <View style={[styles.inlineBadge, styles.soldBadge]}>
+                <Text style={[styles.inlineBadgeText, styles.soldBadgeText]}>Sold</Text>
+              </View>
+            ) : isReserved ? (
+              <View style={styles.inlineBadge}>
+                <Text style={styles.inlineBadgeText}>Reserved</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.itemMeta}>
+            <Text style={styles.itemSeller} numberOfLines={1}>{item.username || item.authorName || 'Student'}</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.itemTime}>{item.time || 'Public'}</Text>
+          </View>
+          {isOwner && isReserved && (
+            <View style={styles.reservedByContainer}>
+              <Text style={styles.reservedByStatus}>Reserved</Text>
+              <Text style={styles.reservedByText}>Reserved By: {item.reservedByName || 'Unknown'}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.priceContainer}>
+          <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+          <View style={[styles.statusLabel, { backgroundColor: (STATUS_COLORS[item.status || 'Available']) + '15' }]}>
+            <Text style={[styles.statusLabelText, { color: STATUS_COLORS[item.status || 'Available'] }]}>
+              {item.status || 'Available'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.cardBottom}>
+        <View style={styles.badges}>
+          <View style={[styles.conditionBadge, { backgroundColor: (CONDITION_COLORS[item.condition] || colors.textSecondary) + '18' }]}>
+            <Text style={[styles.conditionText, { color: CONDITION_COLORS[item.condition] || colors.textSecondary }]}>{item.condition}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          {isOwner ? (
+            <>
+              <TouchableOpacity 
+                style={[styles.actionBtn, styles.editBtn]} 
+                onPress={() => onEdit(item)} 
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+                <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.actionBtn, styles.deleteBtn]} 
+                onPress={() => onDelete(item.id || item._id)} 
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent} />
+                <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
+              </TouchableOpacity>
+
+              {isReserved && (
+                <TouchableOpacity 
+                  style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
+                  onPress={() => onCancelReservation(item)} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
+                  <Text style={[styles.actionText, { color: colors.accentAmber }]}>Cancel Res.</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={[
+                  styles.actionBtn, 
+                  styles.soldBtn,
+                  isSold && styles.disabledBtn
+                ]} 
+                onPress={() => onMarkSold(item)} 
+                activeOpacity={0.7}
+                disabled={isSold}
+              >
+                <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textTertiary : colors.accentGreen} />
+                <Text style={[styles.actionText, { color: isSold ? colors.textTertiary : colors.accentGreen }]}>
+                  {isSold ? 'Sold' : 'Mark Sold'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {isReserved && item.reservedBy === userId ? (
+                <TouchableOpacity 
+                  style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
+                  onPress={() => onCancelReservation(item)} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
+                  <Text style={[styles.actionText, { color: colors.accentAmber }]}>Withdraw</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[
+                    styles.actionBtn, 
+                    styles.reserveBtn, 
+                    (isReserved || isSold) && styles.disabledBtn,
+                    isReserving && styles.loadingBtn
+                  ]} 
+                  onPress={() => onReserve(item)} 
+                  activeOpacity={0.7}
+                  disabled={isReserved || isSold || isReserving}
+                >
+                  {isReserving ? (
+                    <ActivityIndicator size="small" color={colors.accentAmber} />
+                  ) : (
+                    <>
+                      <Ionicons 
+                        name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
+                        size={14} 
+                        color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
+                      />
+                      <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
+                        {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={[styles.actionBtn, styles.chatBtn, isSold && styles.disabledBtn]} 
+                onPress={() => onContactSeller(item)} 
+                activeOpacity={0.7}
+                disabled={isSold}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
+                <Text style={[styles.actionText, styles.chatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+});
+
 const BuySellScreen = ({ navigation, route }) => {
   const { colors, shadows, isDark } = useTheme();
   const { 
@@ -66,7 +270,7 @@ const BuySellScreen = ({ navigation, route }) => {
 
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
-  const handleGoBack = () => {
+  const handleGoBack = useCallback(() => {
     if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
       navigation.goBack();
     } else if (navigation && typeof navigation.navigate === 'function') {
@@ -74,7 +278,7 @@ const BuySellScreen = ({ navigation, route }) => {
     } else if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history) {
       window.history.back();
     }
-  };
+  }, [navigation]);
 
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
@@ -122,7 +326,7 @@ const BuySellScreen = ({ navigation, route }) => {
     'Available': colors.accentGreen, 'Reserved': colors.accentAmber, 'Sold': colors.accent,
   }), [colors]);
 
-  const handlePickImage = async () => {
+  const handlePickImage = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -147,7 +351,7 @@ const BuySellScreen = ({ navigation, route }) => {
       console.warn('ImagePicker error:', e);
       Alert.alert('Error', 'Could not open image picker.');
     }
-  };
+  }, []);
 
   const handleEdit = useCallback((item) => {
     setEditingItem(item);
@@ -389,167 +593,28 @@ const BuySellScreen = ({ navigation, route }) => {
       );
     }
 
-    const isReserved = item.status === 'Reserved';
-    const isSold = item.status === 'Sold';
-    const isReserving = reservingId === item.id || reservingId === item._id;
-    const isOwner = userId && (userId === item.userId || userId === item.author);
-
     return (
-      <View style={[styles.card, isSold && { opacity: 0.85 }]}>
-        <View style={styles.cardTop}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
-          ) : (
-            <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
-              <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
-            </View>
-          )}
-          <View style={styles.itemInfo}>
-            <View style={styles.titleRow}>
-              <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-              {isSold ? (
-                <View style={[styles.inlineBadge, styles.soldBadge]}>
-                  <Text style={[styles.inlineBadgeText, styles.soldBadgeText]}>Sold</Text>
-                </View>
-              ) : isReserved ? (
-                <View style={styles.inlineBadge}>
-                  <Text style={styles.inlineBadgeText}>Reserved</Text>
-                </View>
-              ) : null}
-            </View>
-            <View style={styles.itemMeta}>
-              <Text style={styles.itemSeller} numberOfLines={1}>{item.username || item.authorName || 'Student'}</Text>
-              <Text style={styles.dot}>·</Text>
-              <Text style={styles.itemTime}>{item.time || 'Public'}</Text>
-            </View>
-            {isOwner && isReserved && (
-              <View style={styles.reservedByContainer}>
-                <Text style={styles.reservedByStatus}>Reserved</Text>
-                <Text style={styles.reservedByText}>Reserved By: {item.reservedByName || 'Unknown'}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.priceContainer}>
-            <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-            <View style={[styles.statusLabel, { backgroundColor: (STATUS_COLORS[item.status || 'Available']) + '15' }]}>
-              <Text style={[styles.statusLabelText, { color: STATUS_COLORS[item.status || 'Available'] }]}>
-                {item.status || 'Available'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.cardBottom}>
-          <View style={styles.badges}>
-            <View style={[styles.conditionBadge, { backgroundColor: (CONDITION_COLORS[item.condition] || colors.textSecondary) + '18' }]}>
-              <Text style={[styles.conditionText, { color: CONDITION_COLORS[item.condition] || colors.textSecondary }]}>{item.condition}</Text>
-            </View>
-          </View>
-
-          <View style={styles.actionRow}>
-            {isOwner ? (
-              <>
-                <TouchableOpacity 
-                  style={[styles.actionBtn, styles.editBtn]} 
-                  onPress={() => handleEdit(item)} 
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={14} color={colors.primary} />
-                  <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.actionBtn, styles.deleteBtn]} 
-                  onPress={() => handleDelete(item.id || item._id)} 
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent} />
-                  <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
-                </TouchableOpacity>
-
-                {isReserved && (
-                  <TouchableOpacity 
-                    style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
-                    onPress={() => handleCancelReservation(item)} 
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
-                    <Text style={[styles.actionText, { color: colors.accentAmber }]}>Cancel Res.</Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity 
-                  style={[
-                    styles.actionBtn, 
-                    styles.soldBtn,
-                    isSold && styles.disabledBtn
-                  ]} 
-                  onPress={() => handleMarkSold(item)} 
-                  activeOpacity={0.7}
-                  disabled={isSold}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textTertiary : colors.accentGreen} />
-                  <Text style={[styles.actionText, { color: isSold ? colors.textTertiary : colors.accentGreen }]}>
-                    {isSold ? 'Sold' : 'Mark Sold'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                {isReserved && item.reservedBy === userId ? (
-                  <TouchableOpacity 
-                    style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
-                    onPress={() => handleCancelReservation(item)} 
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
-                    <Text style={[styles.actionText, { color: colors.accentAmber }]}>Withdraw</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity 
-                    style={[
-                      styles.actionBtn, 
-                      styles.reserveBtn, 
-                      (isReserved || isSold) && styles.disabledBtn,
-                      isReserving && styles.loadingBtn
-                    ]} 
-                    onPress={() => handleReserve(item)} 
-                    activeOpacity={0.7}
-                    disabled={isReserved || isSold || isReserving}
-                  >
-                    {isReserving ? (
-                      <ActivityIndicator size="small" color={colors.accentAmber} />
-                    ) : (
-                      <>
-                        <Ionicons 
-                          name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
-                          size={14} 
-                          color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
-                        />
-                        <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
-                          {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity 
-                  style={[styles.actionBtn, styles.chatBtn, isSold && styles.disabledBtn]} 
-                  onPress={() => handleContactSeller(item)} 
-                  activeOpacity={0.7}
-                  disabled={isSold}
-                >
-                  <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
-                  <Text style={[styles.actionText, styles.chatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </View>
+      <MarketplaceItemCard
+        item={item}
+        colors={colors}
+        styles={styles}
+        STATUS_COLORS={STATUS_COLORS}
+        CONDITION_COLORS={CONDITION_COLORS}
+        userId={userId}
+        reservingId={reservingId}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onCancelReservation={handleCancelReservation}
+        onMarkSold={handleMarkSold}
+        onReserve={handleReserve}
+        onContactSeller={handleContactSeller}
+      />
     );
-  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete, handleMarkSold, handleCancelReservation]);
+  }, [
+    navigation, handleLike, handleSave, votePoll, userId, colors, styles,
+    STATUS_COLORS, CONDITION_COLORS, reservingId, handleEdit, handleDelete,
+    handleCancelReservation, handleMarkSold, handleReserve, handleContactSeller
+  ]);
 
   return (
     <View style={styles.screen}>

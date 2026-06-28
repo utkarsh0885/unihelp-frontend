@@ -28,6 +28,109 @@ const formatPrice = (price) => {
   return `₹${cleaned}`;
 };
 
+const LazyImage = React.memo(({ uri, style, colors }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  return (
+    <View style={style}>
+      {loading && !error && (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+      {error ? (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+          <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+        </View>
+      ) : (
+        <Image
+          source={{ uri }}
+          style={style}
+          onLoadEnd={() => setLoading(false)}
+          onError={() => setError(true)}
+        />
+      )}
+    </View>
+  );
+});
+
+const MyListingItemCard = React.memo(({
+  item,
+  colors,
+  styles,
+  onEdit,
+  onDelete,
+  onCancelReservation,
+  onMarkSold
+}) => {
+  const isReserved = item.status === 'Reserved';
+  const isSold = item.status === 'Sold';
+
+  const getStatusColor = (status) => {
+    if (status === 'Sold') return colors.error || '#EF4444';
+    if (status === 'Reserved') return colors.accentAmber || '#F59E0B';
+    return colors.accentGreen || '#10B981';
+  };
+
+  return (
+    <View style={[styles.card, isSold && { opacity: 0.85 }]}>
+      <View style={styles.cardContent}>
+        {item.imageUrl ? (
+          <LazyImage uri={item.imageUrl} style={styles.cardImage} colors={colors} />
+        ) : (
+          <View style={[styles.cardImage, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+          </View>
+        )}
+        <View style={styles.cardInfo}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status || 'Available') + '15', borderColor: getStatusColor(item.status || 'Available') + '30' }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(item.status || 'Available') }]}>
+                {item.status || 'Available'}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.cardPrice, { color: colors.primary }]}>{formatPrice(item.price)}</Text>
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaText, { color: colors.textTertiary }]}>Condition: {item.condition || 'Good'}</Text>
+            {item.downloads !== undefined && (
+              <Text style={[styles.metaText, { color: colors.textTertiary }]}>· {item.downloads} downloads</Text>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => onEdit(item)} activeOpacity={0.7}>
+          <Ionicons name="pencil" size={14} color={colors.primary} />
+          <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => onDelete(item)} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={14} color={colors.error || '#EF4444'} />
+          <Text style={[styles.actionText, { color: colors.error || '#EF4444' }]}>Delete</Text>
+        </TouchableOpacity>
+
+        {isReserved && (
+          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => onCancelReservation(item)} activeOpacity={0.7}>
+            <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber || '#F59E0B'} />
+            <Text style={[styles.actionText, { color: colors.accentAmber || '#F59E0B' }]}>Cancel Res.</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isSold && (
+          <TouchableOpacity style={[styles.actionBtn, styles.soldBtn]} onPress={() => onMarkSold(item)} activeOpacity={0.7}>
+            <Ionicons name="checkmark-circle-outline" size={14} color={colors.accentGreen || '#10B981'} />
+            <Text style={[styles.actionText, { color: colors.accentGreen || '#10B981' }]}>Mark Sold</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+});
+
 const MyListingsScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
   const { user } = useAuth();
@@ -222,69 +325,18 @@ const MyListingsScreen = ({ navigation }) => {
   }, [cancelReservation]);
 
   const renderItem = useCallback(({ item }) => {
-    const isReserved = item.status === 'Reserved';
-    const isSold = item.status === 'Sold';
-
-    const getStatusColor = (status) => {
-      if (status === 'Sold') return colors.error || '#EF4444';
-      if (status === 'Reserved') return colors.accentAmber || '#F59E0B';
-      return colors.accentGreen || '#10B981';
-    };
-
     return (
-      <View style={[styles.card, isSold && { opacity: 0.85 }]}>
-        <View style={styles.cardContent}>
-          {item.imageUrl && (
-            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
-          )}
-          <View style={styles.cardInfo}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status || 'Available') + '15', borderColor: getStatusColor(item.status || 'Available') + '30' }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(item.status || 'Available') }]}>
-                  {item.status || 'Available'}
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.cardPrice, { color: colors.primary }]}>{formatPrice(item.price)}</Text>
-            <View style={styles.metaRow}>
-              <Text style={[styles.metaText, { color: colors.textTertiary }]}>Condition: {item.condition || 'Good'}</Text>
-              {item.downloads !== undefined && (
-                <Text style={[styles.metaText, { color: colors.textTertiary }]}>· {item.downloads} downloads</Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Action button row */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => handleEdit(item)} activeOpacity={0.7}>
-            <Ionicons name="pencil" size={14} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(item)} activeOpacity={0.7}>
-            <Ionicons name="trash-outline" size={14} color={colors.error || '#EF4444'} />
-            <Text style={[styles.actionText, { color: colors.error || '#EF4444' }]}>Delete</Text>
-          </TouchableOpacity>
-
-          {isReserved && (
-            <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => handleCancelReservation(item)} activeOpacity={0.7}>
-              <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber || '#F59E0B'} />
-              <Text style={[styles.actionText, { color: colors.accentAmber || '#F59E0B' }]}>Cancel Res.</Text>
-            </TouchableOpacity>
-          )}
-
-          {!isSold && (
-            <TouchableOpacity style={[styles.actionBtn, styles.soldBtn]} onPress={() => handleMarkSold(item)} activeOpacity={0.7}>
-              <Ionicons name="checkmark-circle-outline" size={14} color={colors.accentGreen || '#10B981'} />
-              <Text style={[styles.actionText, { color: colors.accentGreen || '#10B981' }]}>Mark Sold</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <MyListingItemCard
+        item={item}
+        colors={colors}
+        styles={styles}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onCancelReservation={handleCancelReservation}
+        onMarkSold={handleMarkSold}
+      />
     );
-  }, [colors, handleEdit, handleDelete, handleCancelReservation, handleMarkSold, styles]);
+  }, [colors, styles, handleEdit, handleDelete, handleCancelReservation, handleMarkSold]);
 
   return (
     <View style={styles.screen}>
