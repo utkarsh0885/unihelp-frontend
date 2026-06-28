@@ -17,6 +17,7 @@ import {
   Image,
   Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,26 @@ const BuySellScreen = ({ navigation, route }) => {
     toggleLike, toggleSave, votePoll, userId, refreshData,
     addItem, reserveItem, cancelReservation, updatePost, deletePost 
   } = useData();
+
+  // State Hooks (declared together near the top of the component)
+  const [showSell, setShowSell] = useState(false);
+  const [itemTitle, setItemTitle] = useState('');
+  const [itemPrice, setItemPrice] = useState('');
+  const [itemCondition, setItemCondition] = useState('Good');
+  const [posting, setPosting] = useState(false);
+  const [reservingId, setReservingId] = useState(null);
+
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedCondition, setSelectedCondition] = useState('All Conditions');
+  
+  // Photo upload and edit listing states
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingItem, setEditingItem] = useState(null);
+
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
   const handleGoBack = () => {
@@ -67,6 +88,32 @@ const BuySellScreen = ({ navigation, route }) => {
     });
   }, [items]);
 
+  // Filter items locally on search query, status chip, and condition chip
+  const filteredData = useMemo(() => {
+    return mergedData.filter(item => {
+      // 1. Status Filter (default 'Available' if not set)
+      const statusValue = item.status || 'Available';
+      const matchesStatus = selectedStatus === 'All' || 
+        statusValue.toUpperCase() === selectedStatus.toUpperCase();
+
+      // 2. Condition Filter
+      const conditionValue = item.condition || '';
+      const matchesCondition = selectedCondition === 'All Conditions' ||
+        conditionValue.toUpperCase() === selectedCondition.toUpperCase();
+
+      // 3. Search Query
+      const query = searchQuery.trim().toLowerCase();
+      if (!query) return matchesStatus && matchesCondition;
+
+      const title = (item.title || '').toLowerCase();
+      const seller = (item.username || item.authorName || '').toLowerCase();
+
+      const matchesSearch = title.includes(query) || seller.includes(query);
+
+      return matchesStatus && matchesCondition && matchesSearch;
+    });
+  }, [mergedData, selectedStatus, selectedCondition, searchQuery]);
+
   const CONDITION_COLORS = useMemo(() => ({
     'New': colors.accentGreen, 'Like New': colors.accentCyan, 'Good': colors.accentAmber, 'Used': colors.textSecondary,
   }), [colors]);
@@ -74,19 +121,6 @@ const BuySellScreen = ({ navigation, route }) => {
   const STATUS_COLORS = useMemo(() => ({
     'Available': colors.accentGreen, 'Reserved': colors.accentAmber, 'Sold': colors.accent,
   }), [colors]);
-
-  const [showSell, setShowSell] = useState(false);
-  const [itemTitle, setItemTitle] = useState('');
-  const [itemPrice, setItemPrice] = useState('');
-  const [itemCondition, setItemCondition] = useState('Good');
-  const [posting, setPosting] = useState(false);
-  const [reservingId, setReservingId] = useState(null);
-  
-  // Photo upload and edit listing states
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [editingItem, setEditingItem] = useState(null);
 
   const handlePickImage = async () => {
     try {
@@ -614,13 +648,108 @@ const BuySellScreen = ({ navigation, route }) => {
         </View>
       )}
 
+      {!showSell && (
+        <View style={styles.filterSectionContainer}>
+          <Text style={styles.sectionTitle}>Search Marketplace</Text>
+
+          {/* Premium Search Bar */}
+          <View style={styles.searchBarContainer}>
+            <Ionicons name="search-outline" size={20} color={colors.textTertiary} style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search item title or seller name..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Status Section */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.filterGroupLabel}>Status</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsScrollContainer}
+              style={styles.chipsScrollView}
+            >
+              {['All', 'Available', 'Reserved', 'Sold'].map((status) => {
+                const isActive = selectedStatus === status;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.chipBtn,
+                      isActive ? styles.chipBtnActive : styles.chipBtnInactive
+                    ]}
+                    onPress={() => setSelectedStatus(status)}
+                    activeOpacity={0.6}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        isActive ? styles.chipTextActive : { color: colors.textSecondary }
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Condition Section */}
+          <View style={[styles.filterGroup, styles.conditionFilterGroup]}>
+            <Text style={styles.filterGroupLabel}>Condition</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsScrollContainer}
+              style={styles.chipsScrollView}
+            >
+              {['All Conditions', 'New', 'Like New', 'Good', 'Used'].map((cond) => {
+                const isActive = selectedCondition === cond;
+                return (
+                  <TouchableOpacity
+                    key={cond}
+                    style={[
+                      styles.chipBtn,
+                      isActive ? styles.chipBtnActive : styles.chipBtnInactive
+                    ]}
+                    onPress={() => setSelectedCondition(cond)}
+                    activeOpacity={0.6}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        isActive ? styles.chipTextActive : { color: colors.textSecondary }
+                      ]}
+                    >
+                      {cond}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
       {itemsLoading ? (
         <View style={styles.loaderWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={mergedData}
+          data={filteredData}
           renderItem={renderItem}
           keyExtractor={(item) => item.id || item._id}
           contentContainerStyle={styles.list}
@@ -630,8 +759,14 @@ const BuySellScreen = ({ navigation, route }) => {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="storefront-outline" size={40} color={colors.primary} />
               </View>
-              <Text style={styles.emptyTitle}>No items yet 🛍️</Text>
-              <Text style={styles.emptySubtitle}>Be the first to list something in the campus marketplace!</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' ? 'No matches found 🔍' : 'No items yet 🛍️'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' 
+                  ? 'Try broadening your search query or choosing other filter options.'
+                  : 'Be the first to list something in the campus marketplace!'}
+              </Text>
             </View>
           }
         />
@@ -871,6 +1006,90 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   deleteBtn: {
     backgroundColor: (colors.error || colors.accent) + '15',
     borderColor: (colors.error || colors.accent) + '30',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    height: 52,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 8,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  filterSectionContainer: {
+    paddingHorizontal: SIZES.md,
+    paddingTop: SIZES.md,
+    backgroundColor: colors.background,
+    width: '100%',
+    alignSelf: 'center',
+    maxWidth: Platform.OS === 'web' ? 700 : '100%',
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginBottom: SIZES.md,
+    letterSpacing: -0.5,
+  },
+  filterGroup: {
+    marginBottom: 18,
+  },
+  conditionFilterGroup: {
+    marginBottom: 28,
+  },
+  filterGroupLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.textTertiary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  chipsScrollView: {
+    maxHeight: 50,
+  },
+  chipsScrollContainer: {
+    paddingHorizontal: 2,
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  chipBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chipBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipBtnInactive: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.borderLight,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
   },
 });
 

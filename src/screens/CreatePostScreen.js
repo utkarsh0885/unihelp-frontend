@@ -57,6 +57,10 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Marketplace states
+  const [price, setPrice] = useState(existingPost?.price || '');
+  const [condition, setCondition] = useState(existingPost?.condition || 'Good');
+
   const CATEGORIES = [
     { id: 'General', icon: 'apps-outline', label: 'General' },
     { id: 'Buy/Sell', icon: 'cart-outline', label: 'Buy/Sell' },
@@ -125,6 +129,14 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
       Alert.alert('Empty Post', 'Write something before posting!');
       return;
     }
+    if (category === 'Buy/Sell') {
+      const parsedPrice = parseFloat(String(price).replace(/[$₹\s]/g, ''));
+      if (price === undefined || price === null || String(price).trim() === '' || isNaN(parsedPrice) || parsedPrice <= 0) {
+        Alert.alert('Invalid Price', 'Please enter a valid price greater than 0.');
+        return;
+      }
+    }
+
     if (uploadingImage) {
       Alert.alert('Please Wait', 'Please wait for the image upload to complete.');
       return;
@@ -171,6 +183,8 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           content: finalContent,
           category,
           imageUrl,
+          price: category === 'Buy/Sell' ? parseFloat(String(price).replace(/[$₹\s]/g, '')) : null,
+          condition: category === 'Buy/Sell' ? condition : null,
         });
         showToast('Post updated successfully! ✨', 'success');
         
@@ -182,6 +196,8 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setShowLinkInput(false);
         setUploadProgress(0);
         setUploadingImage(false);
+        setPrice('');
+        setCondition('Good');
         
         // Navigate back to Home
         if (navigation && typeof navigation.navigate === 'function') {
@@ -193,7 +209,9 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         await addPost(finalContent, { 
           title: title.trim(), 
           category, 
-          imageUrl 
+          imageUrl,
+          price: category === 'Buy/Sell' ? parseFloat(String(price).replace(/[$₹\s]/g, '')) : null,
+          condition: category === 'Buy/Sell' ? condition : null,
         });
         showToast('Post created successfully! 🎉', 'success');
 
@@ -205,6 +223,8 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setShowLinkInput(false);
         setUploadProgress(0);
         setUploadingImage(false);
+        setPrice('');
+        setCondition('Good');
 
         // Navigate back to Home
         if (navigation && typeof navigation.navigate === 'function') {
@@ -318,6 +338,35 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
               );
             })}
           </ScrollView>
+
+          {/* Marketplace Fields (rendered if Buy/Sell category selected) */}
+          {category === 'Buy/Sell' && (
+            <View style={styles.marketplaceFields}>
+              <Text style={styles.label}>Price (₹)</Text>
+              <TextInput
+                style={[styles.priceInput, { color: colors.textPrimary }]}
+                placeholder="Enter price (e.g. 50)"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="numeric"
+                value={String(price)}
+                onChangeText={setPrice}
+              />
+
+              <Text style={styles.label}>Condition</Text>
+              <View style={styles.conditionRow}>
+                {['New', 'Like New', 'Good', 'Used'].map((c) => (
+                  <TouchableOpacity 
+                    key={c} 
+                    style={[styles.conditionChip, condition === c && styles.conditionChipActive]} 
+                    onPress={() => setCondition(c)} 
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.conditionChipText, condition === c && styles.conditionChipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Image Preview */}
           {selectedImage && (
@@ -491,6 +540,30 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
+  marketplaceFields: {
+    marginTop: SIZES.sm,
+    marginBottom: SIZES.sm,
+  },
+  priceInput: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: SIZES.md,
+    height: 50,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: SIZES.sm,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  conditionRow: { flexDirection: 'row', gap: SIZES.sm, marginBottom: SIZES.md, flexWrap: 'wrap' },
+  conditionChip: { 
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, 
+    borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.surfaceLight 
+  },
+  conditionChipActive: { borderColor: colors.accentGreen, backgroundColor: colors.accentGreen + '10' },
+  conditionChipText: { fontSize: 13, color: colors.textTertiary, fontWeight: '700' },
+  conditionChipTextActive: { color: colors.accentGreen, fontWeight: '800' },
 });
 
 export default CreatePostScreen;

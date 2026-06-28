@@ -403,6 +403,8 @@ export const DataProvider = ({ children }) => {
       username: user?.name || 'You',
       avatar: user?.name?.charAt(0)?.toUpperCase() || 'U',
       userId,
+      ...extras,
+      status: extras.status || (extras.category === 'Buy/Sell' ? 'Available' : null),
     };
     const newPost = await addPostService(post);
     if (newPost && newPost.id) {
