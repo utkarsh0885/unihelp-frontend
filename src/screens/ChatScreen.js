@@ -116,6 +116,17 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     paddingBottom: 4,
   },
   sendingText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic' },
+  typingContainer: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'flex-start',
+  },
+  typingText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
 
 const ChatScreen = ({ navigation, route = {} }) => {
@@ -131,16 +142,105 @@ const ChatScreen = ({ navigation, route = {} }) => {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [chatDocData, setChatDocData] = useState(null);
+  const [recipientData, setRecipientData] = useState(null);
 
   const flatListRef = useRef(null);
   const pollRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+  const typingTimerRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
   const recipient = chat?.participantIds?.find(
     (p) => (p._id || p.id || p) !== userId
   );
+
+  const recipientId = recipient?._id || recipient?.id || recipient;
+
+  // ── Listen to parent chat document for typing indicators and other updates ──
+  useEffect(() => {
+    const chatId = chat?._id || chat?.id;
+    if (!chatId) return;
+
+    const chatRef = doc(db, 'chats', chatId);
+    const unsubscribe = onSnapshot(chatRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setChatDocData(snapshot.data());
+      }
+    });
+
+    return () => unsubscribe();
+  }, [chat?._id, chat?.id]);
+
+  // ── Listen to recipient user profile for online status ──
+  useEffect(() => {
+    if (!recipientId) return;
+
+    const userRef = doc(db, 'users', recipientId);
+    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setRecipientData(snapshot.data());
+      }
+    });
+
+    return () => unsubscribe();
+  }, [recipientId]);
+
+  // ── Debounced/Throttled state writer for typing ──
+  const updateTypingState = useCallback(async (isTypingVal) => {
+    const chatId = chat?._id || chat?.id;
+    if (!chatId || !userId) return;
+
+    if (isTypingRef.current === isTypingVal) return;
+    isTypingRef.current = isTypingVal;
+
+    try {
+      const chatRef = doc(db, 'chats', chatId);
+      await updateDoc(chatRef, {
+        [`typing.${userId}`]: isTypingVal
+      });
+    } catch (e) {
+      console.warn('[ChatScreen] Error updating typing status:', e);
+    }
+  }, [chat?._id, chat?.id, userId]);
+
+  const handleInputChange = useCallback((text) => {
+    setInputText(text);
+
+    if (text.trim().length > 0) {
+      updateTypingState(true);
+
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+      typingTimerRef.current = setTimeout(() => {
+        updateTypingState(false);
+      }, 3000);
+    } else {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+      updateTypingState(false);
+    }
+  }, [updateTypingState]);
+
+  // ── Clean up typing state on unmount ──
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+      const chatId = chat?._id || chat?.id;
+      if (chatId && userId) {
+        const chatRef = doc(db, 'chats', chatId);
+        updateDoc(chatRef, {
+          [`typing.${userId}`]: false
+        }).catch((e) => console.warn('[ChatScreen] Cleanup typing on unmount failed:', e));
+      }
+    };
+  }, [chat?._id, chat?.id, userId]);
 
   const handleGoBack = () => {
     if (navigation && typeof navigation.goBack === 'function' && navigation.canGoBack()) {
@@ -331,6 +431,11 @@ const ChatScreen = ({ navigation, route = {} }) => {
     const text = inputText.trim();
     setInputText('');
     setSending(true);
+
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    updateTypingState(false);
 
     const chatId = chat?._id || chat?.id;
     const recipientId = recipient?._id || recipient?.id || recipient;
@@ -529,11 +634,22 @@ const ChatScreen = ({ navigation, route = {} }) => {
             </View>
             <View>
               <Text style={styles.headerTitle}>{recipient?.name || 'UniHelp User'}</Text>
-              <Text style={styles.headerSubtitle}>Chat</Text>
+              <Text style={styles.headerSubtitle}>
+                {recipientData?.isOnline ? 'Online' : 'Last seen recently'}
+              </Text>
             </View>
           </View>
         </LinearGradient>
       </View>
+
+      {/* Typing Indicator Bar */}
+      {chatDocData?.typing?.[recipientId] === true && (
+        <View style={[styles.typingContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#EFF6FF' }]}>
+          <Text style={[styles.typingText, { color: colors.primary }]}>
+            {recipient?.name || 'UniHelp User'} is typing...
+          </Text>
+        </View>
+      )}
 
       {/* Message List */}
       {loading ? (
@@ -572,7 +688,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
             placeholder="Type a message..."
             placeholderTextColor={colors.textTertiary}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             multiline
             onSubmitEditing={handleSend}
             blurOnSubmit={false}

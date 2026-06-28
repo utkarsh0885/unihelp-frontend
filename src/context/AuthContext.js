@@ -6,6 +6,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
 import {
   loginUser,
   signupUser,
@@ -14,7 +17,6 @@ import {
   updateProfile,
   loginWithGoogle,
 } from '../services/authService';
-// ⚠️ updateUserPresence removed — presence tracking requires WebSocket (disabled).
 
 const AuthContext = createContext(null);
 
@@ -104,12 +106,40 @@ export const AuthProvider = ({ children }) => {
     return updated;
   }, [user]);
 
-  // ── Update Presence (no-op stub — requires WebSocket) ─────────────────────────
-  // Presence was updated via socket connect/disconnect events.
-  // Without WebSocket, this is a safe no-op so call sites don’t crash.
-  const updateUserPresence = useCallback(async (_isOnline) => {
-    // no-op — re-enable when sockets are restored
-  }, []);
+  const updateUserPresence = useCallback(async (isOnline) => {
+    if (!user?.id) return;
+    try {
+      const userRef = doc(db, 'users', user.id);
+      await updateDoc(userRef, {
+        isOnline,
+        lastSeen: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn('[AuthContext] updateUserPresence error:', e);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        updateUserPresence(true);
+      } else {
+        updateUserPresence(false);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    // Mark online
+    updateUserPresence(true);
+
+    return () => {
+      subscription.remove();
+      updateUserPresence(false);
+    };
+  }, [user?.id, updateUserPresence]);
 
   const value = useMemo(() => ({
     user,
