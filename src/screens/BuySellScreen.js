@@ -246,7 +246,8 @@ const BuySellScreen = ({ navigation, route }) => {
   const { 
     items, itemsLoading, posts, 
     toggleLike, toggleSave, votePoll, userId, refreshData,
-    addItem, reserveItem, cancelReservation, updatePost, deletePost 
+    addItem, reserveItem, cancelReservation, updatePost, deletePost,
+    loadMarketplacePosts, marketplaceHasMore, marketplaceLoadingMore
   } = useData();
 
   // State Hooks (declared together near the top of the component)
@@ -268,6 +269,9 @@ const BuySellScreen = ({ navigation, route }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingItem, setEditingItem] = useState(null);
 
+  // Pagination & Refreshing States
+  const [refreshing, setRefreshing] = useState(false);
+
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
   const handleGoBack = useCallback(() => {
@@ -279,6 +283,32 @@ const BuySellScreen = ({ navigation, route }) => {
       window.history.back();
     }
   }, [navigation]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadMarketplacePosts(true);
+    } catch (e) {
+      console.warn('[BuySellScreen] Refresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadMarketplacePosts]);
+
+  const handleLoadMore = useCallback(() => {
+    if (marketplaceHasMore && !marketplaceLoadingMore) {
+      loadMarketplacePosts(false);
+    }
+  }, [marketplaceHasMore, marketplaceLoadingMore, loadMarketplacePosts]);
+
+  const renderFooter = useCallback(() => {
+    if (!marketplaceLoadingMore) return null;
+    return (
+      <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }, [marketplaceLoadingMore, colors]);
 
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
@@ -829,13 +859,20 @@ const BuySellScreen = ({ navigation, route }) => {
           keyExtractor={(item) => item.id || item._id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="storefront-outline" size={40} color={colors.primary} />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' ? 'No matches found 🔍' : 'No items yet 🛍️'}
+                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' 
+                  ? 'No matches found 🔍' 
+                  : 'No items yet 🛍️'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' 

@@ -31,6 +31,7 @@ import {
   uploadNoteService,
   incrementNoteDownloadsService,
   deleteNoteService,
+  getPosts as getPostsService,
 } from '../services/dataService';
 // Chat service removed — Messages feature disabled.
 import { useAuth } from './AuthContext';
@@ -306,12 +307,60 @@ export const DataProvider = ({ children }) => {
 
   // Derived Category Feeds (In-memory derived from a single polling subscription)
   const doubts = useMemo(() => posts.filter((p) => p.category === 'General'), [posts]);
-  const items = useMemo(() => posts.filter((p) => p.category === 'Buy/Sell'), [posts]);
   const events = useMemo(() => posts.filter((p) => p.category === 'Events'), [posts]);
 
   const doubtsLoading = postsLoading;
-  const itemsLoading = postsLoading;
   const eventsLoading = postsLoading;
+
+  // ── Marketplace Cursor-Based Pagination States ──
+  const [marketplacePosts, setMarketplacePosts] = useState([]);
+  const [marketplaceCursor, setMarketplaceCursor] = useState(null);
+  const [marketplaceHasMore, setMarketplaceHasMore] = useState(true);
+  const [marketplaceLoadingMore, setMarketplaceLoadingMore] = useState(false);
+  const [marketplaceLoading, setMarketplaceLoading] = useState(false);
+
+  const isFetchingMarketplace = useRef(false);
+
+  const loadMarketplacePosts = useCallback(async (reset = false) => {
+    if (isFetchingMarketplace.current) return;
+    if (!reset && !marketplaceHasMore) return;
+
+    isFetchingMarketplace.current = true;
+    if (reset) {
+      setMarketplaceLoading(true);
+    } else {
+      setMarketplaceLoadingMore(true);
+    }
+
+    try {
+      const activeCursor = reset ? null : marketplaceCursor;
+      const res = await getPostsService('Buy/Sell', 15, activeCursor);
+      
+      const newPosts = res.posts || [];
+      const newCursor = res.nextCursor || null;
+      const newHasMore = res.hasMore ?? false;
+
+      setMarketplacePosts((prev) => {
+        const merged = reset ? newPosts : [...prev, ...newPosts];
+        const seen = new Set();
+        return merged.filter((p) => {
+          const id = p.id || p._id;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      });
+
+      setMarketplaceCursor(newCursor);
+      setMarketplaceHasMore(newHasMore);
+    } catch (err) {
+      console.warn('[DataContext] Failed to load marketplace posts:', err);
+    } finally {
+      setMarketplaceLoading(false);
+      setMarketplaceLoadingMore(false);
+      isFetchingMarketplace.current = false;
+    }
+  }, [marketplaceCursor, marketplaceHasMore]);
 
 
   const unsubPostsRef = useRef(null);
@@ -380,6 +429,12 @@ export const DataProvider = ({ children }) => {
         console.warn('[DataContext] Posts subscription error:', e);
         if (mounted) { setPostsError(e?.message || 'Subscription error'); setPostsLoading(false); }
       }
+
+      try {
+        await loadMarketplacePosts(true);
+      } catch (e) {
+        console.warn('[DataContext] Failed to init marketplace posts:', e);
+      }
     };
 
     init();
@@ -409,6 +464,9 @@ export const DataProvider = ({ children }) => {
     const newPost = await addPostService(post);
     if (newPost && newPost.id) {
       setPosts(prev => [newPost, ...prev]);
+      if (extras.category === 'Buy/Sell') {
+        setMarketplacePosts(prev => [newPost, ...prev]);
+      }
     }
     return newPost?.id || newPost?._id;
   }, [user, userId]);
@@ -552,12 +610,14 @@ export const DataProvider = ({ children }) => {
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
     setPosts(prev => prev.filter(p => p.id !== postId && p._id !== postId));
+    setMarketplacePosts(prev => prev.filter(p => p.id !== postId && p._id !== postId));
   }, []);
 
   const updatePost = useCallback(async (postId, updates) => {
     const updatedPost = await updatePostService(postId, updates);
     if (updatedPost) {
       setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { ...p, ...updatedPost } : p));
+      setMarketplacePosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { ...p, ...updatedPost } : p));
     }
   }, []);
 
@@ -701,6 +761,7 @@ export const DataProvider = ({ children }) => {
     const newItem = await addPostService(item);
     if (newItem && newItem.id) {
       setPosts(prev => [newItem, ...prev]);
+      setMarketplacePosts(prev => [newItem, ...prev]);
     }
     return newItem?.id || newItem?._id;
   }, [user, userId]);
@@ -744,6 +805,10 @@ export const DataProvider = ({ children }) => {
         ...p, 
         ...payload
       } : p));
+      setMarketplacePosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? { 
+        ...p, 
+        ...payload
+      } : p));
     }
     return response;
   }, [userId, user, posts]);
@@ -753,6 +818,13 @@ export const DataProvider = ({ children }) => {
     const response = await updatePostService(postId, payload);
     if (response) {
       setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? {
+        ...p,
+        status: 'Available',
+        reservedBy: null,
+        reservedByName: null,
+        reservedByEmail: null,
+      } : p));
+      setMarketplacePosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? {
         ...p,
         status: 'Available',
         reservedBy: null,
@@ -798,22 +870,21 @@ export const DataProvider = ({ children }) => {
     addComment, getCommentsForPost,
     doubts, doubtsLoading, addDoubt, upvoteDoubt,
     notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, addNote, downloadNote, deleteNote,
-    items, itemsLoading, addItem, reserveItem, cancelReservation,
+    items: marketplacePosts, itemsLoading: marketplaceLoading, addItem, reserveItem, cancelReservation,
+    marketplacePosts, marketplaceLoading, marketplaceCursor, marketplaceHasMore, marketplaceLoadingMore, loadMarketplacePosts,
     events, eventsLoading, addEvent,
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
     unreadChatCount, activeChatId, setActiveChat, clearActiveChat,
   }), [
-    // ⚠️ FREEZE FIX: setUnreadCount is stable (from useState) — not a loop risk.
-    // All functions wrapped in useCallback are stable references.
-    // Only state values here can trigger re-renders; keep this list minimal.
     posts, postsLoading, postsError,
     addPost, toggleLike, toggleSave, savedPosts, votePoll,
     addComment, getCommentsForPost,
     doubts, doubtsLoading,
     notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, addNote, downloadNote, deleteNote,
-    items, itemsLoading,
+    marketplacePosts, marketplaceLoading, marketplaceCursor, marketplaceHasMore, marketplaceLoadingMore, loadMarketplacePosts,
+    reserveItem, cancelReservation, addItem,
     events, eventsLoading,
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,

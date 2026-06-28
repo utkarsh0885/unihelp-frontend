@@ -4,12 +4,19 @@ import apiClient from './apiClient';
 // POSTS
 // ══════════════════════════════════════
 
-export const getPosts = async (category = null) => {
-  const url = category ? `/api/posts?category=${category}` : '/api/posts';
+export const getPosts = async (category = null, limit = null, cursor = null) => {
+  let url = '/api/posts';
+  const params = [];
+  if (category) params.push(`category=${encodeURIComponent(category)}`);
+  if (limit) params.push(`limit=${limit}`);
+  if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
+  if (params.length > 0) {
+    url += `?${params.join('&')}`;
+  }
   console.log(`[DataService] ▶ GET ${url}`);
   try {
     const response = await apiClient.get(url);
-    console.log(`[DataService] ✅ GET ${url} → status=${response.status}, items=${Array.isArray(response.data) ? response.data.length : 'N/A'}`);
+    console.log(`[DataService] ✅ GET ${url} → status=${response.status}`);
     return response.data;
   } catch (err) {
     const status = err?.response?.status ?? 'NO_RESPONSE';
