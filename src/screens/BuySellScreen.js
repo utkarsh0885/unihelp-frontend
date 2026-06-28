@@ -41,7 +41,7 @@ const BuySellScreen = ({ navigation, route }) => {
   const { 
     items, itemsLoading, posts, 
     toggleLike, toggleSave, votePoll, userId, refreshData,
-    addItem, reserveItem, updatePost, deletePost 
+    addItem, reserveItem, cancelReservation, updatePost, deletePost 
   } = useData();
   const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
 
@@ -196,6 +196,41 @@ const BuySellScreen = ({ navigation, route }) => {
       );
     }
   }, [updatePost]);
+
+  const handleCancelReservation = useCallback(async (item) => {
+    const itemId = item.id || item._id;
+    const performCancel = async () => {
+      try {
+        await cancelReservation(itemId);
+        if (Platform.OS === 'web') {
+          alert('Reservation cancelled.');
+        } else {
+          Alert.alert('Cancelled', 'The reservation has been cancelled.');
+        }
+      } catch (error) {
+        if (Platform.OS === 'web') {
+          alert('Failed to cancel reservation.');
+        } else {
+          Alert.alert('Error', 'Failed to cancel reservation.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Cancel this reservation?')) {
+        await performCancel();
+      }
+    } else {
+      Alert.alert(
+        'Cancel Reservation',
+        'Are you sure you want to cancel this reservation?',
+        [
+          { text: 'No', style: 'cancel' },
+          { text: 'Yes, Cancel', onPress: performCancel, style: 'destructive' }
+        ]
+      );
+    }
+  }, [cancelReservation]);
 
 
   const handleSell = useCallback(async () => {
@@ -398,6 +433,17 @@ const BuySellScreen = ({ navigation, route }) => {
                   <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
                 </TouchableOpacity>
 
+                {isReserved && (
+                  <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
+                    onPress={() => handleCancelReservation(item)} 
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
+                    <Text style={[styles.actionText, { color: colors.accentAmber }]}>Cancel Res.</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity 
                   style={[
                     styles.actionBtn, 
@@ -416,32 +462,43 @@ const BuySellScreen = ({ navigation, route }) => {
               </>
             ) : (
               <>
-                <TouchableOpacity 
-                  style={[
-                    styles.actionBtn, 
-                    styles.reserveBtn, 
-                    (isReserved || isSold) && styles.disabledBtn,
-                    isReserving && styles.loadingBtn
-                  ]} 
-                  onPress={() => handleReserve(item)} 
-                  activeOpacity={0.7}
-                  disabled={isReserved || isSold || isReserving}
-                >
-                  {isReserving ? (
-                    <ActivityIndicator size="small" color={colors.accentAmber} />
-                  ) : (
-                    <>
-                      <Ionicons 
-                        name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
-                        size={14} 
-                        color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
-                      />
-                      <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
-                        {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                {isReserved && item.reservedBy === userId ? (
+                  <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
+                    onPress={() => handleCancelReservation(item)} 
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
+                    <Text style={[styles.actionText, { color: colors.accentAmber }]}>Withdraw</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={[
+                      styles.actionBtn, 
+                      styles.reserveBtn, 
+                      (isReserved || isSold) && styles.disabledBtn,
+                      isReserving && styles.loadingBtn
+                    ]} 
+                    onPress={() => handleReserve(item)} 
+                    activeOpacity={0.7}
+                    disabled={isReserved || isSold || isReserving}
+                  >
+                    {isReserving ? (
+                      <ActivityIndicator size="small" color={colors.accentAmber} />
+                    ) : (
+                      <>
+                        <Ionicons 
+                          name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
+                          size={14} 
+                          color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
+                        />
+                        <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
+                          {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity 
                   style={[styles.actionBtn, styles.chatBtn, isSold && styles.disabledBtn]} 
@@ -458,7 +515,7 @@ const BuySellScreen = ({ navigation, route }) => {
         </View>
       </View>
     );
-  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete, handleMarkSold]);
+  }, [styles, colors, CONDITION_COLORS, STATUS_COLORS, handleReserve, reservingId, handleLike, handleSave, userId, votePoll, navigation, handleContactSeller, handleEdit, handleDelete, handleMarkSold, handleCancelReservation]);
 
   return (
     <View style={styles.screen}>

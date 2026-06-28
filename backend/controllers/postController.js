@@ -179,20 +179,33 @@ exports.getPostById = asyncHandler(async (req, res) => {
 });
 
 exports.updatePost = asyncHandler(async (req, res) => {
-  console.log("REQ BODY", req.body);
-  console.log('[updatePost] req.user:', req.user);
   const ref = db.collection('posts').doc(req.params.id);
   const doc = await ref.get();
   if (!doc.exists) throw new ApiError(404, 'Post not found');
 
   const post = doc.data();
 
-  // Only author or admin can update (unless it's a buyer reserving the item)
+  // Determine action type
   const isReserveAction = req.body.status === 'Reserved';
+  const isCancelByBuyer = req.body.status === 'Available' && post.status === 'Reserved' && post.reservedBy === req.user.id;
+
+  // Block reserving a sold item
   if (post.status === 'Sold' && isReserveAction) {
     throw new ApiError(400, 'Cannot reserve a sold item');
   }
-  if (post.author !== req.user.id && req.user.role !== 'admin' && !isReserveAction) {
+
+  // Block seller from reserving their own item
+  if (isReserveAction && post.author === req.user.id) {
+    throw new ApiError(400, 'You cannot reserve your own listing');
+  }
+
+  // Block re-reservation on an already reserved item
+  if (isReserveAction && post.status === 'Reserved') {
+    throw new ApiError(409, 'This item is already reserved by another buyer');
+  }
+
+  // Authorization: author, admin, buyer reserving, or buyer cancelling own reservation
+  if (post.author !== req.user.id && req.user.role !== 'admin' && !isReserveAction && !isCancelByBuyer) {
     throw new ApiError(403, 'Unauthorized to edit this post');
   }
 
@@ -275,8 +288,7 @@ exports.updatePost = asyncHandler(async (req, res) => {
     if (soldAt !== undefined) updates.soldAt = soldAt;
   }
 
-  console.log("UPDATES OBJECT", updates);
-  console.log("FIRESTORE UPDATE PAYLOAD", updates);
+
 
   const oldStatus = post.status || 'Available';
   const newStatus = updates.status;
@@ -286,7 +298,8 @@ exports.updatePost = asyncHandler(async (req, res) => {
   // Trigger notifications on status transition
   if (newStatus && newStatus !== oldStatus) {
     try {
-      const notifData = {
+      // Notify the SELLER
+      const sellerNotif = {
         userId: post.author,
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -295,20 +308,48 @@ exports.updatePost = asyncHandler(async (req, res) => {
 
       if (newStatus === 'Reserved') {
         const buyerName = updates.reservedByName || req.user.name || 'A student';
-        notifData.title = 'Item Reserved';
-        notifData.message = `${buyerName} reserved your item '${post.title}'`;
-        notifData.type = 'reserve';
-        await db.collection('notifications').add(notifData);
+        sellerNotif.title = 'Item Reserved';
+        sellerNotif.message = `${buyerName} reserved your item '${post.title}'`;
+        sellerNotif.type = 'reserve';
+        await db.collection('notifications').add(sellerNotif);
       } else if (newStatus === 'Available' && oldStatus === 'Reserved') {
-        notifData.title = 'Reservation Cancelled';
-        notifData.message = `The reservation for your item '${post.title}' has been cancelled.`;
-        notifData.type = 'cancel_reserve';
-        await db.collection('notifications').add(notifData);
+        // Notify seller about cancellation
+        sellerNotif.title = 'Reservation Cancelled';
+        sellerNotif.message = `The reservation for your item '${post.title}' has been cancelled.`;
+        sellerNotif.type = 'cancel_reserve';
+        await db.collection('notifications').add(sellerNotif);
+
+        // Notify the BUYER that their reservation was cancelled (if cancelled by seller)
+        if (post.reservedBy && post.reservedBy !== req.user.id) {
+          await db.collection('notifications').add({
+            userId: post.reservedBy,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            postId: doc.id,
+            title: 'Reservation Cancelled by Seller',
+            message: `The seller cancelled your reservation for '${post.title}'.`,
+            type: 'cancel_reserve'
+          });
+        }
       } else if (newStatus === 'Sold') {
-        notifData.title = 'Item Marked as Sold';
-        notifData.message = `Your item '${post.title}' has been successfully marked as sold.`;
-        notifData.type = 'sold';
-        await db.collection('notifications').add(notifData);
+        // Notify seller
+        sellerNotif.title = 'Item Marked as Sold';
+        sellerNotif.message = `Your item '${post.title}' has been successfully marked as sold.`;
+        sellerNotif.type = 'sold';
+        await db.collection('notifications').add(sellerNotif);
+
+        // Notify the BUYER that the item has been sold
+        if (post.reservedBy && post.reservedBy !== post.author) {
+          await db.collection('notifications').add({
+            userId: post.reservedBy,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            postId: doc.id,
+            title: 'Item Sold',
+            message: `The item '${post.title}' you reserved has been marked as sold.`,
+            type: 'sold'
+          });
+        }
       }
     } catch (err) {
       console.error('[updatePost] Error creating notification:', err.message);

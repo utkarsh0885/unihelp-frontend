@@ -360,7 +360,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   const { colors, shadows, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const navigation = useNavigation();
-  const { reserveItem, deletePost, updatePost, userId: contextUserId } = useData();
+  const { reserveItem, cancelReservation, deletePost, updatePost, userId: contextUserId } = useData();
   const activeUserId = userId || contextUserId;
 
   const [reserving, setReserving] = useState(false);
@@ -499,6 +499,43 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
     }
   }, [post.id, post._id, post.status, post.title, reserveItem]);
 
+  const handleCancelReservationItem = useCallback(async (e) => {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const id = post.id || post._id;
+    const performCancel = async () => {
+      try {
+        await cancelReservation(id);
+        if (Platform.OS === 'web') {
+          alert('Reservation cancelled.');
+        } else {
+          Alert.alert('Cancelled', 'The reservation has been cancelled.');
+        }
+      } catch (err) {
+        console.error('[AnimatedPostCard] Failed to cancel reservation:', err);
+        if (Platform.OS === 'web') {
+          alert('Failed to cancel reservation.');
+        } else {
+          Alert.alert('Error', 'Failed to cancel reservation.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Cancel this reservation?')) {
+        await performCancel();
+      }
+    } else {
+      Alert.alert(
+        'Cancel Reservation',
+        'Are you sure you want to cancel this reservation?',
+        [
+          { text: 'No', style: 'cancel' },
+          { text: 'Yes, Cancel', onPress: performCancel, style: 'destructive' }
+        ]
+      );
+    }
+  }, [post.id, post._id, cancelReservation]);
+
   const handleContactSellerItem = useCallback(async (e) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     if (post.status === 'Sold') return;
@@ -605,6 +642,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
 
   const isOwner = activeUserId && (activeUserId === post.userId || activeUserId === post.author);
   const isSold = post.status === 'Sold';
+  const isReserved = post.status === 'Reserved';
 
   return (
     <View style={{ position: 'relative' }}>
@@ -779,6 +817,17 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 <Text style={[styles.marketActionText, { color: colors.error || colors.accent || '#FF4B4B' }]}>Delete</Text>
               </TouchableOpacity>
 
+              {isReserved && (
+                <TouchableOpacity 
+                  style={[styles.marketActionBtn, { backgroundColor: (colors.accentAmber || '#FBBF24') + '10', borderColor: (colors.accentAmber || '#FBBF24') + '40' }]} 
+                  onPress={handleCancelReservationItem} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber || '#FBBF24'} />
+                  <Text style={[styles.marketActionText, { color: colors.accentAmber || '#FBBF24' }]}>Cancel Res.</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity 
                 style={[
                   styles.marketActionBtn, 
@@ -797,32 +846,43 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
             </>
           ) : (
             <>
-              <TouchableOpacity 
-                style={[
-                  styles.marketActionBtn, 
-                  styles.marketReserveBtn, 
-                  (post.status === 'Reserved' || isSold) && styles.marketDisabledBtn,
-                  reserving && styles.marketLoadingBtn
-                ]} 
-                onPress={handleReserveItem} 
-                activeOpacity={0.7}
-                disabled={post.status === 'Reserved' || isSold || reserving}
-              >
-                {reserving ? (
-                  <ActivityIndicator size="small" color={colors.accentAmber || '#FBBF24'} />
-                ) : (
-                  <>
-                    <Ionicons 
-                      name={isSold ? "checkmark-done-circle-outline" : (post.status === 'Reserved' ? "lock-closed" : "bookmark-outline")} 
-                      size={14} 
-                      color={(post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24')} 
-                    />
-                    <Text style={[styles.marketActionText, { color: (post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24') }]}>
-                      {isSold ? 'Sold' : (post.status === 'Reserved' ? 'Reserved' : 'Reserve')}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {isReserved && post.reservedBy === activeUserId ? (
+                <TouchableOpacity 
+                  style={[styles.marketActionBtn, { backgroundColor: (colors.accentAmber || '#FBBF24') + '10', borderColor: (colors.accentAmber || '#FBBF24') + '40' }]} 
+                  onPress={handleCancelReservationItem} 
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber || '#FBBF24'} />
+                  <Text style={[styles.marketActionText, { color: colors.accentAmber || '#FBBF24' }]}>Withdraw</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[
+                    styles.marketActionBtn, 
+                    styles.marketReserveBtn, 
+                    (post.status === 'Reserved' || isSold) && styles.marketDisabledBtn,
+                    reserving && styles.marketLoadingBtn
+                  ]} 
+                  onPress={handleReserveItem} 
+                  activeOpacity={0.7}
+                  disabled={post.status === 'Reserved' || isSold || reserving}
+                >
+                  {reserving ? (
+                    <ActivityIndicator size="small" color={colors.accentAmber || '#FBBF24'} />
+                  ) : (
+                    <>
+                      <Ionicons 
+                        name={isSold ? "checkmark-done-circle-outline" : (post.status === 'Reserved' ? "lock-closed" : "bookmark-outline")} 
+                        size={14} 
+                        color={(post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24')} 
+                      />
+                      <Text style={[styles.marketActionText, { color: (post.status === 'Reserved' || isSold) ? colors.textTertiary : (colors.accentAmber || '#FBBF24') }]}>
+                        {isSold ? 'Sold' : (post.status === 'Reserved' ? 'Reserved' : 'Reserve')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity 
                 style={[

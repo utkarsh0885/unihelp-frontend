@@ -722,7 +722,12 @@ export const DataProvider = ({ children }) => {
     if (targetPost && targetPost.status === 'Sold') {
       throw new Error('This item has been sold and cannot be reserved.');
     }
-    console.log("AUTH USER", user);
+    if (targetPost && targetPost.status === 'Reserved') {
+      throw new Error('This item is already reserved by another buyer.');
+    }
+    if (targetPost && (targetPost.author === userId || targetPost.userId === userId)) {
+      throw new Error('You cannot reserve your own listing.');
+    }
     
     const payload = {
       status: 'Reserved',
@@ -730,8 +735,6 @@ export const DataProvider = ({ children }) => {
       reservedByName: user?.name || user?.displayName || 'Unknown',
       reservedByEmail: user?.email || 'Unknown'
     };
-    
-    console.log("RESERVE PAYLOAD", payload);
     
     const response = await updatePostService(postId, payload);
     if (response) {
@@ -742,6 +745,21 @@ export const DataProvider = ({ children }) => {
     }
     return response;
   }, [userId, user, posts]);
+
+  const cancelReservation = useCallback(async (postId) => {
+    const payload = { status: 'Available' };
+    const response = await updatePostService(postId, payload);
+    if (response) {
+      setPosts(prev => prev.map(p => (p.id === postId || p._id === postId) ? {
+        ...p,
+        status: 'Available',
+        reservedBy: null,
+        reservedByName: null,
+        reservedByEmail: null,
+      } : p));
+    }
+    return response;
+  }, []);
   const markNotificationRead = useCallback(async (notificationId) => {
     try {
       const docRef = doc(db, 'notifications', notificationId);
@@ -778,7 +796,7 @@ export const DataProvider = ({ children }) => {
     addComment, getCommentsForPost,
     doubts, doubtsLoading, addDoubt, upvoteDoubt,
     notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, addNote, downloadNote, deleteNote,
-    items, itemsLoading, addItem, reserveItem,
+    items, itemsLoading, addItem, reserveItem, cancelReservation,
     events, eventsLoading, addEvent,
     userId, refreshData, activeUsersCount,
     deletePost, updatePost,
