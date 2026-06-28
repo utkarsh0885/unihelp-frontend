@@ -194,12 +194,35 @@ const ChatScreen = ({ navigation, route = {} }) => {
             formattedDate = dateObj.toISOString();
           } catch (e) {}
         }
+
+        let sentAtStr = data.sentAt || null;
+        if (data.sentAt && data.sentAt.toDate) {
+          try {
+            sentAtStr = data.sentAt.toDate().toISOString();
+          } catch (e) {}
+        }
+        let deliveredAtStr = data.deliveredAt || null;
+        if (data.deliveredAt && data.deliveredAt.toDate) {
+          try {
+            deliveredAtStr = data.deliveredAt.toDate().toISOString();
+          } catch (e) {}
+        }
+        let seenAtStr = data.seenAt || null;
+        if (data.seenAt && data.seenAt.toDate) {
+          try {
+            seenAtStr = data.seenAt.toDate().toISOString();
+          } catch (e) {}
+        }
+
         history.push({
           id: docSnap.id,
           _id: docSnap.id,
           ...data,
           createdAt: formattedDate,
           timestamp: formattedDate,
+          sentAt: sentAtStr,
+          deliveredAt: deliveredAtStr,
+          seenAt: seenAtStr,
         });
 
         // Update deliveredAt & seenAt if receiver is current user and values are missing
@@ -321,6 +344,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
       text,
       status: 'sending',
       createdAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
       deliveredAt: null,
       seenAt: null,
     };
@@ -335,6 +359,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
         receiverId: recipientId,
         text,
         createdAt: serverTimestamp(),
+        sentAt: serverTimestamp(),
         deliveredAt: null,
         seenAt: null,
       };
@@ -447,7 +472,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
             {isMe && item.status !== 'sending' && (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {item.seenAt ? (
-                  <Text style={[styles.messageTime, { color: '#4ade80', fontWeight: 'bold' }]}>Seen</Text>
+                  <Ionicons name="checkmark-done" size={12} color="#4ade80" />
                 ) : item.deliveredAt ? (
                   <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" />
                 ) : (
