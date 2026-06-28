@@ -31,7 +31,7 @@ import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { collection, query, onSnapshot, addDoc, doc, getDoc, updateDoc, serverTimestamp, increment, getDocs, writeBatch, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, getDoc, updateDoc, serverTimestamp, increment, getDocs, writeBatch, where, orderBy, limit, startAfter } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
 // ── Polling interval while chat is open (ms) ─────────────────────────────────
@@ -129,6 +129,49 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   },
 });
 
+const MessageBubble = React.memo(({
+  item,
+  userId,
+  colors,
+  styles
+}) => {
+  const isMe = item.senderId === userId || item.senderId?._id === userId;
+  const time = new Date(item.createdAt || item.timestamp).toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.otherMessageRow]}>
+      <View style={[
+        styles.messageBubble,
+        isMe
+          ? [styles.myBubble, { backgroundColor: colors.primary }]
+          : [styles.otherBubble, { backgroundColor: colors.surface }],
+      ]}>
+        <Text style={[styles.messageText, { color: isMe ? '#FFF' : colors.textPrimary }]}>
+          {item.text}
+        </Text>
+        <View style={styles.messageFooter}>
+          <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textTertiary }]}>
+            {item.status === 'sending' ? 'Sending...' : time}
+          </Text>
+          {isMe && item.status !== 'sending' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {item.seenAt ? (
+                <Ionicons name="checkmark-done" size={12} color="#4ade80" />
+              ) : item.deliveredAt ? (
+                <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" />
+              ) : (
+                <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.6)" />
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+});
+
 const ChatScreen = ({ navigation, route = {} }) => {
   console.log('[ChatScreen] Render — route:', route, 'navigation:', !!navigation);
   const { colors, shadows, isDark } = useTheme();
@@ -138,7 +181,30 @@ const ChatScreen = ({ navigation, route = {} }) => {
   const userId = user?.id;
   const { setActiveChat, clearActiveChat } = useData();
 
-  const [messages, setMessages] = useState([]);
+  const [historyMessages, setHistoryMessages] = useState([]);
+  const [realtimeMessages, setRealtimeMessages] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const oldestMessageRef = useRef(null);
+  const isFetchingRef = useRef(false);
+
+  const messages = useMemo(() => {
+    const merged = [...historyMessages, ...realtimeMessages];
+    const seen = new Set();
+    const unique = merged.filter((msg) => {
+      const id = msg._id || msg.id;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    unique.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeA - timeB;
+    });
+    return unique;
+  }, [historyMessages, realtimeMessages]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -252,6 +318,112 @@ const ChatScreen = ({ navigation, route = {} }) => {
     }
   };
 
+  const loadOlderMessages = useCallback(async () => {
+    if (isFetchingRef.current || !hasMore) return;
+    const chatId = chat?._id || chat?.id;
+    if (!chatId) return;
+
+    isFetchingRef.current = true;
+    setLoadingMore(true);
+
+    try {
+      let q = query(
+        collection(db, 'chats', chatId, 'messages'),
+        orderBy('createdAt', 'desc'),
+        limit(25)
+      );
+
+      if (oldestMessageRef.current) {
+        q = query(q, startAfter(oldestMessageRef.current));
+      }
+
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setHasMore(false);
+      } else {
+        const parsed = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data();
+          let formattedDate = new Date().toISOString();
+          if (data.createdAt) {
+            try {
+              const dateObj = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+              formattedDate = dateObj.toISOString();
+            } catch (e) {}
+          }
+
+          let sentAtStr = data.sentAt || null;
+          if (data.sentAt && data.sentAt.toDate) {
+            try {
+              sentAtStr = data.sentAt.toDate().toISOString();
+            } catch (e) {}
+          }
+          let deliveredAtStr = data.deliveredAt || null;
+          if (data.deliveredAt && data.deliveredAt.toDate) {
+            try {
+              deliveredAtStr = data.deliveredAt.toDate().toISOString();
+            } catch (e) {}
+          }
+          let seenAtStr = data.seenAt || null;
+          if (data.seenAt && data.seenAt.toDate) {
+            try {
+              seenAtStr = data.seenAt.toDate().toISOString();
+            } catch (e) {}
+          }
+
+          parsed.push({
+            id: docSnap.id,
+            _id: docSnap.id,
+            ...data,
+            createdAt: formattedDate,
+            timestamp: formattedDate,
+            sentAt: sentAtStr,
+            deliveredAt: deliveredAtStr,
+            seenAt: seenAtStr,
+          });
+        });
+
+        oldestMessageRef.current = snap.docs[snap.docs.length - 1];
+
+        setHistoryMessages((prev) => {
+          const merged = [...parsed, ...prev];
+          const seen = new Set();
+          return merged.filter((msg) => {
+            const id = msg._id || msg.id;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+        });
+
+        if (snap.size < 25) {
+          setHasMore(false);
+        }
+      }
+    } catch (e) {
+      console.warn('[ChatScreen] Error loading older messages:', e);
+    } finally {
+      setLoadingMore(false);
+      isFetchingRef.current = false;
+    }
+  }, [chat?._id, chat?.id, hasMore]);
+
+  const handleScroll = useCallback((event) => {
+    const { contentOffset } = event.nativeEvent;
+    if (contentOffset.y <= 10 && !loadingMore && hasMore) {
+      loadOlderMessages();
+    }
+  }, [loadingMore, hasMore, loadOlderMessages]);
+
+  const renderHeaderLoader = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <View style={{ paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }, [loadingMore, colors]);
+
   // ── Track Active Chat ID ─────────────────────────────────────────────────────
   useEffect(() => {
     const chatId = chat?._id || chat?.id;
@@ -275,11 +447,13 @@ const ChatScreen = ({ navigation, route = {} }) => {
     console.log(`[ChatScreen] Subscribing to messages for chatId: ${chatId}`);
 
     const q = query(
-      collection(db, 'chats', chatId, 'messages')
+      collection(db, 'chats', chatId, 'messages'),
+      orderBy('createdAt', 'desc'),
+      limit(25)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const history = [];
+      const parsed = [];
       const batch = writeBatch(db);
       let needsCommit = false;
 
@@ -314,7 +488,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
           } catch (e) {}
         }
 
-        history.push({
+        parsed.push({
           id: docSnap.id,
           _id: docSnap.id,
           ...data,
@@ -350,21 +524,12 @@ const ChatScreen = ({ navigation, route = {} }) => {
         batch.commit().catch((e) => console.warn('[ChatScreen] Error updating message receipts:', e));
       }
 
-      // Sort in-memory by createdAt ascending
-      history.sort((a, b) => {
-        const timeA = new Date(a.createdAt).getTime();
-        const timeB = new Date(b.createdAt).getTime();
-        return timeA - timeB;
-      });
-
-      setMessages(history);
+      setRealtimeMessages(parsed);
       setLoading(false);
 
-      // Scroll to bottom only when new messages arrive
-      const latestId = history[history.length - 1]?._id;
-      if (latestId && latestId !== lastMessageIdRef.current) {
-        lastMessageIdRef.current = latestId;
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      // Set oldestMessageRef based on the first load if it's not set yet
+      if (!oldestMessageRef.current && snapshot.docs.length > 0) {
+        oldestMessageRef.current = snapshot.docs[snapshot.docs.length - 1];
       }
 
       // Reset unread count and notifications for current user
@@ -392,11 +557,11 @@ const ChatScreen = ({ navigation, route = {} }) => {
           
           const notifSnap = await getDocs(notifQuery);
           if (!notifSnap.empty) {
-            const batch = writeBatch(db);
+            const b = writeBatch(db);
             notifSnap.forEach((docSnap) => {
-              batch.update(docSnap.ref, { read: true });
+              b.update(docSnap.ref, { read: true });
             });
-            await batch.commit();
+            await b.commit();
             console.log(`[ChatScreen] Marked ${notifSnap.size} chat_message notifications as read.`);
           }
         } catch (err) {
@@ -415,14 +580,19 @@ const ChatScreen = ({ navigation, route = {} }) => {
     };
   }, [chat?._id, chat?.id, userId]);
 
-  // ── Auto Scroll ──────────────────────────────────────────────────────────────
+  // ── Auto Scroll on New Messages ──────────────────────────────────────────────
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      const latestMessage = messages[messages.length - 1];
+      const latestId = latestMessage._id || latestMessage.id;
+      if (latestId && latestId !== lastMessageIdRef.current) {
+        lastMessageIdRef.current = latestId;
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     }
-  }, [messages.length]);
+  }, [messages]);
 
   // ── Send message via Firestore ──────────────────────────────────────────────
   const handleSend = useCallback(async () => {
@@ -453,7 +623,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
       deliveredAt: null,
       seenAt: null,
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    setRealtimeMessages((prev) => [...prev, tempMsg]);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
@@ -540,13 +710,13 @@ const ChatScreen = ({ navigation, route = {} }) => {
       }
 
       // Replace temp message with server-confirmed message
-      setMessages((prev) =>
+      setRealtimeMessages((prev) =>
         prev.map((m) => (m._id === tempMsg._id ? { ...savedMsg } : m))
       );
     } catch (err) {
       console.error('[ChatScreen] Failed to send message:', err?.message);
       // Remove the optimistic message on failure
-      setMessages((prev) => prev.filter((m) => m._id !== tempMsg._id));
+      setRealtimeMessages((prev) => prev.filter((m) => m._id !== tempMsg._id));
     } finally {
       setSending(false);
     }
@@ -554,40 +724,13 @@ const ChatScreen = ({ navigation, route = {} }) => {
 
   // ── Render a single message bubble ─────────────────────────────────────────
   const renderMessage = useCallback(({ item }) => {
-    const isMe = item.senderId === userId || item.senderId?._id === userId;
-    const time = new Date(item.createdAt || item.timestamp).toLocaleTimeString([], {
-      hour: '2-digit', minute: '2-digit',
-    });
-
     return (
-      <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.otherMessageRow]}>
-        <View style={[
-          styles.messageBubble,
-          isMe
-            ? [styles.myBubble, { backgroundColor: colors.primary }]
-            : [styles.otherBubble, { backgroundColor: colors.surface }],
-        ]}>
-          <Text style={[styles.messageText, { color: isMe ? '#FFF' : colors.textPrimary }]}>
-            {item.text}
-          </Text>
-          <View style={styles.messageFooter}>
-            <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textTertiary }]}>
-              {item.status === 'sending' ? 'Sending...' : time}
-            </Text>
-            {isMe && item.status !== 'sending' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {item.seenAt ? (
-                  <Ionicons name="checkmark-done" size={12} color="#4ade80" />
-                ) : item.deliveredAt ? (
-                  <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" />
-                ) : (
-                  <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.6)" />
-                )}
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
+      <MessageBubble
+        item={item}
+        userId={userId}
+        colors={colors}
+        styles={styles}
+      />
     );
   }, [userId, colors, styles]);
 
@@ -663,7 +806,15 @@ const ChatScreen = ({ navigation, route = {} }) => {
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           contentContainerStyle={[styles.listContent, messages.length === 0 && { flex: 1 }]}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => {
+            if (historyMessages.length === 0) {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          ListHeaderComponent={renderHeaderLoader}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="chatbubble-outline" size={48} color={colors.textTertiary} />
