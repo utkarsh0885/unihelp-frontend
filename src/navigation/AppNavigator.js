@@ -25,6 +25,7 @@ const CreatePollScreen = lazy(() => import('../screens/CreatePollScreen'));
 const CreateEventScreen = lazy(() => import('../screens/CreateEventScreen'));
 const ShareNotesScreen = lazy(() => import('../screens/ShareNotesScreen'));
 const BuySellScreen = lazy(() => import('../screens/BuySellScreen'));
+const MyListingsScreen = lazy(() => import('../screens/MyListingsScreen'));
 const DiscoverEventsScreen = lazy(() => import('../screens/DiscoverEventsScreen'));
 const PlaceholderScreen = lazy(() => import('../screens/PlaceholderScreen'));
 const SavedScreen = lazy(() => import('../screens/SavedScreen'));
@@ -98,6 +99,7 @@ const LazyCreatePoll = wrapLazyComponent(CreatePollScreen, 'CreatePoll');
 const LazyCreateEvent = wrapLazyComponent(CreateEventScreen, 'CreateEvent');
 const LazyShareNotes = wrapLazyComponent(ShareNotesScreen, 'ShareNotes');
 const LazyBuySell = wrapLazyComponent(BuySellScreen, 'BuySell');
+const LazyMyListings = wrapLazyComponent(MyListingsScreen, 'MyListings');
 const LazyDiscoverEvents = wrapLazyComponent(DiscoverEventsScreen, 'DiscoverEvents');
 const LazyCalendar = wrapLazyComponent(CalendarScreen, 'Calendar');
 const LazySaved = wrapLazyComponent(SavedScreen, 'Saved');
@@ -171,6 +173,7 @@ const AppNavigator = () => {
           {/* Feature sub-screens */}
           <Stack.Screen name="ShareNotes" component={LazyShareNotes} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="BuySell" component={LazyBuySell} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="MyListings" component={LazyMyListings} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="DiscoverEvents" component={LazyDiscoverEvents} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Calendar" component={LazyCalendar} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Saved" component={LazySaved} options={{ animation: 'slide_from_right' }} />

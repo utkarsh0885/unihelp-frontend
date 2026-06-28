@@ -566,23 +566,33 @@ const BuySellScreen = ({ navigation, route }) => {
             <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Buy / Sell</Text>
-          <TouchableOpacity 
-            style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
-            activeOpacity={0.7} 
-            onPress={() => {
-              if (showSell) {
-                // Clear state when closing the Sell form
-                setItemTitle('');
-                setItemPrice('');
-                setItemCondition('Good');
-                setSelectedImage(null);
-                setEditingItem(null);
-              }
-              setShowSell(!showSell);
-            }}
-          >
-            <Ionicons name={showSell ? 'close' : 'add'} size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity 
+              style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
+              activeOpacity={0.7} 
+              onPress={() => navigation.navigate('MyListings')}
+            >
+              <Ionicons name="list" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
+              activeOpacity={0.7} 
+              onPress={() => {
+                if (showSell) {
+                  // Clear state when closing the Sell form
+                  setItemTitle('');
+                  setItemPrice('');
+                  setItemCondition('Good');
+                  setSelectedImage(null);
+                  setEditingItem(null);
+                }
+                setShowSell(!showSell);
+              }}
+            >
+              <Ionicons name={showSell ? 'close' : 'add'} size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </LinearGradient>
       </View>
 
