@@ -49,6 +49,59 @@ const formatChatTime = (timestampStr) => {
   }
 };
 
+const ConversationCard = React.memo(({
+  item,
+  userId,
+  colors,
+  styles,
+  onPress
+}) => {
+  const recipient = item.participantIds.find((p) => p.id !== userId);
+  const unreadCount = item.unreadCounts?.[userId] || 0;
+
+  return (
+    <TouchableOpacity
+      style={[styles.chatItem, { backgroundColor: colors.surface }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.avatarContainer}>
+        {recipient?.avatar ? (
+          <Image source={{ uri: recipient.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
+              {recipient?.name?.charAt(0).toUpperCase() || 'U'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.chatInfo}>
+        <View style={styles.chatHeader}>
+          <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
+            {recipient?.name || 'UniHelp User'}
+          </Text>
+          <Text style={[styles.chatTime, { color: colors.textTertiary }]}>
+            {item.lastMessage?.timestamp ? formatChatTime(item.lastMessage.timestamp) : ''}
+          </Text>
+        </View>
+
+        <View style={styles.chatFooter}>
+          <Text style={[styles.lastMessage, { color: colors.textSecondary }]} numberOfLines={1}>
+            {item.lastMessage?.text || 'Start a conversation'}
+          </Text>
+          {unreadCount > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.unreadCount}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 const MessagesScreen = ({ navigation }) => {
   const { colors, shadows, isDark } = useTheme();
   const { user } = useAuth();
@@ -168,59 +221,31 @@ const MessagesScreen = ({ navigation }) => {
 
   // ── Local filtering of chats ────────────────────────────────────────────────
   const filteredChats = useMemo(() => {
-    if (!searchQuery.trim()) return chats;
+    const queryStr = searchQuery.trim().toLowerCase();
+    if (!queryStr) return chats;
     return chats.filter((chat) => {
       const recipient = chat.participantIds.find((p) => p.id !== user.id);
-      return recipient?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesName = recipient?.name?.toLowerCase().includes(queryStr);
+      const matchesMessage = chat.lastMessage?.text?.toLowerCase().includes(queryStr);
+      return matchesName || matchesMessage;
     });
   }, [chats, searchQuery, user?.id]);
 
-  const renderChatItem = ({ item }) => {
-    const recipient = item.participantIds.find((p) => p.id !== user.id);
-    const unreadCount = item.unreadCounts?.[user.id] || 0;
+  const handleOpenChat = useCallback((chat) => {
+    navigation.navigate('Chat', { chat });
+  }, [navigation]);
 
+  const renderChatItem = useCallback(({ item }) => {
     return (
-      <TouchableOpacity
-        style={[styles.chatItem, { backgroundColor: colors.surface }]}
-        onPress={() => navigation.navigate('Chat', { chat: item })}
-        activeOpacity={0.7}
-      >
-        <View style={styles.avatarContainer}>
-          {recipient?.avatar ? (
-            <Image source={{ uri: recipient.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {recipient?.name?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.chatHeader}>
-            <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
-              {recipient?.name || 'UniHelp User'}
-            </Text>
-            <Text style={[styles.chatTime, { color: colors.textTertiary }]}>
-              {item.lastMessage?.timestamp ? formatChatTime(item.lastMessage.timestamp) : ''}
-            </Text>
-          </View>
-
-          <View style={styles.chatFooter}>
-            <Text style={[styles.lastMessage, { color: colors.textSecondary }]} numberOfLines={1}>
-              {item.lastMessage?.text || 'Start a conversation'}
-            </Text>
-            {unreadCount > 0 && (
-              <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.unreadCount}>{unreadCount}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
+      <ConversationCard
+        item={item}
+        userId={user.id}
+        colors={colors}
+        styles={styles}
+        onPress={() => handleOpenChat(item)}
+      />
     );
-  };
+  }, [colors, user.id, handleOpenChat]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -261,12 +286,15 @@ const MessagesScreen = ({ navigation }) => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubbles-outline" size={64} color={colors.textTertiary} />
+                <Ionicons name="chatbubbles-outline" size={64} color={colors.textTertiary} style={{ marginBottom: 12 }} />
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  {searchQuery.trim() 
-                    ? "No matches found." 
-                    : "No conversations yet. Start chatting from Marketplace."}
+                  {searchQuery.trim() ? "No matches found." : "No conversations yet."}
                 </Text>
+                {!searchQuery.trim() && (
+                  <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
+                    Start chatting from Marketplace or Posts.
+                  </Text>
+                )}
               </View>
             }
           />
@@ -401,6 +429,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  emptySubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 

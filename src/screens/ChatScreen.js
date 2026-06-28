@@ -248,9 +248,15 @@ const ChatScreen = ({ navigation, route = {} }) => {
       const resetUnreadAndNotifs = async () => {
         try {
           const chatRef = doc(db, 'chats', chatId);
-          await updateDoc(chatRef, {
-            [`unreadCounts.${userId}`]: 0
-          });
+          const chatSnap = await getDoc(chatRef);
+          if (chatSnap.exists()) {
+            const currentUnread = chatSnap.data()?.unreadCounts?.[userId] || 0;
+            if (currentUnread > 0) {
+              await updateDoc(chatRef, {
+                [`unreadCounts.${userId}`]: 0
+              });
+            }
+          }
 
           // Query unread chat_message notifications for this chatId
           const notifQuery = query(
