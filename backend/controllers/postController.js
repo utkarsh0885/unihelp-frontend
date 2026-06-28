@@ -90,9 +90,60 @@ exports.createPost = asyncHandler(async (req, res) => {
 });
 
 exports.getPosts = asyncHandler(async (req, res) => {
-  const { category, authorId, page = 1, limit = 50 } = req.query;
+  const { category, authorId, page = 1, limit = 50, cursor } = req.query;
 
-  console.log(`[Posts] GET /api/posts | category=${category ?? 'all'} | authorId=${authorId ?? 'all'} | user=${req.user?.id ?? 'anonymous'}`);
+  console.log(`[Posts] GET /api/posts | category=${category ?? 'all'} | authorId=${authorId ?? 'all'} | user=${req.user?.id ?? 'anonymous'} | cursor=${cursor ?? 'none'}`);
+
+  if (category === 'Buy/Sell') {
+    const limitNum = parseInt(limit, 10) || 15;
+    let queryRef = db.collection('posts')
+      .where('category', '==', 'Buy/Sell')
+      .orderBy('createdAt', 'desc');
+
+    if (cursor) {
+      const cursorDoc = await db.collection('posts').doc(cursor).get();
+      if (cursorDoc.exists) {
+        queryRef = queryRef.startAfter(cursorDoc);
+      }
+    }
+
+    queryRef = queryRef.limit(limitNum + 1);
+
+    const snapshot = await queryRef.get();
+    const list = [];
+    snapshot.forEach((doc) => {
+      list.push({ id: doc.id, ...doc.data() });
+    });
+
+    const hasMore = list.length > limitNum;
+    const paginatedList = hasMore ? list.slice(0, limitNum) : list;
+    const nextCursor = hasMore && paginatedList.length > 0 ? paginatedList[paginatedList.length - 1].id : null;
+
+    const normalized = paginatedList.map((p) => {
+      let formattedDate = new Date().toISOString();
+      const epoch = getEpoch(p.createdAt);
+      if (epoch > 0) {
+        formattedDate = new Date(epoch).toISOString();
+      }
+
+      return {
+        ...p,
+        createdAt: formattedDate,
+        username: p.authorName || 'User',
+        avatar: (p.authorName || 'U').charAt(0).toUpperCase(),
+        likes: p.likes ?? 0,
+        likedBy: p.likedBy ?? [],
+        savedBy: p.savedBy ?? [],
+        commentsCount: p.commentsCount ?? 0,
+      };
+    });
+
+    return res.json({
+      posts: normalized,
+      nextCursor,
+      hasMore
+    });
+  }
 
   let query = db.collection('posts');
 
