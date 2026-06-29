@@ -1,14 +1,8 @@
 /**
- * ChatScreen — REST-only version
+ * ChatScreen — REST & Firestore Messaging Hub
  * ─────────────────────────────────────────────
- * WebSockets removed. Messages are fetched via REST API and
- * sent via a new POST /api/chat/:chatId/messages endpoint.
- * New messages are polled every 3 seconds while the screen is mounted.
- *
- * Features removed (require WebSocket to work):
- *   - Typing indicators
- *   - "Seen" read receipts in real-time
- * These can be restored when socket.io is re-enabled.
+ * Official University messaging interface.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -22,112 +16,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Animated,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { collection, query, onSnapshot, addDoc, doc, getDoc, updateDoc, serverTimestamp, increment, getDocs, writeBatch, where, orderBy, limit, startAfter } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
-// ── Polling interval while chat is open (ms) ─────────────────────────────────
-const POLL_INTERVAL_MS = 3000;
-
-const createStyles = (colors, shadows, isDark) => StyleSheet.create({
-  mainContainer: { flex: 1 },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { color: '#FFF', fontWeight: '900', fontSize: 14 },
-
-  messageList: { padding: SIZES.md, paddingBottom: SIZES.xl },
-
-  messageRow: { marginBottom: SIZES.md, maxWidth: '80%' },
-  myMessageRow: { alignSelf: 'flex-end' },
-  otherMessageRow: { alignSelf: 'flex-start' },
-
-  messageBubble: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, ...shadows.small },
-  myBubble: { borderBottomRightRadius: 4 },
-  otherBubble: { borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.borderLight },
-
-  messageText: { fontSize: 15, lineHeight: 20 },
-  messageFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 4, alignSelf: 'flex-end', gap: 4 },
-  messageTime: { fontSize: 10 },
-
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: SIZES.md,
-    marginVertical: SIZES.md,
-    borderRadius: 24,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.medium,
-  },
-  attachBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  input: {
-    flex: 1,
-    maxHeight: 100,
-    minHeight: 44,
-    fontSize: 16,
-    color: colors.textPrimary,
-    paddingHorizontal: 8,
-  },
-  sendBtn: { marginLeft: 8 },
-  sendBtnGradient: {
-    width: 40, height: 40, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center',
-    ...shadows.glow,
-  },
-
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { padding: SIZES.md, paddingBottom: SIZES.xl },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, gap: 12 },
-  emptyText: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  emptySubtext: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', paddingHorizontal: 40 },
-
-  sendingIndicator: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: SIZES.md,
-    paddingBottom: 4,
-  },
-  sendingText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic' },
-  typingContainer: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'flex-start',
-  },
-  typingText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const MessageBubble = React.memo(({
   item,
@@ -146,23 +47,23 @@ const MessageBubble = React.memo(({
         styles.messageBubble,
         isMe
           ? [styles.myBubble, { backgroundColor: colors.primary }]
-          : [styles.otherBubble, { backgroundColor: colors.surface }],
+          : [styles.otherBubble, { backgroundColor: colors.surface, borderColor: colors.border }],
       ]}>
-        <Text style={[styles.messageText, { color: isMe ? '#FFF' : colors.textPrimary }]}>
+        <Text style={[styles.messageText, { color: isMe ? colors.textOnPrimary : colors.textPrimary }]}>
           {item.text}
         </Text>
         <View style={styles.messageFooter}>
-          <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textTertiary }]}>
+          <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.75)' : colors.textMuted }]}>
             {item.status === 'sending' ? 'Sending...' : time}
           </Text>
           {isMe && item.status !== 'sending' && (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={styles.receiptContainer}>
               {item.seenAt ? (
-                <Ionicons name="checkmark-done" size={12} color="#4ade80" />
+                <Ionicons name="checkmark-done" size={14} color={colors.info || '#38BDF8'} />
               ) : item.deliveredAt ? (
-                <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.7)" />
               ) : (
-                <Ionicons name="checkmark" size={12} color="rgba(255,255,255,0.6)" />
+                <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.7)" />
               )}
             </View>
           )}
@@ -174,7 +75,7 @@ const MessageBubble = React.memo(({
 
 const ChatScreen = ({ navigation, route = {} }) => {
   console.log('[ChatScreen] Render — route:', route, 'navigation:', !!navigation);
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const routeParams = route?.params || {};
   const chat = routeParams?.chat;
   const { user } = useAuth();
@@ -205,6 +106,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
     });
     return unique;
   }, [historyMessages, realtimeMessages]);
+
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -212,12 +114,12 @@ const ChatScreen = ({ navigation, route = {} }) => {
   const [recipientData, setRecipientData] = useState(null);
 
   const flatListRef = useRef(null);
-  const pollRef = useRef(null);
   const lastMessageIdRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
 
-  const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   const recipient = chat?.participantIds?.find(
     (p) => (p._id || p.id || p) !== userId
@@ -418,7 +320,7 @@ const ChatScreen = ({ navigation, route = {} }) => {
   const renderHeaderLoader = useCallback(() => {
     if (!loadingMore) return null;
     return (
-      <View style={{ paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ paddingVertical: SPACING.sm, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -673,7 +575,6 @@ const ChatScreen = ({ navigation, route = {} }) => {
           const recipientActiveChatId = recipientDocSnap.exists() ? recipientDocSnap.data().activeChatId : null;
           
           if (recipientActiveChatId !== chatId) {
-            // Check for existing unread chat_message notification for this chat
             const notifQuery = query(
               collection(db, 'notifications'),
               where('userId', '==', recipientId),
@@ -715,14 +616,12 @@ const ChatScreen = ({ navigation, route = {} }) => {
       );
     } catch (err) {
       console.error('[ChatScreen] Failed to send message:', err?.message);
-      // Remove the optimistic message on failure
       setRealtimeMessages((prev) => prev.filter((m) => m._id !== tempMsg._id));
     } finally {
       setSending(false);
     }
-  }, [inputText, sending, chat._id, chat.id, userId, recipient]);
+  }, [inputText, sending, chat?._id, chat?.id, userId, recipient, updateTypingState, user?.name]);
 
-  // ── Render a single message bubble ─────────────────────────────────────────
   const renderMessage = useCallback(({ item }) => {
     return (
       <MessageBubble
@@ -738,59 +637,62 @@ const ChatScreen = ({ navigation, route = {} }) => {
 
   if (!chat) {
     return (
-      <View style={[styles.mainContainer, { backgroundColor: isDark ? colors.background : '#F8FAFC', alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
-        <Ionicons name="chatbubble-ellipses-outline" size={60} color={colors.textTertiary} />
-        <Text style={[styles.headerTitle, { color: colors.textPrimary, marginTop: 12, fontSize: 18 }]}>Chat Not Found</Text>
-        <Text style={{ color: colors.textTertiary, textAlign: 'center', marginTop: 8, marginBottom: 24, fontSize: 14 }}>
-          This conversation is unavailable or has been closed.
+      <View style={styles.errorContainer}>
+        <Ionicons name="chatbubble-ellipses-outline" size={64} color={colors.textMuted} />
+        <Text style={styles.errorTitle}>Conversation Unavailable</Text>
+        <Text style={styles.errorSubtitle}>
+          This chat session could not be found or has ended.
         </Text>
-        <TouchableOpacity 
+        <Pressable 
           onPress={handleGoBack}
-          style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 }}
-          activeOpacity={0.8}
+          style={({ pressed }) => [styles.errorBtn, pressed && { opacity: 0.8 }]}
         >
-          <Text style={{ color: '#FFF', fontWeight: '700' }}>Go Back</Text>
-        </TouchableOpacity>
+          <Text style={styles.errorBtnText}>Return to Messages</Text>
+        </Pressable>
       </View>
     );
   }
 
-  return (
-    <View style={[styles.mainContainer, { backgroundColor: isDark ? colors.background : '#F8FAFC' }]}>
-      <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
+  const isRecipientOnline = recipientData?.isOnline || false;
 
-      {/* App Bar */}
+  return (
+    <View style={styles.mainContainer}>
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
+
+      {/* Header */}
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View style={styles.header}>
+          <Pressable onPress={handleGoBack} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
           <View style={styles.headerInfo}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {recipient?.name?.charAt(0)?.toUpperCase() || 'U'}
               </Text>
             </View>
-            <View>
-              <Text style={styles.headerTitle}>{recipient?.name || 'UniHelp User'}</Text>
-              <Text style={styles.headerSubtitle}>
-                {recipientData?.isOnline ? 'Online' : 'Last seen recently'}
-              </Text>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{recipient?.name || 'UniHelp Student'}</Text>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, { backgroundColor: isRecipientOnline ? colors.accent : colors.textDisabled }]} />
+                <Text style={styles.headerSubtitle}>
+                  {isRecipientOnline ? 'Active on Campus' : 'Offline'}
+                </Text>
+              </View>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       {/* Typing Indicator Bar */}
       {chatDocData?.typing?.[recipientId] === true && (
-        <View style={[styles.typingContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#EFF6FF' }]}>
-          <Text style={[styles.typingText, { color: colors.primary }]}>
-            {recipient?.name || 'UniHelp User'} is typing...
-          </Text>
+        <View style={styles.typingContainer}>
+          <View style={styles.typingDotsRow}>
+            <ActivityIndicator size="small" color={colors.primary} style={{ transform: [{ scale: 0.7 }] }} />
+            <Text style={styles.typingText}>
+              {recipient?.name || 'Student'} is typing...
+            </Text>
+          </View>
         </View>
       )}
 
@@ -815,11 +717,16 @@ const ChatScreen = ({ navigation, route = {} }) => {
           scrollEventThrottle={16}
           ListHeaderComponent={renderHeaderLoader}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubble-outline" size={48} color={colors.textTertiary} />
-              <Text style={styles.emptyText}>No messages yet</Text>
-              <Text style={styles.emptySubtext}>Send the first message!</Text>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyText}>Official Campus Chat</Text>
+              <Text style={styles.emptySubtext}>
+                Messages are encrypted end-to-end between students. Be respectful and maintain academic integrity!
+              </Text>
             </View>
           }
         />
@@ -830,33 +737,277 @@ const ChatScreen = ({ navigation, route = {} }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={[styles.inputContainer, { backgroundColor: colors.surface }]}>
+        <View style={styles.inputContainer}>
           <TextInput
-            style={[styles.input, {
-              color: colors.textPrimary,
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6',
-            }]}
-            placeholder="Type a message..."
-            placeholderTextColor={colors.textTertiary}
+            style={styles.input}
+            placeholder="Write a message..."
+            placeholderTextColor={colors.textDisabled}
             value={inputText}
             onChangeText={handleInputChange}
             multiline
             onSubmitEditing={handleSend}
             blurOnSubmit={false}
           />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!inputText.trim() || sending) && { opacity: 0.4 }]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.sendBtn,
+              (!inputText.trim() || sending) && styles.sendBtnDisabled,
+              pressed && inputText.trim() && !sending && { opacity: 0.8 }
+            ]}
             onPress={handleSend}
             disabled={!inputText.trim() || sending}
           >
-            <LinearGradient colors={['#1E3A8A', '#2563EB']} style={styles.sendBtnGradient}>
-              <Ionicons name="send" size={18} color="#FFF" />
-            </LinearGradient>
-          </TouchableOpacity>
+            <Ionicons name="send" size={18} color={(!inputText.trim() || sending) ? colors.textDisabled : colors.textOnPrimary} />
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </View>
   );
 };
+
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  appBarContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    height: 56,
+    gap: SPACING.sm,
+  },
+  backBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  headerInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  headerTitle: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: RADIUS.full,
+  },
+  headerSubtitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  avatarText: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.primary,
+  },
+  messageList: {
+    padding: SPACING.md,
+  },
+  messageRow: {
+    marginBottom: SPACING.sm,
+    maxWidth: '78%',
+  },
+  myMessageRow: {
+    alignSelf: 'flex-end',
+  },
+  otherMessageRow: {
+    alignSelf: 'flex-start',
+  },
+  messageBubble: {
+    borderRadius: RADIUS.large,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    ...elevation.xs,
+  },
+  myBubble: {
+    borderBottomRightRadius: 4,
+  },
+  otherBubble: {
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+  },
+  messageText: {
+    ...TYPOGRAPHY.body,
+    lineHeight: 22,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+    gap: 4,
+  },
+  messageTime: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+  },
+  receiptContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SPACING.md,
+    marginVertical: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  input: {
+    flex: 1,
+    maxHeight: 100,
+    minHeight: SIZES.layout.minTouchTarget,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  sendBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING.xs,
+  },
+  sendBtnDisabled: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listContent: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyText: {
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.xxs,
+  },
+  emptySubtext: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  typingContainer: {
+    paddingVertical: 6,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  typingDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  typingText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+  },
+  errorTitle: {
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
+    marginTop: SPACING.md,
+  },
+  errorSubtitle: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
+    maxWidth: 260,
+  },
+  errorBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: SPACING.lg,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.sm,
+  },
+  errorBtnText: {
+    ...TYPOGRAPHY.button,
+    color: colors.textOnPrimary,
+  },
+});
 
 export default ChatScreen;
