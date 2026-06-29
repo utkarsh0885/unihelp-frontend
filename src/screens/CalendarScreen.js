@@ -1,8 +1,8 @@
 /**
- * CalendarScreen – Campus Events Tracker
+ * CalendarScreen.js
  * ─────────────────────────────────────────────
- * Interactive monthly calendar with date-specific
- * event lists. Uses react-native-calendars.
+ * Official University Academic Planner & Agenda.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -13,27 +13,29 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
+  Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
-import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import ResponsiveContainer from '../components/ResponsiveContainer';
 
-const { width } = Dimensions.get('window');
-
-// Persistent events managed via DataContext 🏛️
+// Design System Tokens
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const CalendarScreen = ({ navigation }) => {
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const { events } = useData();
-  const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
+  
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
-  const [selectedDate, setSelectedDate] = useState('2026-04-18');
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const [selectedDate, setSelectedDate] = useState(todayStr || '2026-04-18');
   const [contentAnim] = useState(new Animated.Value(0));
 
   // ── Animation Effect on Date Change ──
@@ -45,35 +47,32 @@ const CalendarScreen = ({ navigation }) => {
       friction: 10,
       useNativeDriver: true,
     }).start();
-  }, [selectedDate]);
+  }, [selectedDate, contentAnim]);
 
   const markedDates = useMemo(() => {
     const marks = {};
     const today = new Date().toISOString().split('T')[0];
     
-    // Add multi-dots for events from global state
     events.forEach(event => {
       const date = event.date;
       if (!marks[date]) marks[date] = { dots: [] };
       marks[date].dots.push({
         key: event.id,
-        color: date === selectedDate ? '#FFFFFF' : event.color,
+        color: date === selectedDate ? '#FFFFFF' : (event.color || colors.primary),
         selectedDotColor: '#FFFFFF'
       });
     });
 
-    // Add today styling
     marks[today] = { ...marks[today], today: true };
 
-      // Add selection styling
-      marks[selectedDate] = {
-        ...marks[selectedDate],
-        selected: true,
-        selectedColor: colors.primary,
-        selectedTextColor: '#FFFFFF',
-      };
-      return marks;
-    }, [selectedDate, events, colors]);
+    marks[selectedDate] = {
+      ...marks[selectedDate],
+      selected: true,
+      selectedColor: colors.primary,
+      selectedTextColor: '#FFFFFF',
+    };
+    return marks;
+  }, [selectedDate, events, colors]);
 
   const currentEvents = useMemo(() => 
     events.filter(e => e.date === selectedDate),
@@ -81,207 +80,333 @@ const CalendarScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
-      <ScrollView stickyHeaderIndices={[0]} showsVerticalScrollIndicator={false}>
-      <StatusBar style="light" />
-      <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
-            style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Campus Calendar</Text>
-          <View style={{ width: 38 }} />
-        </LinearGradient>
+    <View style={styles.screen}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
+      
+      {/* Header Bar */}
+      <View style={styles.appBar}>
+        <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.appBarTitle}>Academic Planner</Text>
+        <View style={{ width: SIZES.layout.minTouchTarget }} />
       </View>
 
-        {/* Calendar Section */}
-        <View style={styles.calendarCard}>
-          <Calendar
-            current={selectedDate}
-            onDayPress={day => setSelectedDate(day.dateString)}
-            markedDates={markedDates}
-            markingType={'multi-dot'}
-            theme={{
-              backgroundColor: colors.surface,
-              calendarBackground: colors.surface,
-              textSectionTitleColor: colors.textTertiary,
-              selectedDayBackgroundColor: colors.primary,
-              selectedDayTextColor: '#FFFFFF',
-              todayTextColor: colors.accent,
-              dayTextColor: colors.textPrimary,
-              textDisabledColor: colors.borderLight,
-              dotColor: colors.accent,
-              selectedDotColor: '#FFFFFF',
-              arrowColor: colors.primary,
-              disabledArrowColor: colors.borderLight,
-              monthTextColor: colors.primary,
-              indicatorColor: colors.primary,
-              textDayFontWeight: '500',
-              textMonthFontWeight: '900',
-              textDayHeaderFontWeight: '700',
-              textDayFontSize: 15,
-              textMonthFontSize: 20,
-              textDayHeaderFontSize: 12,
-              'stylesheet.calendar.header': {
-                dayHeader: {
-                  marginTop: 8,
-                  marginBottom: 8,
-                  width: 32,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: colors.textTertiary,
-                  textTransform: 'uppercase',
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+        <ResponsiveContainer maxWidth={680} withCardStyle={false}>
+          {/* Calendar Card */}
+          <View style={styles.calendarCard}>
+            <Calendar
+              current={selectedDate}
+              onDayPress={day => setSelectedDate(day.dateString)}
+              markedDates={markedDates}
+              markingType={'multi-dot'}
+              theme={{
+                backgroundColor: colors.surface,
+                calendarBackground: colors.surface,
+                textSectionTitleColor: colors.textMuted,
+                selectedDayBackgroundColor: colors.primary,
+                selectedDayTextColor: '#FFFFFF',
+                todayTextColor: colors.accent,
+                dayTextColor: colors.textPrimary,
+                textDisabledColor: colors.textDisabled,
+                dotColor: colors.primary,
+                selectedDotColor: '#FFFFFF',
+                arrowColor: colors.primary,
+                disabledArrowColor: colors.textDisabled,
+                monthTextColor: colors.textPrimary,
+                indicatorColor: colors.primary,
+                textDayFontWeight: '600',
+                textMonthFontWeight: '800',
+                textDayHeaderFontWeight: '700',
+                textDayFontSize: 15,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 12,
+                'stylesheet.calendar.header': {
+                  dayHeader: {
+                    marginTop: 8,
+                    marginBottom: 8,
+                    width: 32,
+                    textAlign: 'center',
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: colors.textMuted,
+                    textTransform: 'uppercase',
+                  }
                 }
-              }
-            }}
-          />
-        </View>
-        {/* Events List Section */}
-        <View style={styles.eventsContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Events</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{currentEvents.length} Tasks</Text>
-            </View>
+              }}
+            />
           </View>
 
-        <Animated.View style={{ 
-          opacity: contentAnim,
-          transform: [
-            { translateY: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
-            { scale: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }) }
-          ]
-        }}>
-            {currentEvents.length > 0 ? (
-              currentEvents.map(item => (
-                <TouchableOpacity key={item.id} style={styles.eventCard} activeOpacity={0.8}>
-                  <View style={[styles.eventIndicator, { backgroundColor: item.color }]} />
-                  <View style={styles.eventDetails}>
-                    <View style={styles.eventHeader}>
-                      <Text style={styles.eventTitle}>{item.title}</Text>
-                      <View style={[styles.categoryPill, { backgroundColor: item.color + '10' }]}>
-                        <Text style={[styles.categoryText, { color: item.color }]}>{item.category}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.eventInfoRow}>
-                      <View style={styles.infoItem}>
-                        <Ionicons name="time-outline" size={14} color="#6B7280" />
-                        <Text style={styles.infoText}>{item.time}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="calendar-clear-outline" size={40} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>Free day! 🕊️</Text>
-                <Text style={styles.emptySubtitle}>No events scheduled for this day. Perfect time for some self-study!</Text>
-                <TouchableOpacity style={styles.suggestBtn} activeOpacity={0.8}>
-                  <Text style={styles.suggestBtnText}>Host a Global Event</Text>
-                </TouchableOpacity>
+          {/* Agenda Section */}
+          <View style={styles.agendaContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Agenda · {selectedDate}</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{currentEvents.length} {currentEvents.length === 1 ? 'Item' : 'Items'}</Text>
               </View>
-            )}
-          </Animated.View>
-        </View>
+            </View>
+
+            <Animated.View style={{ 
+              opacity: contentAnim,
+              transform: [
+                { translateY: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [15, 0] }) },
+              ]
+            }}>
+              {currentEvents.length > 0 ? (
+                currentEvents.map(item => (
+                  <Pressable key={item.id} style={({ pressed }) => [styles.agendaCard, pressed && { opacity: 0.85 }]}>
+                    <View style={[styles.agendaIndicator, { backgroundColor: item.color || colors.primary }]} />
+                    
+                    <View style={styles.agendaDetails}>
+                      <View style={styles.agendaHeaderRow}>
+                        <Text style={styles.agendaTitle}>{item.title}</Text>
+                        <View style={[styles.categoryPill, { backgroundColor: (item.color || colors.primary) + '15' }]}>
+                          <Text style={[styles.categoryText, { color: item.color || colors.primary }]}>{item.category || 'Event'}</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.agendaMetaRow}>
+                        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                        <Text style={styles.agendaMetaText}>{item.time || 'All Day'}</Text>
+                      </View>
+                      
+                      {item.description ? (
+                        <Text style={styles.agendaDesc} numberOfLines={2}>{item.description}</Text>
+                      ) : null}
+                    </View>
+                  </Pressable>
+                ))
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="calendar-outline" size={36} color={colors.primary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Clear Schedule</Text>
+                  <Text style={styles.emptySubtitle}>No academic deadlines or campus events scheduled for this day.</Text>
+                  <Pressable 
+                    style={({ pressed }) => [styles.suggestBtn, pressed && { opacity: 0.8 }]}
+                    onPress={() => navigation.navigate('CreateEvent', { date: selectedDate })}
+                  >
+                    <Ionicons name="add" size={16} color={colors.primary} />
+                    <Text style={styles.suggestBtnText}>Add Personal Event</Text>
+                  </Pressable>
+                </View>
+              )}
+            </Animated.View>
+          </View>
+        </ResponsiveContainer>
       </ScrollView>
 
       {/* Floating Action Button (+) */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        activeOpacity={0.8}
+      <Pressable 
+        style={({ pressed }) => [styles.fab, pressed && { opacity: 0.9, transform: [{ scale: 0.96 }] }]}
         onPress={() => navigation.navigate('CreateEvent', { date: selectedDate })}
       >
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#2A2A2A'] : ['#1E3A8A', '#2563EB']}
-          style={styles.fabGradient}
-        >
-          <Ionicons name="add" size={32} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </SafeAreaView>
+        <Ionicons name="add" size={28} color={colors.textOnPrimary} />
+      </Pressable>
+    </View>
   );
 };
 
-const createStyles = (colors, shadows, isDark) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+  appBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 56,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
+  backBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  appBarTitle: {
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
+  },
+  scroll: {
+    flex: 1,
+  },
   calendarCard: {
-    backgroundColor: colors.surface, margin: SIZES.md, borderRadius: 24, padding: SIZES.xs,
-    ...shadows.medium, borderColor: colors.borderLight, borderWidth: 1,
+    backgroundColor: colors.surface,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
   },
-  eventsContainer: { paddingHorizontal: SIZES.md, paddingBottom: 60 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SIZES.md, marginTop: SIZES.sm },
-  sectionTitle: { fontSize: 13, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2 },
-  badge: { backgroundColor: colors.primaryGlow, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { color: colors.primary, fontSize: 11, fontWeight: '900' },
-  eventCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 20, padding: SIZES.md,
-    marginBottom: SIZES.sm + 4, ...shadows.small, borderWidth: 1, borderColor: colors.borderLight,
+  agendaContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.massive,
   },
-  eventIndicator: { width: 5, height: 44, borderRadius: 3, marginRight: SIZES.md },
-  eventDetails: { flex: 1 },
-  eventHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  eventTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, flex: 1, marginRight: 8 },
-  eventDesc: { fontSize: 13, color: colors.textTertiary, marginTop: 4, lineHeight: 18 },
-  categoryPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  categoryText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  eventInfoRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
-  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  infoText: { fontSize: 12, color: colors.textTertiary, fontWeight: '700' },
-  
-  // Empty State Styles
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  sectionTitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  countBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.pill,
+  },
+  countText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.primary,
+  },
+  agendaCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.large,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.xs,
+  },
+  agendaIndicator: {
+    width: 4,
+    height: '100%',
+    minHeight: 40,
+    borderRadius: RADIUS.pill,
+    marginRight: SPACING.md,
+  },
+  agendaDetails: {
+    flex: 1,
+  },
+  agendaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 8,
+  },
+  agendaTitle: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+  },
+  categoryText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: FONT_WEIGHTS.bold,
+    textTransform: 'uppercase',
+  },
+  agendaMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  agendaMetaText: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
+  agendaDesc: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   emptyContainer: {
-    padding: 60, alignItems: 'center', justifyContent: 'center', marginTop: SIZES.md,
-    backgroundColor: colors.surfaceLight, borderRadius: 24, borderWidth: 1, borderColor: colors.borderLight, borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xxxl,
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
   },
   emptyIconCircle: {
-    width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
-    borderWidth: 1, borderColor: colors.borderLight,
-  },
-  emptyTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
-  emptySubtitle: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', lineHeight: 20, maxWidth: 220 },
-  suggestBtn: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.borderSubtle,
   },
-  suggestBtnText: { fontSize: 14, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  // Floating Action Button
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.xxs,
+  },
+  emptySubtitle: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 260,
+  },
+  suggestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.lg,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  suggestBtnText: {
+    ...TYPOGRAPHY.button,
+    color: colors.primary,
+  },
   fab: {
-    position: 'absolute', bottom: 24, right: 24,
-    width: 64, height: 64, borderRadius: 32,
-    ...shadows.medium, elevation: 8,
-  },
-  fabGradient: {
-    width: '100%', height: '100%', borderRadius: 32,
-    alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.md,
   },
 });
 

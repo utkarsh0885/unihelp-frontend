@@ -1,8 +1,8 @@
 /**
- * ShareNotesScreen – Persistent + Theme-Aware
+ * ShareNotesScreen.js
  * ─────────────────────────────────────────────
- * Upload and browse shared notes.
- * Uses DataContext for persistent data.
+ * Official University Academic Study Repository.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -18,32 +18,45 @@ import {
   ActivityIndicator,
   Linking,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES } from '../constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as DocumentPicker from 'expo-document-picker';
 import AnimatedPostCard from '../components/AnimatedPostCard';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
+// Design System Tokens
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
+
 const ShareNotesScreen = ({ navigation }) => {
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { showToast } = useToast();
+  
   const [deletingId, setDeletingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
+  const [showUpload, setShowUpload] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteSubject, setNoteSubject] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [posting, setPosting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const { 
     notes, notesLoading, notesHasMore, notesLoadingMore, loadMoreNotes, refreshData, posts,
     addNote, downloadNote, deleteNote,
     toggleLike, toggleSave, votePoll, userId 
   } = useData();
-  const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
+
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   const handleGoBack = () => {
     if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
@@ -113,13 +126,6 @@ const ShareNotesScreen = ({ navigation }) => {
     });
   }, [mergedData, selectedSubject, searchQuery]);
 
-  const [showUpload, setShowUpload] = useState(false);
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteSubject, setNoteSubject] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [posting, setPosting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -131,7 +137,7 @@ const ShareNotesScreen = ({ navigation }) => {
         const asset = result.assets[0];
         const isPdf = asset.mimeType === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
         if (!isPdf) {
-          Alert.alert('Invalid File', 'Only PDF files can be uploaded.');
+          Alert.alert('Invalid Document', 'Only official academic PDF files can be uploaded.');
           return;
         }
         setSelectedFile({
@@ -142,17 +148,17 @@ const ShareNotesScreen = ({ navigation }) => {
       }
     } catch (e) {
       console.warn('[ShareNotes] DocumentPicker error:', e);
-      Alert.alert('Error', 'Failed to pick document.');
+      Alert.alert('Error', 'Failed to select study document.');
     }
   };
 
   const handleUpload = useCallback(async () => {
     if (!noteTitle.trim() || !noteSubject.trim()) {
-      Alert.alert('Missing Info', 'Please enter both title and subject.');
+      Alert.alert('Missing Metadata', 'Please enter both document title and academic subject code.');
       return;
     }
     if (!selectedFile) {
-      Alert.alert('No File Selected', 'Please select a PDF file to upload.');
+      Alert.alert('No Document Selected', 'Please select a PDF study guide to upload.');
       return;
     }
     setPosting(true);
@@ -172,12 +178,12 @@ const ShareNotesScreen = ({ navigation }) => {
       setNoteSubject('');
       setSelectedFile(null);
       setShowUpload(false);
-      Alert.alert('Uploaded! 📚', 'Your notes are now available for the community.');
+      Alert.alert('Notes Published! 📚', 'Your study material is now accessible to peers across campus.');
     } catch (e) {
       console.error('[ShareNotes] Upload error:', e);
       Alert.alert(
         'Upload Failed', 
-        e.message || 'An error occurred during note upload. Please try again.',
+        e.message || 'An error occurred while publishing notes. Please try again.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Retry', onPress: () => handleUpload() }
@@ -196,29 +202,26 @@ const ShareNotesScreen = ({ navigation }) => {
         window.open(note.fileUrl, '_blank');
       } else {
         Linking.openURL(note.fileUrl).catch(err => {
-          Alert.alert('Error', 'Could not open PDF URL.');
+          Alert.alert('Error', 'Could not open study document URL.');
         });
       }
     } else {
-      Alert.alert('Unavailable', 'No file URL exists for this note.');
+      Alert.alert('Unavailable', 'No study document file exists for this record.');
     }
   }, [downloadNote]);
 
   const handleDeleteNote = useCallback((note) => {
-    console.log('[FLOW 2] handleDeleteNote entered | note.id:', note?.id, '| typeof deleteNote:', typeof deleteNote);
-
     const performDeletion = async () => {
       setDeletingId(note.id);
       try {
-        console.log('[FLOW 4] Calling deleteNote()');
         await deleteNote(note.id);
-        showToast('Note deleted successfully', 'success');
+        showToast('Study document removed successfully', 'success');
       } catch (err) {
         console.error('[FLOW Error] handleDeleteNote error:', err);
         if (Platform.OS === 'web') {
-          alert(err.message || 'Failed to delete note');
+          alert(err.message || 'Failed to remove note');
         } else {
-          Alert.alert('Error', err.message || 'Failed to delete note');
+          Alert.alert('Error', err.message || 'Failed to remove note');
         }
       } finally {
         setDeletingId(null);
@@ -226,22 +229,20 @@ const ShareNotesScreen = ({ navigation }) => {
     };
 
     if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`Are you sure you want to delete "${note.title}"?`);
+      const confirmed = window.confirm(`Are you sure you want to remove "${note.title}"?`);
       if (confirmed) {
-        console.log('[FLOW 3] window.confirm returned true');
         performDeletion();
       }
     } else {
       Alert.alert(
-        'Delete Note',
-        `Are you sure you want to delete "${note.title}"?`,
+        'Remove Study Material',
+        `Are you sure you want to permanently delete "${note.title}"?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
-              console.log('[FLOW 3] Alert Delete button pressed');
               await performDeletion();
             },
           },
@@ -275,63 +276,58 @@ const ShareNotesScreen = ({ navigation }) => {
 
     return (
       <View style={styles.noteCard}>
-        <View style={styles.noteIcon}>
-          <Ionicons name="document-text" size={22} color={colors.accentCyan} />
+        <View style={styles.noteIconBox}>
+          <Ionicons name="document-text" size={24} color={colors.primary} />
         </View>
+        
         <View style={styles.noteInfo}>
-          <Text style={styles.noteTitle}>{item.title}</Text>
-          <View style={styles.noteMeta}>
+          <Text style={styles.noteTitle} numberOfLines={2}>{item.title}</Text>
+          
+          <View style={styles.noteMetaRow}>
             <View style={styles.subjectBadge}>
               <Text style={styles.subjectText}>{item.subject}</Text>
             </View>
-            <Text style={styles.noteAuthor}>by {item.uploadedBy || 'Anonymous'}</Text>
-            {fileSizeMb && (
-              <>
-                <Text style={styles.noteDot}>·</Text>
-                <Text style={styles.noteTime}>{fileSizeMb} MB</Text>
-              </>
-            )}
-            {formattedDate ? (
-              <>
-                <Text style={styles.noteDot}>·</Text>
-                <Text style={styles.noteTime}>{formattedDate}</Text>
-              </>
-            ) : null}
-            <Text style={styles.noteDot}>·</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Ionicons name="download-outline" size={12} color={colors.primary} />
-              <Text style={[styles.noteTime, { color: colors.primary, fontWeight: '700' }]}>
-                {item.downloads || 0} {item.downloads === 1 ? 'download' : 'downloads'}
-              </Text>
+            <Text style={styles.noteAuthor}>by {item.uploadedBy || 'Anonymous Student'}</Text>
+          </View>
+
+          <View style={styles.noteDetailsRow}>
+            {fileSizeMb ? <Text style={styles.noteTime}>{fileSizeMb} MB</Text> : null}
+            {fileSizeMb && formattedDate ? <Text style={styles.noteDot}>·</Text> : null}
+            {formattedDate ? <Text style={styles.noteTime}>{formattedDate}</Text> : null}
+            {(fileSizeMb || formattedDate) ? <Text style={styles.noteDot}>·</Text> : null}
+            <View style={styles.downloadsWrap}>
+              <Ionicons name="download-outline" size={13} color={colors.primary} />
+              <Text style={styles.downloadsText}>{item.downloads || 0} downloads</Text>
             </View>
           </View>
         </View>
+
         <View style={styles.noteActions}>
-          <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)} activeOpacity={0.7}>
+          <Pressable 
+            style={({ pressed }) => [styles.downloadBtn, pressed && { opacity: 0.8 }]} 
+            onPress={() => handleDownload(item)}
+          >
             <Ionicons name="eye-outline" size={16} color={colors.primary} />
-            <Text style={styles.downloadCount}>View ({item.downloads || 0})</Text>
-          </TouchableOpacity>
+            <Text style={styles.downloadBtnText}>View</Text>
+          </Pressable>
+
           {(() => {
             const isAdmin = user && (user.role === 'admin' || user.isAdmin === true);
             const isOwner = userId && item.userId && String(userId) === String(item.userId);
             if (isAdmin || isOwner) {
               const isDeleting = deletingId === item.id;
               return (
-                <TouchableOpacity
-                  style={styles.deleteNoteBtn}
-                  onPress={() => {
-                    console.log('[FLOW 1] Trash button pressed');
-                    handleDeleteNote(item);
-                  }}
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
+                  onPress={() => handleDeleteNote(item)}
                   disabled={isDeleting}
                 >
                   {isDeleting ? (
-                    <ActivityIndicator size="small" color="#EF4444" />
+                    <ActivityIndicator size="small" color={colors.danger} />
                   ) : (
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               );
             }
             return null;
@@ -343,386 +339,530 @@ const ShareNotesScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
-      <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
+      
+      {/* Header Bar */}
+      <View style={styles.appBar}>
+        <Pressable onPress={handleGoBack} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.appBarTitle}>Academic Study Repository</Text>
+        <Pressable 
+          onPress={() => setShowUpload(!showUpload)} 
+          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]}
         >
-          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Share Notes</Text>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.7} onPress={() => setShowUpload(!showUpload)}>
-            <Ionicons name={showUpload ? 'close' : 'add'} size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </LinearGradient>
+          <Ionicons name={showUpload ? 'close' : 'add'} size={24} color={colors.textOnPrimary} />
+        </Pressable>
       </View>
       
-      <ResponsiveContainer maxWidth={700} withCardStyle={false}>
-      {showUpload && (
-        <View style={styles.uploadCard}>
-          <Text style={styles.uploadTitle}>Upload PDF Notes</Text>
-          <TextInput 
-            style={[styles.uploadInput, { color: colors.textPrimary }]} 
-            placeholder="Note title (e.g. Linked Lists)" 
-            placeholderTextColor={colors.textTertiary} 
-            value={noteTitle} 
-            onChangeText={setNoteTitle} 
-            editable={!posting}
-          />
-          <TextInput 
-            style={[styles.uploadInput, { color: colors.textPrimary }]} 
-            placeholder="Subject code (e.g. CS201)" 
-            placeholderTextColor={colors.textTertiary} 
-            value={noteSubject} 
-            onChangeText={setNoteSubject} 
-            autoCapitalize="characters" 
-            editable={!posting}
-          />
-
-          <TouchableOpacity 
-            style={[styles.pdfSelectBtn, selectedFile && styles.pdfSelectBtnActive]} 
-            onPress={pickDocument} 
-            disabled={posting} 
-            activeOpacity={0.7}
-          >
-            <Ionicons 
-              name="document-text-outline" 
-              size={20} 
-              color={selectedFile ? colors.accentCyan : colors.primary} 
+      <ResponsiveContainer maxWidth={720} withCardStyle={false}>
+        {/* Upload Form Card */}
+        {showUpload && (
+          <View style={styles.uploadCard}>
+            <Text style={styles.uploadTitle}>Contribute PDF Study Guide</Text>
+            <TextInput 
+              style={styles.uploadInput} 
+              placeholder="Document title (e.g. Data Structures Lecture 4)" 
+              placeholderTextColor={colors.textDisabled} 
+              value={noteTitle} 
+              onChangeText={setNoteTitle} 
+              editable={!posting}
             />
-            <Text style={[styles.pdfSelectText, { color: colors.textPrimary }]} numberOfLines={1}>
-              {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` : 'Choose PDF File'}
-            </Text>
-            {selectedFile && !posting && (
-              <TouchableOpacity onPress={() => setSelectedFile(null)}>
-                <Ionicons name="close-circle" size={18} color={colors.accent} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+            <TextInput 
+              style={styles.uploadInput} 
+              placeholder="Course subject code (e.g. CS201)" 
+              placeholderTextColor={colors.textDisabled} 
+              value={noteSubject} 
+              onChangeText={setNoteSubject} 
+              autoCapitalize="characters" 
+              editable={!posting}
+            />
 
-          {posting && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
-              </View>
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                Uploading: {uploadProgress}%
+            <Pressable 
+              style={({ pressed }) => [
+                styles.pdfSelectBtn, 
+                selectedFile && styles.pdfSelectBtnActive,
+                pressed && { opacity: 0.85 }
+              ]} 
+              onPress={pickDocument} 
+              disabled={posting}
+            >
+              <Ionicons 
+                name="document-text-outline" 
+                size={22} 
+                color={selectedFile ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={styles.pdfSelectText} numberOfLines={1}>
+                {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` : 'Choose PDF Document File'}
               </Text>
-            </View>
-          )}
+              {selectedFile && !posting && (
+                <Pressable onPress={() => setSelectedFile(null)}>
+                  <Ionicons name="close-circle" size={20} color={colors.danger} />
+                </Pressable>
+              )}
+            </Pressable>
 
-          <TouchableOpacity 
-            style={[styles.uploadBtn, (posting || !selectedFile) && { opacity: 0.7 }]} 
-            onPress={handleUpload} 
-            activeOpacity={0.8} 
-            disabled={posting || !selectedFile}
-          >
-            {posting ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : (
-              <>
-                <Ionicons name="cloud-upload-outline" size={18} color="#000" />
-                <Text style={styles.uploadBtnText}>Upload PDF</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Premium Search Bar */}
-      <View style={styles.searchBarContainer}>
-        <Ionicons name="search-outline" size={20} color={colors.textTertiary} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
-          placeholder="Search title, subject, or uploader..."
-          placeholderTextColor={colors.textTertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn} activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Horizontally Scrollable Subject Chips */}
-      {uniqueSubjects.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsScrollContainer}
-          style={styles.chipsScrollView}
-        >
-          {uniqueSubjects.map((subj) => {
-            const isActive = selectedSubject === subj;
-            return (
-              <TouchableOpacity
-                key={subj}
-                style={[
-                  styles.chipBtn,
-                  isActive ? styles.chipBtnActive : null
-                ]}
-                onPress={() => setSelectedSubject(subj)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    isActive ? styles.chipTextActive : { color: colors.textSecondary }
-                  ]}
-                >
-                  {subj}
+            {posting && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.primary }]} />
+                </View>
+                <Text style={styles.progressText}>
+                  Uploading study material: {uploadProgress}%
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
+              </View>
+            )}
 
-      {notesLoading ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+            <Pressable 
+              style={({ pressed }) => [
+                styles.uploadBtn, 
+                (posting || !selectedFile) && styles.uploadBtnDisabled,
+                pressed && !(posting || !selectedFile) && { opacity: 0.85 }
+              ]} 
+              onPress={handleUpload} 
+              disabled={posting || !selectedFile}
+            >
+              {posting ? (
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={18} color={colors.textOnPrimary} />
+                  <Text style={styles.uploadBtnText}>Publish Study Guide</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        )}
+
+        {/* Search Bar */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search study titles, subjects, or student authors..."
+            placeholderTextColor={colors.textDisabled}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
-      ) : (
-        <FlatList
-          data={filteredData}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          onEndReached={() => {
-            if (notesHasMore && !notesLoadingMore && !notesLoading) {
-              loadMoreNotes();
+
+        {/* Subject Filters */}
+        {uniqueSubjects.length > 1 && (
+          <View style={styles.chipsWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsScroll}
+            >
+              {uniqueSubjects.map((subj) => {
+                const isActive = selectedSubject === subj;
+                return (
+                  <Pressable
+                    key={subj}
+                    style={({ pressed }) => [
+                      styles.chipBtn,
+                      isActive && styles.chipBtnActive,
+                      pressed && { opacity: 0.8 }
+                    ]}
+                    onPress={() => setSelectedSubject(subj)}
+                  >
+                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                      {subj}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {notesLoading ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredData}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            onEndReached={() => {
+              if (notesHasMore && !notesLoadingMore && !notesLoading) {
+                loadMoreNotes();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            refreshing={notesLoading}
+            onRefresh={refreshData}
+            ListFooterComponent={
+              notesLoadingMore ? (
+                <View style={{ paddingVertical: SPACING.md, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null
             }
-          }}
-          onEndReachedThreshold={0.5}
-          refreshing={notesLoading}
-          onRefresh={refreshData}
-          ListFooterComponent={
-            notesLoadingMore ? (
-              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color={colors.primary} />
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="document-text-outline" size={36} color={colors.primary} />
+                </View>
+                <Text style={styles.emptyTitle}>
+                  {searchQuery.trim() !== '' || selectedSubject !== 'All' ? 'No Matching Notes' : 'No Study Guides Yet'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery.trim() !== '' || selectedSubject !== 'All' 
+                    ? 'Try adjusting your subject filters or broadening your search terms.'
+                    : 'Be the first student to publish notes and help your peers master course material!'}
+                </Text>
               </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="document-text-outline" size={40} color={colors.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {searchQuery.trim() !== '' || selectedSubject !== 'All' ? 'No matches found 🔍' : 'No notes yet 📝'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery.trim() !== '' || selectedSubject !== 'All' 
-                  ? 'Try broadening your search query or choosing another subject filter.'
-                  : 'Be the first to share PDF study resources with your peers!'}
-              </Text>
-            </View>
-          }
-        />
-      )}
+            }
+          />
+        )}
       </ResponsiveContainer>
     </View>
   );
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
-  searchBarContainer: {
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  appBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 56,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
+  backBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  appBarTitle: {
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
+  },
+  addBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.xs,
+  },
+  uploadCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  uploadTitle: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  uploadInput: {
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget + 6,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    marginBottom: SPACING.sm,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  pdfSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: RADIUS.medium,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget + 6,
+    marginBottom: SPACING.md,
+    gap: 12,
+  },
+  pdfSelectBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  pdfSelectText: {
+    flex: 1,
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
+  progressContainer: {
+    marginBottom: SPACING.md,
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceSubtle,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: RADIUS.pill,
+  },
+  progressText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.textSecondary,
+    fontWeight: FONT_WEIGHTS.bold,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: RADIUS.medium,
+    height: SIZES.layout.minTouchTarget + 6,
+    gap: 8,
+    ...elevation.xs,
+  },
+  uploadBtnDisabled: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  uploadBtnText: {
+    ...TYPOGRAPHY.button,
+    color: colors.textOnPrimary,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    marginHorizontal: SIZES.md,
-    marginTop: SIZES.md,
-    marginBottom: SIZES.sm,
-    paddingHorizontal: 12,
-    height: 48,
+    borderRadius: RADIUS.medium,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget + 4,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
+    borderColor: colors.border,
+    ...elevation.xs,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: SPACING.xs,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
-    paddingVertical: 8,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    paddingVertical: SPACING.sm,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
-  clearSearchBtn: {
-    padding: 4,
+  clearBtn: {
+    padding: SPACING.xxs,
   },
-  chipsScrollView: {
-    maxHeight: 50,
-    marginHorizontal: SIZES.md,
-    marginBottom: SIZES.xs,
+  chipsWrap: {
+    maxHeight: 48,
+    marginBottom: SPACING.xs,
   },
-  chipsScrollContainer: {
-    paddingHorizontal: 2,
+  chipsScroll: {
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
-    gap: 8,
-    paddingBottom: 8,
+    gap: SPACING.xs,
   },
   chipBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceLight,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceSubtle,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.borderSubtle,
   },
   chipBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '800',
+    ...TYPOGRAPHY.caption,
+    color: colors.textSecondary,
+    fontWeight: FONT_WEIGHTS.bold,
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
-
-  screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+  list: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxxl,
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  addBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  list: { padding: SIZES.md, paddingBottom: SIZES.xxxl },
-  uploadCard: {
-    margin: SIZES.md, backgroundColor: colors.surface, borderRadius: 24,
-    padding: SIZES.lg, borderWidth: 1, borderColor: colors.border, ...shadows.large
-  },
-  uploadTitle: { fontSize: 13, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: SIZES.md },
-  uploadInput: {
-    backgroundColor: colors.surfaceLight, borderRadius: 14, borderWidth: 1, borderColor: colors.borderLight,
-    paddingHorizontal: SIZES.md, height: 50, fontSize: 16, color: colors.textPrimary, marginBottom: SIZES.sm,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
-  },
-  uploadBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.accentCyan, borderRadius: 14, paddingVertical: 14,
-    gap: 8, marginTop: SIZES.xs, ...shadows.glow
-  },
-  uploadBtnText: { color: '#000', fontWeight: '900', fontSize: 15, textTransform: 'uppercase', letterSpacing: 1 },
   noteCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 20, padding: SIZES.md,
-    marginBottom: SIZES.sm + 2, borderWidth: 1, borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  noteIcon: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accentCyan + '15',
-    alignItems: 'center', justifyContent: 'center', marginRight: SIZES.md
-  },
-  noteInfo: { flex: 1 },
-  noteTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  noteMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap', gap: 6 },
-  subjectBadge: { backgroundColor: colors.primaryGlow, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  subjectText: { fontSize: 10, fontWeight: '900', color: colors.primary },
-  noteAuthor: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
-  noteDot: { fontSize: 12, color: colors.textTertiary },
-  noteTime: { fontSize: 12, color: colors.textTertiary },
-  noteActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  downloadBtn: {
-    flexDirection: 'row', gap: 4,
-    alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 10, minWidth: 64, height: 44, borderRadius: 12, backgroundColor: colors.surfaceLight,
-    borderWidth: 1, borderColor: colors.borderLight,
-  },
-  downloadCount: { fontSize: 11, color: colors.primary, fontWeight: '900' },
-  deleteNoteBtn: {
-    alignItems: 'center', justifyContent: 'center',
-    width: 44, height: 44, borderRadius: 12, backgroundColor: '#EF444415',
-    borderWidth: 1, borderColor: '#EF444430',
-  },
-
-  pdfSelectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.large,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 50,
-    marginBottom: SIZES.sm,
-    gap: 12,
+    borderColor: colors.border,
+    ...elevation.xs,
   },
-  pdfSelectBtnActive: {
-    borderColor: colors.accentCyan,
-    backgroundColor: colors.accentCyan + '10',
-  },
-  pdfSelectText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  progressContainer: {
-    marginBottom: SIZES.md,
-    marginTop: SIZES.xs,
-  },
-  progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceLight,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  // Empty State Styles
-  emptyContainer: {
-    padding: 60,
+  noteIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SIZES.xxxl,
+    marginRight: SPACING.md,
+  },
+  noteInfo: {
+    flex: 1,
+  },
+  noteTitle: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
+  },
+  noteMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  subjectBadge: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  subjectText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.primary,
+  },
+  noteAuthor: {
+    ...TYPOGRAPHY.caption,
+    color: colors.textSecondary,
+  },
+  noteDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  noteTime: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  noteDot: {
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
+  },
+  downloadsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  downloadsText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
+  noteActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: SPACING.sm,
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  downloadBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
+  deleteBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.dangerLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.danger + '30',
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.massive,
+    paddingHorizontal: SPACING.xl,
   },
   emptyIconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.surfaceLight,
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h3,
     color: colors.textPrimary,
-    marginBottom: 8,
     textAlign: 'center',
+    marginBottom: SPACING.xxs,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: colors.textTertiary,
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
 });
 

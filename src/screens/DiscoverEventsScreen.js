@@ -1,38 +1,43 @@
 /**
- * DiscoverEventsScreen – Theme-Aware
+ * DiscoverEventsScreen.js
  * ─────────────────────────────────────────────
- * Browse campus events.
- * Fully functional with local state.
+ * Official University Events Portal.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Alert,
+  Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import AnimatedPostCard from '../components/AnimatedPostCard';
+import ResponsiveContainer from '../components/ResponsiveContainer';
+
+// Design System Tokens
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const DiscoverEventsScreen = ({ navigation }) => {
-  const { colors, shadows } = useTheme();
+  const { colors, isDark } = useTheme();
   const { 
-    events, posts, 
+    posts, 
     toggleLike, toggleSave, votePoll, userId 
   } = useData();
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
-  const handleLike = (postId) => toggleLike(postId);
-  const handleSave = (postId) => toggleSave(postId);
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
+
+  const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
+  const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
 
   // Unified Feed: Events + Categorized Posts
   const mergedData = useMemo(() => {
@@ -54,8 +59,6 @@ const DiscoverEventsScreen = ({ navigation }) => {
     });
   }, [posts]);
 
-
-
   const renderItem = useCallback(({ item, index }) => {
     if (item.isGenericPost) {
       return (
@@ -73,70 +76,228 @@ const DiscoverEventsScreen = ({ navigation }) => {
     }
 
     return (
-      <View style={styles.card}>
-        <View style={[styles.eventIconWrap, { backgroundColor: item.color + '18' }]}>
+      <Pressable 
+        style={({ pressed }) => [
+          styles.eventCard,
+          pressed && { opacity: 0.85, transform: [{ scale: 0.995 }] }
+        ]}
+        onPress={() => navigation.navigate('PostDetail', { post: item })}
+      >
+        <View style={[styles.eventIconWrap, { backgroundColor: (item.color || colors.primary) + '15' }]}>
           <Ionicons name={item.icon || 'calendar'} size={24} color={item.color || colors.primary} />
         </View>
+        
         <View style={styles.eventInfo}>
-          <Text style={styles.eventTitle}>{item.title}</Text>
-          <View style={styles.eventRow}><Ionicons name="calendar-outline" size={13} color={colors.textTertiary} /><Text style={styles.eventDetail}>{item.date} · {item.time}</Text></View>
-          <View style={styles.eventRow}><Ionicons name="location-outline" size={13} color={colors.textTertiary} /><Text style={styles.eventDetail}>{item.location}</Text></View>
-        </View>
+          <View style={styles.eventHeaderRow}>
+            <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
+            <View style={[styles.categoryBadge, { backgroundColor: (item.color || colors.primary) + '15' }]}>
+              <Text style={[styles.categoryBadgeText, { color: item.color || colors.primary }]}>Campus Event</Text>
+            </View>
+          </View>
+          
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.metaText}>{item.date || 'TBA'} · {item.time || 'Time TBA'}</Text>
+          </View>
+          
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.metaText} numberOfLines={1}>{item.location || 'Campus Main Hall'}</Text>
+          </View>
 
-      </View>
+          <View style={styles.eventFooter}>
+            <Text style={styles.organizerText}>Organized by {item.authorName || 'University Club'}</Text>
+            <View style={styles.rsvpPill}>
+              <Text style={styles.rsvpText}>View Event</Text>
+              <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+            </View>
+          </View>
+        </View>
+      </Pressable>
     );
   }, [navigation, handleLike, handleSave, votePoll, userId, styles, colors]);
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
-      <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Discover Events</Text>
-          <View style={{ width: 38 }} />
-        </LinearGradient>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
+      
+      {/* Header Bar */}
+      <View style={styles.appBar}>
+        <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.appBarTitle}>Discover Campus Events</Text>
+        <View style={{ width: SIZES.layout.minTouchTarget }} />
       </View>
-      <FlatList 
-        data={mergedData} 
-        renderItem={renderItem} 
-        keyExtractor={(item) => item.id} 
-        contentContainerStyle={styles.list} 
-        showsVerticalScrollIndicator={false} 
-      />
+
+      <ResponsiveContainer maxWidth={700} withCardStyle={false}>
+        <FlatList 
+          data={mergedData} 
+          renderItem={renderItem} 
+          keyExtractor={(item) => item.id} 
+          contentContainerStyle={styles.list} 
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="calendar-clear-outline" size={36} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>No Upcoming Events</Text>
+              <Text style={styles.emptySubtitle}>
+                There are no public campus events scheduled at this time. Check back soon or create a post to announce an activity!
+              </Text>
+            </View>
+          }
+        />
+      </ResponsiveContainer>
     </View>
   );
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  list: { padding: SIZES.md, paddingBottom: SIZES.xxxl },
-  card: { 
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: colors.surface, borderRadius: 20, padding: SIZES.md, 
-    marginBottom: SIZES.sm + 2, borderWidth: 1, borderColor: colors.borderLight,
-    ...shadows.small,
+  appBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 56,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
   },
-  eventIconWrap: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: SIZES.md },
-  eventInfo: { flex: 1 },
-  eventTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  eventDetail: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
-
+  backBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  appBarTitle: {
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
+  },
+  list: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxxl,
+  },
+  eventCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.large,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  eventIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: RADIUS.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 8,
+  },
+  eventTitle: {
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+  },
+  categoryBadgeText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: FONT_WEIGHTS.bold,
+    textTransform: 'uppercase',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  metaText: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textSecondary,
+  },
+  eventFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  organizerText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
+  },
+  rsvpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  rsvpText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.massive,
+    paddingHorizontal: SPACING.xl,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.xxs,
+  },
+  emptySubtitle: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
 });
 
 export default DiscoverEventsScreen;
