@@ -36,18 +36,23 @@ const DiscoverEventsScreen = ({ navigation }) => {
 
   // Unified Feed: Events + Categorized Posts
   const mergedData = useMemo(() => {
-    const eventPosts = posts
-      .filter(p => p.category === 'Events' || p.category === 'Calender')
-      .map(p => ({ ...p, isGenericPost: true }));
-    
-    const nativeEvents = events.map(e => ({ ...e, isGenericPost: false }));
+    const list = [];
+    posts.forEach((p) => {
+      if (p.category === 'Events' || p.category === 'Calender') {
+        const isScheduledEvent = !!(p.date || p.time || p.location);
+        list.push({
+          ...p,
+          isGenericPost: !isScheduledEvent,
+        });
+      }
+    });
 
-    return [...nativeEvents, ...eventPosts].sort((a, b) => {
+    return list.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt) : 0;
       const dateB = b.createdAt ? new Date(b.createdAt) : 0;
       return dateB - dateA;
     });
-  }, [events, posts]);
+  }, [posts]);
 
 
 

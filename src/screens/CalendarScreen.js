@@ -262,6 +262,15 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   },
   emptyTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', lineHeight: 20, maxWidth: 220 },
+  suggestBtn: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
   suggestBtnText: { fontSize: 14, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // Floating Action Button

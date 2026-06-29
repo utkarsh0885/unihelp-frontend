@@ -67,6 +67,10 @@ export const DataProvider = ({ children }) => {
 
   // ── State ──
   const [posts, setPosts] = useState([]);
+  const postsRef = useRef([]);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(null);   // tracks API error message
   const [savedPosts, setSavedPosts] = useState([]);
@@ -524,8 +528,8 @@ export const DataProvider = ({ children }) => {
     let rollbackPosts = null;
     let rollbackSaved = null;
 
-    // Find the target post in main feed
-    const targetPost = posts.find(p => (p.id || p._id) === postId);
+    // Find the target post in main feed using stable ref
+    const targetPost = postsRef.current.find(p => (p.id || p._id) === postId);
 
     setPosts(prevPosts => {
       rollbackPosts = prevPosts;
@@ -605,7 +609,7 @@ export const DataProvider = ({ children }) => {
       if (rollbackPosts) setPosts(rollbackPosts);
       if (rollbackSaved) setSavedPosts(rollbackSaved);
     }
-  }, [userId, posts]);
+  }, [userId]);
 
   const deletePost = useCallback(async (postId) => {
     await deletePostService(postId);
@@ -781,7 +785,7 @@ export const DataProvider = ({ children }) => {
     return newEvent?.id || newEvent?._id;
   }, [user, userId]);
   const reserveItem = useCallback(async (postId) => {
-    const targetPost = posts.find(p => (p.id === postId || p._id === postId));
+    const targetPost = postsRef.current.find(p => (p.id === postId || p._id === postId));
     if (targetPost && targetPost.status === 'Sold') {
       throw new Error('This item has been sold and cannot be reserved.');
     }
@@ -811,7 +815,7 @@ export const DataProvider = ({ children }) => {
       } : p));
     }
     return response;
-  }, [userId, user, posts]);
+  }, [userId, user]);
 
   const cancelReservation = useCallback(async (postId) => {
     const payload = { status: 'Available' };

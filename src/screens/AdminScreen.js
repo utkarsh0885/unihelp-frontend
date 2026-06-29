@@ -52,13 +52,17 @@ const AdminScreen = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleAction = async (postId, action) => {
+  const handleAction = async (targetId, action) => {
     try {
       if (action === 'delete') {
-        await apiClient.delete(`/api/admin/posts/${postId}`);
-        setFlaggedPosts(prev => prev.filter(p => p._id !== postId));
+        await apiClient.delete(`/api/admin/posts/${targetId}`);
+        setFlaggedPosts(prev => prev.filter(p => p.targetId?._id !== targetId && p.targetId?.id !== targetId));
+      } else if (action === 'dismiss') {
+        await apiClient.put(`/api/admin/reports/${targetId}/dismiss`);
+        setFlaggedPosts(prev => prev.filter(p => p._id !== targetId && p.id !== targetId));
       }
     } catch (err) {
+      console.error('[AdminScreen] Action failed:', err);
       Alert.alert('Error', 'Action failed');
     }
   };
@@ -82,11 +86,14 @@ const AdminScreen = () => {
         <View style={styles.flaggedActions}>
           <TouchableOpacity 
             style={[styles.actionBtn, { backgroundColor: '#EF444420' }]} 
-            onPress={() => handleAction(post._id, 'delete')}
+            onPress={() => handleAction(post._id || post.id, 'delete')}
           >
             <Text style={{ color: '#EF4444', fontWeight: '700' }}>Delete Post</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primaryLight }]}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: colors.primaryLight }]}
+            onPress={() => handleAction(item._id || item.id, 'dismiss')}
+          >
             <Text style={{ color: colors.primary, fontWeight: '700' }}>Dismiss</Text>
           </TouchableOpacity>
         </View>
