@@ -1,13 +1,9 @@
 /**
- * LoginScreen — FAANG-grade redesign
- * ─────────────────────────────────────────────
- * • Animated mesh-gradient background (3 decorative blobs)
- * • Glass card with white surface + strong shadow
- * • Focus-ring inputs (border pulses on focus)
- * • Blue → Indigo gradient CTA with spring press feedback
- * • Clean Google button (white, bordered, centered icon)
- * • Inline validation with smooth error reveal
- * • Fully responsive (compact on phone, card-centered on tablet/web)
+ * LoginScreen – Premium Design System
+ * ─────────────────────────────────────
+ * Clean, minimal, and professional authentication.
+ * Uses Design System tokens exclusively.
+ * All auth logic, validation, and navigation preserved verbatim.
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -16,49 +12,30 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Animated,
   ScrollView,
-  Dimensions,
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { isValidEmail, isValidPassword } from '../services/authService';
-import { SIZES } from '../constants/theme';
 
-const { width: SW } = Dimensions.get('window');
-const IS_WEB = Platform.OS === 'web';
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS, LIGHT_COLORS, DARK_COLORS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
-// ── Palette ────────────────────────────────────────────────────────────────────
-const P = {
-  bg:          '#0A0F1E',   // near-black navy
-  card:        '#FFFFFF',
-  primary:     '#2563EB',
-  primaryDark: '#1D4ED8',
-  indigo:      '#4F46E5',
-  surface:     '#F8FAFF',
-  border:      '#E2E8F0',
-  focusBorder: '#2563EB',
-  text:        '#0F172A',
-  textMid:     '#475569',
-  textLight:   '#94A3B8',
-  placeholder: '#94A3B8',
-  error:       '#EF4444',
-  errorBg:     '#FEF2F2',
-  errorBorder: '#FECACA',
-  white:       '#FFFFFF',
-};
+// Auth screens always use light theme for brand consistency
+const C = LIGHT_COLORS;
+const elevation = getElevation(false);
 
-// ── Reusable animated input ────────────────────────────────────────────────────
-const PremiumInput = ({ label, icon, error, inputRef, rightElement, ...props }) => {
+// ── Reusable Input ─────────────────────────────────────────────────────────────
+const AuthInput = ({ label, icon, error, inputRef, rightElement, ...props }) => {
   const [focused, setFocused] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
 
@@ -75,94 +52,83 @@ const PremiumInput = ({ label, icon, error, inputRef, rightElement, ...props }) 
 
   const borderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [error ? P.errorBorder : P.border, error ? P.error : P.focusBorder],
+    outputRange: [error ? C.danger : C.border : C.border, error ? C.danger : C.borderFocus],
   });
 
   return (
-    <View style={iStyles.fieldWrap}>
-      <Text style={iStyles.label}>{label}</Text>
-      <Animated.View style={[iStyles.inputBox, { borderColor }, error && iStyles.inputBoxError]}>
-        <Ionicons name={icon} size={18} color={focused ? P.primary : P.textLight} style={iStyles.icon} />
+    <View style={inputStyles.fieldWrap}>
+      <Text style={inputStyles.label}>{label}</Text>
+      <Animated.View style={[
+        inputStyles.inputBox,
+        { borderColor },
+        error && inputStyles.inputBoxError,
+      ]}>
+        <Ionicons
+          name={icon}
+          size={18}
+          color={focused ? C.primary : C.textDisabled}
+          style={inputStyles.icon}
+        />
         <TextInput
           ref={inputRef}
-          style={iStyles.input}
-          placeholderTextColor={P.placeholder}
+          style={inputStyles.input}
+          placeholderTextColor={C.textDisabled}
           onFocus={onFocus}
           onBlur={onBlur}
+          allowFontScaling={true}
           {...props}
         />
         {rightElement}
       </Animated.View>
       {error ? (
-        <View style={iStyles.errorRow}>
-          <Ionicons name="alert-circle" size={13} color={P.error} style={{ marginRight: 4 }} />
-          <Text style={iStyles.errorText}>{error}</Text>
+        <View style={inputStyles.errorRow}>
+          <Ionicons name="alert-circle" size={13} color={C.danger} style={{ marginRight: 4 }} />
+          <Text style={inputStyles.errorText}>{error}</Text>
         </View>
       ) : null}
     </View>
   );
 };
 
-const iStyles = StyleSheet.create({
-  fieldWrap: { marginBottom: 18 },
-  label: { fontSize: 13, fontWeight: '600', color: P.textMid, marginBottom: 7, letterSpacing: 0.1 },
-  inputBox: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: P.surface,
-    borderRadius: 14, borderWidth: 1.5,
-    paddingHorizontal: 14, height: 54,
+const inputStyles = StyleSheet.create({
+  fieldWrap: { marginBottom: SPACING.md },
+  label: {
+    ...TYPOGRAPHY.label,
+    color: C.textSecondary,
+    marginBottom: SPACING.xxs + 2,
   },
-  inputBoxError: { backgroundColor: P.errorBg },
-  icon: { marginRight: 10 },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.surfaceSubtle,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    minHeight: SIZES.layout.minTouchTarget + 6,
+  },
+  inputBoxError: {
+    backgroundColor: C.dangerLight,
+  },
+  icon: { marginRight: SPACING.xs },
   input: {
     flex: 1,
-    fontSize: 15,
-    color: P.text,
-    fontWeight: '500',
+    ...TYPOGRAPHY.body,
+    color: C.textPrimary,
+    fontWeight: FONT_WEIGHTS.regular,
+    paddingVertical: SPACING.sm,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
-  errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
-  errorText: { fontSize: 12, color: P.error, fontWeight: '500' },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xxs,
+  },
+  errorText: {
+    ...TYPOGRAPHY.caption,
+    color: C.danger,
+    fontWeight: FONT_WEIGHTS.medium,
+  },
 });
-
-// ── Animated button ────────────────────────────────────────────────────────────
-const GradientButton = ({ onPress, disabled, loading, label }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50 }).start();
-
-  return (
-    <Animated.View style={{ transform: [{ scale }], borderRadius: 14, overflow: 'hidden', marginTop: 4 }}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={onIn}
-        onPressOut={onOut}
-        disabled={disabled}
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-      >
-        <LinearGradient
-          colors={disabled ? ['#94A3B8', '#94A3B8'] : [P.primary, P.indigo]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={bStyles.btn}
-        >
-          {loading
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={bStyles.label}>{label}</Text>}
-        </LinearGradient>
-      </Pressable>
-    </Animated.View>
-  );
-};
-
-const bStyles = StyleSheet.create({
-  btn: { height: 56, alignItems: 'center', justifyContent: 'center' },
-  label: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-});
-
-// ── Decorative blob ────────────────────────────────────────────────────────────
-const Blob = ({ style, colors }) => (
-  <LinearGradient colors={colors} style={[{ position: 'absolute', borderRadius: 999 }, style]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-);
 
 // ── Main Screen ────────────────────────────────────────────────────────────────
 const LoginScreen = ({ navigation }) => {
@@ -181,16 +147,16 @@ const LoginScreen = ({ navigation }) => {
   const pwdRef = useRef(null);
 
   // Entry animations
-  const cardAnim  = useRef(new Animated.Value(40)).current;
+  const cardAnim  = useRef(new Animated.Value(30)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const logoScale = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
     Animated.sequence([
-      Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+      Animated.spring(logoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.spring(cardAnim,  { toValue: 0, friction: 7,   useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.spring(cardAnim,  { toValue: 0, friction: 8,   useNativeDriver: true }),
       ]),
     ]).start();
   }, []);
@@ -248,25 +214,19 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={s.root}>
-      {/* ── Animated background blobs ── */}
-      <Blob colors={['#1E3A8A', '#2563EB']} style={{ width: 340, height: 340, top: -100, right: -80, opacity: 0.9 }} />
-      <Blob colors={['#4F46E5', '#7C3AED']} style={{ width: 260, height: 260, bottom: -60, left: -80, opacity: 0.7 }} />
-      <Blob colors={['#0369A1', '#0EA5E9']} style={{ width: 180, height: 180, top: '40%', right: -60, opacity: 0.5 }} />
-
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Card ── */}
           <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: cardAnim }] }]}>
 
             {/* Logo */}
             <Animated.View style={[s.logoWrap, { transform: [{ scale: logoScale }] }]}>
-              <LinearGradient colors={[P.primary, P.indigo]} style={s.logo} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <Ionicons name="school" size={28} color="#fff" />
-              </LinearGradient>
+              <View style={s.logo}>
+                <Ionicons name="school" size={26} color={C.textOnPrimary} />
+              </View>
             </Animated.View>
 
             {/* Heading */}
@@ -276,13 +236,13 @@ const LoginScreen = ({ navigation }) => {
             {/* Global error */}
             {errors.global && (
               <View style={s.globalError}>
-                <Ionicons name="alert-circle" size={15} color={P.error} style={{ marginRight: 7 }} />
+                <Ionicons name="alert-circle" size={15} color={C.danger} style={{ marginRight: SPACING.xs }} />
                 <Text style={s.globalErrorText}>{errors.global}</Text>
               </View>
             )}
 
             {/* Inputs */}
-            <PremiumInput
+            <AuthInput
               label="Email address"
               icon="mail-outline"
               placeholder="you@university.edu"
@@ -296,7 +256,7 @@ const LoginScreen = ({ navigation }) => {
               error={errors.email}
             />
 
-            <PremiumInput
+            <AuthInput
               label="Password"
               icon="lock-closed-outline"
               placeholder="••••••••"
@@ -308,27 +268,46 @@ const LoginScreen = ({ navigation }) => {
               onSubmitEditing={handleLogin}
               error={errors.password}
               rightElement={
-                <TouchableOpacity onPress={() => setShowPwd(v => !v)} style={s.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name={showPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={P.textLight} />
-                </TouchableOpacity>
+                <Pressable
+                  onPress={() => setShowPwd(v => !v)}
+                  style={s.eyeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPwd ? 'Hide password' : 'Show password'}
+                >
+                  <Ionicons name={showPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.textDisabled} />
+                </Pressable>
               }
             />
 
-            {/* Remember + Forgot */}
+            {/* Forgot password */}
             <View style={s.optRow}>
               <View />
-              <TouchableOpacity activeOpacity={0.7} onPress={() => showToast('Forgot password feature is coming soon!', 'info')}>
+              <Pressable
+                onPress={() => showToast('Forgot password feature is coming soon!', 'info')}
+                style={({ pressed }) => pressed && { opacity: 0.7 }}
+              >
                 <Text style={s.forgot}>Forgot password?</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* CTA */}
-            <GradientButton
-              label="Sign In"
+            <Pressable
               onPress={handleLogin}
-              loading={loading}
               disabled={loading || googleLoading}
-            />
+              style={({ pressed }) => [
+                s.ctaBtn,
+                (loading || googleLoading) && s.ctaBtnDisabled,
+                pressed && !loading && s.ctaBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Sign In"
+            >
+              {loading
+                ? <ActivityIndicator color={C.textOnPrimary} size="small" />
+                : <Text style={s.ctaBtnText}>Sign In</Text>
+              }
+            </Pressable>
 
             {/* Divider */}
             <View style={s.divider}>
@@ -340,37 +319,44 @@ const LoginScreen = ({ navigation }) => {
             {/* Google error */}
             {googleError !== '' && (
               <View style={s.googleErr}>
-                <Ionicons name="alert-circle-outline" size={13} color={P.error} style={{ marginRight: 5 }} />
+                <Ionicons name="alert-circle-outline" size={13} color={C.danger} style={{ marginRight: SPACING.xxs }} />
                 <Text style={s.googleErrText}>{googleError}</Text>
               </View>
             )}
 
             {/* Google button */}
-            <TouchableOpacity
-              style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.55 }]}
+            <Pressable
+              style={({ pressed }) => [
+                s.googleBtn,
+                (loading || googleLoading) && { opacity: 0.55 },
+                pressed && !googleLoading && s.googleBtnPressed,
+              ]}
               onPress={handleGoogleLogin}
               disabled={loading || googleLoading}
-              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
             >
               {googleLoading
-                ? <ActivityIndicator color={P.primary} size="small" />
+                ? <ActivityIndicator color={C.primary} size="small" />
                 : (
                   <>
                     <View style={s.googleIconWrap}>
-                      {/* Coloured G built from Ionicons */}
-                      <Ionicons name="logo-google" size={20} color="#EA4335" />
+                      <Ionicons name="logo-google" size={18} color="#EA4335" />
                     </View>
                     <Text style={s.googleLabel}>Continue with Google</Text>
                   </>
                 )}
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Footer */}
             <View style={s.footer}>
               <Text style={s.footerTxt}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
+              <Pressable
+                onPress={() => navigation.navigate('Signup')}
+                style={({ pressed }) => pressed && { opacity: 0.7 }}
+              >
                 <Text style={s.footerLink}>Sign up</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </Animated.View>
         </ScrollView>
@@ -380,131 +366,191 @@ const LoginScreen = ({ navigation }) => {
 };
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const CARD_MAX = 440;
+const CARD_MAX = 420;
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: P.bg },
-
+  root: {
+    flex: 1,
+    backgroundColor: C.background,
+  },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 48,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xxl,
   },
 
   // ── Card ──
   card: {
     width: '100%',
     maxWidth: CARD_MAX,
-    backgroundColor: P.card,
-    borderRadius: 28,
-    padding: 32,
-    // Shadow (iOS + Android)
-    shadowColor: '#0A0F1E',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.18,
-    shadowRadius: 40,
-    elevation: 16,
-    // Subtle top border for glass feel
+    backgroundColor: C.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl + SPACING.xs,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: C.border,
+    ...elevation.md,
   },
 
   // ── Logo ──
-  logoWrap: { alignSelf: 'center', marginBottom: 24 },
+  logoWrap: { alignSelf: 'center', marginBottom: SPACING.xl },
   logo: {
-    width: 64, height: 64, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: P.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 10,
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.large,
+    backgroundColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.sm,
   },
 
   // ── Headings ──
   heading: {
-    fontSize: 26, fontWeight: '800', color: P.text,
-    textAlign: 'center', letterSpacing: -0.5, marginBottom: 6,
+    ...TYPOGRAPHY.h1,
+    color: C.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.xxs,
   },
   sub: {
-    fontSize: 14, color: P.textMid, textAlign: 'center',
-    fontWeight: '500', marginBottom: 28,
+    ...TYPOGRAPHY.bodySmall,
+    color: C.textMuted,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
   },
 
   // ── Global error ──
   globalError: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: P.errorBg,
-    borderRadius: 12, padding: 13,
-    borderWidth: 1, borderColor: P.errorBorder,
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.dangerLight,
+    borderRadius: RADIUS.medium,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: C.danger + '30',
+    marginBottom: SPACING.md,
   },
-  globalErrorText: { flex: 1, color: P.error, fontSize: 13, fontWeight: '500' },
+  globalErrorText: {
+    flex: 1,
+    ...TYPOGRAPHY.caption,
+    color: C.danger,
+    fontWeight: FONT_WEIGHTS.medium,
+  },
 
-  // ── Remember / Forgot ──
+  // ── Options row ──
   optRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
   },
-  checkRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: {
-    width: 18, height: 18, borderRadius: 5,
-    borderWidth: 1.5, borderColor: P.border,
-    marginRight: 9, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: P.surface,
+  forgot: {
+    ...TYPOGRAPHY.label,
+    color: C.primary,
+    fontWeight: FONT_WEIGHTS.semibold,
   },
-  checkboxOn: { backgroundColor: P.primary, borderColor: P.primary },
-  checkLabel: { fontSize: 13, color: P.textMid, fontWeight: '500' },
-  forgot: { fontSize: 13, color: P.primary, fontWeight: '700' },
-  eyeBtn: { padding: 4 },
+  eyeBtn: { padding: SPACING.xxs },
+
+  // ── CTA Button ──
+  ctaBtn: {
+    backgroundColor: C.primary,
+    height: SIZES.layout.minTouchTarget + 6,
+    borderRadius: RADIUS.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.sm,
+  },
+  ctaBtnPressed: {
+    backgroundColor: C.primaryPressed,
+  },
+  ctaBtnDisabled: {
+    backgroundColor: C.textDisabled,
+  },
+  ctaBtnText: {
+    ...TYPOGRAPHY.button,
+    color: C.textOnPrimary,
+  },
 
   // ── Divider ──
   divider: {
-    flexDirection: 'row', alignItems: 'center',
-    marginVertical: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.xl,
   },
-  divLine: { flex: 1, height: 1, backgroundColor: P.border },
+  divLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: C.border,
+  },
   divText: {
-    color: P.textLight, fontSize: 12, fontWeight: '600',
-    marginHorizontal: 14, letterSpacing: 0.4,
+    ...TYPOGRAPHY.caption,
+    color: C.textDisabled,
+    fontWeight: FONT_WEIGHTS.medium,
+    marginHorizontal: SPACING.md,
   },
 
   // ── Google error ──
   googleErr: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: P.errorBg,
-    padding: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: P.errorBorder,
-    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.dangerLight,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: C.danger + '25',
+    marginBottom: SPACING.sm,
   },
-  googleErrText: { color: P.error, fontSize: 12, fontWeight: '500', flex: 1 },
+  googleErrText: {
+    ...TYPOGRAPHY.caption,
+    color: C.danger,
+    fontWeight: FONT_WEIGHTS.medium,
+    flex: 1,
+  },
 
   // ── Google button ──
   googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 54, borderRadius: 14,
-    backgroundColor: P.white,
-    borderWidth: 1.5, borderColor: P.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: SIZES.layout.minTouchTarget + 6,
+    borderRadius: RADIUS.medium,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    ...elevation.xs,
+  },
+  googleBtnPressed: {
+    backgroundColor: C.surfaceSubtle,
   },
   googleIconWrap: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: '#FFF7F6',
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: 10,
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.xs,
   },
-  googleLabel: { fontSize: 15, fontWeight: '700', color: P.text, letterSpacing: 0.1 },
+  googleLabel: {
+    ...TYPOGRAPHY.body,
+    color: C.textPrimary,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
 
   // ── Footer ──
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 26 },
-  footerTxt: { fontSize: 14, color: P.textLight, fontWeight: '500' },
-  footerLink: { fontSize: 14, color: P.primary, fontWeight: '800' },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: SPACING.xl,
+  },
+  footerTxt: {
+    ...TYPOGRAPHY.bodySmall,
+    color: C.textMuted,
+  },
+  footerLink: {
+    ...TYPOGRAPHY.bodySmall,
+    color: C.primary,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
 });
 
 export default LoginScreen;

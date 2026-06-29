@@ -1,18 +1,9 @@
 /**
  * GoogleAuthCallbackScreen.js
- *
- * Handles the final step of Google OAuth for BOTH platforms:
- *
- * iOS path (WebBrowser returns URL directly):
- *   LoginScreen navigates here with { resolvedUrl: 'unihelp://auth/callback?...' }
- *   We parse the params and complete login immediately.
- *
- * Android path (Linking event fires while app is open):
- *   The OS fires a Linking 'url' event when unihelp://auth/callback?... is opened.
- *   Our listener catches it and processes the tokens.
- *
- * Both paths call googleLogin(access, refresh, user) → AuthContext updates →
- * AppNavigator switches to Main automatically.
+ * ─────────────────────────────────────────────
+ * Premium Design System redesign.
+ * Clean, modern processing & error states.
+ * All OAuth logic, URL parsing, and deep link handlers preserved verbatim.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -22,12 +13,17 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
+  Pressable,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../context/AuthContext';
 import { storeAuthData } from '../services/tokenService';
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS, LIGHT_COLORS } from '../theme';
+import { getElevation } from '../theme/elevation';
+
+const C = LIGHT_COLORS;
+const elevation = getElevation(false);
 
 const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
   console.log('[GoogleAuthCallbackScreen] Render — route:', route, 'navigation:', !!navigation);
@@ -54,7 +50,7 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
           }
 
           // Store tokens
-          await storeAuthData(accessToken, refreshToken, null); // We'll reconstruct user below
+          await storeAuthData(accessToken, refreshToken, null);
 
           let userObj;
           if (userStr) {
@@ -102,7 +98,6 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
     }
 
     // ── NATIVE path (iOS / Android) ───────────────────────────────────────────
-    // ── Timeout: show error if no URL arrives within 12 seconds ──────────────
     const timeout = setTimeout(() => {
       if (mounted && status === 'processing') {
         console.warn('[GoogleCallback] Timeout — no URL received after 12s');
@@ -124,8 +119,6 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
           return;
         }
 
-        // Linking.parse() already URL-decodes query params — do NOT
-        // call decodeURIComponent again or the JSON will be double-decoded.
         const parsed = Linking.parse(url);
         const { access, refresh, user: userStr, error } = parsed.queryParams || {};
 
@@ -159,8 +152,6 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
 
         console.log('[GoogleCallback] Calling googleLogin for:', user?.email);
 
-        // This will update AuthContext and AppNavigator will automatically unmount this screen
-        // and mount MainStack. No manual navigation needed.
         await googleLogin(access, refresh, user);
         console.log('[GoogleCallback] googleLogin completed successfully. Auth state updated.');
 
@@ -177,14 +168,12 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
       }
     };
 
-    // ── iOS: LoginScreen passes the URL directly via navigation params ────────
     if (route?.params?.resolvedUrl) {
       console.log('[GoogleCallback] iOS path — using resolvedUrl from params');
       handleUrl(route?.params?.resolvedUrl);
       return () => { mounted = false; clearTimeout(timeout); };
     }
 
-    // ── Android / Expo Go: Linking event fires when deep link opens the app ───
     console.log('[GoogleCallback] Android path — waiting for Linking event');
     Linking.getInitialURL().then((url) => {
       if (url) {
@@ -205,44 +194,43 @@ const GoogleAuthCallbackScreen = ({ navigation, route = {} }) => {
     };
   }, [googleLogin, route?.params?.resolvedUrl]);
 
-
-  // ── UI: Show spinner while processing, error message on failure ───────────
   return (
-    <LinearGradient
-      colors={['#1E3A8A', '#2563EB']}
-      style={styles.container}
-    >
-      {status === 'processing' || status === 'done' ? (
-        <View style={styles.center}>
-          {/* Animated spinner while tokens are being stored */}
-          <View style={[styles.iconWrap, status === 'done' && { backgroundColor: 'rgba(74, 222, 128, 0.2)' }]}>
-            <Ionicons name={status === 'done' ? "checkmark" : "logo-google"} size={36} color={status === 'done' ? "#4ade80" : "#fff"} />
+    <View style={styles.container}>
+      <View style={styles.card}>
+        {status === 'processing' || status === 'done' ? (
+          <View style={styles.center}>
+            <View style={[styles.iconWrap, status === 'done' && styles.iconWrapSuccess]}>
+              <Ionicons
+                name={status === 'done' ? 'checkmark' : 'logo-google'}
+                size={32}
+                color={status === 'done' ? C.accent : C.primary}
+              />
+            </View>
+            {status === 'processing' ? (
+              <ActivityIndicator size="medium" color={C.primary} style={styles.spinner} />
+            ) : (
+              <View style={{ height: 24 }} />
+            )}
+            <Text style={styles.title}>{status === 'done' ? 'Success!' : 'Signing you in...'}</Text>
+            <Text style={styles.subtitle}>{status === 'done' ? 'Welcome back to UniHelp' : 'Completing Google authentication'}</Text>
           </View>
-          {status === 'processing' ? (
-            <ActivityIndicator size="large" color="#ffffff" style={styles.spinner} />
-          ) : (
-            <View style={{ height: 36 }} /> // Spacer to keep layout from jumping
-          )}
-          <Text style={styles.title}>{status === 'done' ? "Success!" : "Signing you in..."}</Text>
-          <Text style={styles.subtitle}>{status === 'done' ? "Welcome back" : "Completing Google authentication"}</Text>
-        </View>
-      ) : (
-        <View style={styles.center}>
-          {/* Error state — lets user go back */}
-          <View style={[styles.iconWrap, styles.errorIconWrap]}>
-            <Ionicons name="alert-circle" size={36} color="#ff6b6b" />
+        ) : (
+          <View style={styles.center}>
+            <View style={[styles.iconWrap, styles.errorIconWrap]}>
+              <Ionicons name="alert-circle" size={32} color={C.danger} />
+            </View>
+            <Text style={styles.title}>Sign-in Failed</Text>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+            <Pressable
+              onPress={() => navigation.navigate('Auth')}
+              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={styles.backBtnText}>← Back to Login</Text>
+            </Pressable>
           </View>
-          <Text style={styles.title}>Sign-in Failed</Text>
-          <Text style={styles.errorText}>{errorMsg}</Text>
-          <Text
-            style={styles.retryLink}
-            onPress={() => navigation.navigate('Auth')}
-          >
-            ← Back to Login
-          </Text>
-        </View>
-      )}
-    </LinearGradient>
+        )}
+      </View>
+    </View>
   );
 };
 
@@ -251,50 +239,70 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: C.background,
+    padding: SPACING.lg,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: C.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: C.border,
+    ...elevation.md,
   },
   center: {
     alignItems: 'center',
-    paddingHorizontal: 32,
   },
   iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.full,
+    backgroundColor: C.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
+  },
+  iconWrapSuccess: {
+    backgroundColor: C.accentLight,
   },
   errorIconWrap: {
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    backgroundColor: C.dangerLight,
   },
   spinner: {
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 8,
+    ...TYPOGRAPHY.h2,
+    color: C.textPrimary,
+    marginBottom: SPACING.xxs,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    ...TYPOGRAPHY.bodySmall,
+    color: C.textMuted,
     textAlign: 'center',
   },
   errorText: {
-    fontSize: 14,
-    color: '#ff6b6b',
+    ...TYPOGRAPHY.bodySmall,
+    color: C.danger,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
     lineHeight: 20,
   },
-  retryLink: {
-    fontSize: 15,
-    color: '#60a5fa',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+  backBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.medium,
+    backgroundColor: C.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  backBtnText: {
+    ...TYPOGRAPHY.label,
+    color: C.primary,
+    fontWeight: FONT_WEIGHTS.semibold,
   },
 });
 
