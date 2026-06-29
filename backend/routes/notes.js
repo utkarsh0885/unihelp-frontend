@@ -51,7 +51,7 @@ const upload = multer({
 router.get('/', asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 20;
   console.log(`[Notes] GET /api/notes | Fetching study resources (limit: ${limit}, cursor: ${req.query.cursor || 'none'})`);
-  
+
   let query = db.collection('notes').orderBy('createdAt', 'desc').limit(limit);
 
   if (req.query.cursor) {
@@ -65,7 +65,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
   const snapshot = await query.get();
   const list = [];
-  
+
   snapshot.forEach((doc) => {
     const data = doc.data();
     list.push({
@@ -252,7 +252,7 @@ router.post('/upload', authenticateUser, (req, res, next) => {
 router.put('/:id/download', authenticateUser, asyncHandler(async (req, res) => {
   const ref = db.collection('notes').doc(req.params.id);
   const doc = await ref.get();
-  
+
   if (!doc.exists) {
     throw new ApiError(404, 'Note not found');
   }

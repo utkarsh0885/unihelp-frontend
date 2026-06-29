@@ -11,5 +11,6 @@ router.get('/stats', adminController.getDashboardStats);
 router.get('/flagged', adminController.getFlaggedPosts);
 router.put('/users/:userId', adminController.updateUserStatus);
 router.delete('/posts/:postId', adminController.deletePost);
+router.put('/reports/:reportId/dismiss', adminController.dismissReport);
 
 module.exports = router;
