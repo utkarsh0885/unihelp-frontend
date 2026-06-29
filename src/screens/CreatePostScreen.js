@@ -3,6 +3,7 @@
  * ─────────────────────────────────────────────
  * Creates a post via DataContext with working
  * image picker and link attachment.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -18,13 +19,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { uploadPostImage } from '../services/storageService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES, GRADIENTS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
@@ -32,15 +32,21 @@ import { useToast } from '../context/ToastContext';
 import GradientButton from '../components/GradientButton';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
+
 const MAX_LENGTH = 500;
 
 const CreatePostScreen = ({ navigation, route = {} }) => {
   console.log('[CreatePostScreen] Render — route:', route, 'navigation:', !!navigation);
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { addPost, updatePost } = useData();
   const { showToast } = useToast();
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   const routeParams = route?.params || {};
   const existingPost = routeParams?.post || null;
@@ -75,7 +81,6 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
 
   const handlePickImage = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'Please allow access to your photo library to attach images.');
@@ -105,7 +110,6 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
 
   const handleAttachLink = () => {
     if (showLinkInput && attachedLink.trim()) {
-      // Validate URL
       const url = attachedLink.trim();
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         Alert.alert('Invalid Link', 'Please enter a valid URL starting with http:// or https://');
@@ -144,7 +148,6 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
 
     setLoading(true);
     try {
-      // Build final content with link if attached
       let finalContent = content.trim();
       if (attachedLink.trim()) {
         finalContent += '\n\n🔗 ' + attachedLink.trim();
@@ -187,8 +190,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           condition: category === 'Buy/Sell' ? condition : null,
         });
         showToast('Post updated successfully! ✨', 'success');
-        
-        // Reset form state
+
         setTitle('');
         setContent('');
         setSelectedImage(null);
@@ -198,24 +200,22 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setUploadingImage(false);
         setPrice('');
         setCondition('Good');
-        
-        // Navigate back to Home
+
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Main', { screen: 'Home' });
         } else {
           handleGoBack();
         }
       } else {
-        await addPost(finalContent, { 
-          title: title.trim(), 
-          category, 
+        await addPost(finalContent, {
+          title: title.trim(),
+          category,
           imageUrl,
           price: category === 'Buy/Sell' ? parseFloat(String(price).replace(/[$₹\s]/g, '')) : null,
           condition: category === 'Buy/Sell' ? condition : null,
         });
         showToast('Post created successfully! 🎉', 'success');
 
-        // Reset form state
         setTitle('');
         setContent('');
         setSelectedImage(null);
@@ -226,7 +226,6 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setPrice('');
         setCondition('Good');
 
-        // Navigate back to Home
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Main', { screen: 'Home' });
         } else {
@@ -255,315 +254,389 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={handleGoBack} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
-            <Ionicons name="close" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.screenTitle}>{isEdit ? 'Edit Post' : 'New Post'}</Text>
-          <View style={{ width: 38 }} />
-        </LinearGradient>
-      </View>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <ResponsiveContainer maxWidth={600} withCardStyle={false}>
-        <View style={styles.card}>
-          <View style={styles.authorRow}>
-            <View style={styles.avatarRing}>
-              <View style={styles.avatar}><Text style={styles.avatarText}>{avatarLetter}</Text></View>
-            </View>
-            <View>
-              <Text style={styles.authorName}>{displayName}</Text>
-              <View style={styles.visRow}>
-                <Ionicons name="earth" size={11} color={colors.textTertiary} />
-                <Text style={styles.visibility}> Public Post</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Title Input */}
-          <View style={styles.titleWrapper}>
-            <TextInput
-              style={[styles.titleInput, { color: colors.textPrimary }]}
-              placeholder="Title (required)"
-              placeholderTextColor={colors.textTertiary}
-              value={title}
-              onChangeText={setTitle}
-              maxLength={100}
-            />
-          </View>
-
-          <TextInput
-            style={[styles.textArea, { color: colors.textPrimary }]}
-            placeholder="Description... share details with the campus community!"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            maxLength={MAX_LENGTH}
-            value={content}
-            onChangeText={setContent}
-            textAlignVertical="top"
-          />
-
-          {/* Category Selector */}
-          <Text style={styles.label}>Select Category</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.categoryScroll}
-            contentContainerStyle={styles.categoryContent}
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleGoBack}
+            style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.7 }]}
           >
-            {CATEGORIES.map((cat) => {
-              const isActive = category === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.categoryChip, isActive && styles.categoryChipActive]}
-                  onPress={() => setCategory(cat.id)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons 
-                    name={cat.icon} 
-                    size={16} 
-                    color={isActive ? '#FFFFFF' : colors.textSecondary} 
-                  />
-                  <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Marketplace Fields (rendered if Buy/Sell category selected) */}
-          {category === 'Buy/Sell' && (
-            <View style={styles.marketplaceFields}>
-              <Text style={styles.label}>Price (₹)</Text>
-              <TextInput
-                style={[styles.priceInput, { color: colors.textPrimary }]}
-                placeholder="Enter price (e.g. 50)"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="numeric"
-                value={String(price)}
-                onChangeText={setPrice}
-              />
-
-              <Text style={styles.label}>Condition</Text>
-              <View style={styles.conditionRow}>
-                {['New', 'Like New', 'Good', 'Used'].map((c) => (
-                  <TouchableOpacity 
-                    key={c} 
-                    style={[styles.conditionChip, condition === c && styles.conditionChipActive]} 
-                    onPress={() => setCondition(c)} 
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.conditionChipText, condition === c && styles.conditionChipTextActive]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Image Preview */}
-          {selectedImage && (
-            <View style={styles.imagePreviewWrap}>
-              <Image source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }} style={styles.imagePreview} />
-              <TouchableOpacity
-                style={styles.removeImageBtn}
-                onPress={() => setSelectedImage(null)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle" size={24} color={colors.accent} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Upload Progress Indicator */}
-          {uploadingImage && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
-              </View>
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                Uploading Image: {uploadProgress}%
-              </Text>
-            </View>
-          )}
-
-          {/* Link Input */}
-          {showLinkInput && (
-            <View style={styles.linkInputRow}>
-              <TextInput
-                style={[styles.linkInput, { color: colors.textPrimary }]}
-                placeholder="https://example.com"
-                placeholderTextColor={colors.textTertiary}
-                value={attachedLink}
-                onChangeText={setAttachedLink}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-            </View>
-          )}
-
-          {/* Attached link badge */}
-          {attachedLink.trim() && !showLinkInput ? (
-            <TouchableOpacity style={styles.linkBadge} onPress={() => setShowLinkInput(true)} activeOpacity={0.7}>
-              <Ionicons name="link" size={14} color={colors.accentCyan} />
-              <Text style={styles.linkBadgeText} numberOfLines={1}>{attachedLink.trim()}</Text>
-              <TouchableOpacity onPress={() => { setAttachedLink(''); }} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ) : null}
-
-          <View style={styles.progressRow}>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: isNearLimit ? colors.accent : colors.primary }]} />
-            </View>
-            <Text style={[styles.charCount, isNearLimit && { color: colors.accent }]}>{charsLeft}</Text>
-          </View>
-
-          <View style={styles.attachRow}>
-            {/* Image Picker */}
-            <TouchableOpacity
-              style={[styles.attachBtn, selectedImage && { backgroundColor: colors.accentGreen + '25' }]}
-              activeOpacity={0.7}
-              onPress={handlePickImage}
-            >
-              <Ionicons name="image-outline" size={20} color={selectedImage ? colors.accentGreen : colors.accentGreen} />
-            </TouchableOpacity>
-
-            {/* Link Attachment */}
-            <TouchableOpacity
-              style={[styles.attachBtn, attachedLink.trim() && { backgroundColor: colors.accentCyan + '25' }]}
-              activeOpacity={0.7}
-              onPress={handleAttachLink}
-            >
-              <Ionicons name="link-outline" size={20} color={colors.accentCyan} />
-            </TouchableOpacity>
-          </View>
+            <Ionicons name="close" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.screenTitle}>{isEdit ? 'Edit Post' : 'New Post'}</Text>
+          <View style={{ width: SIZES.layout.minTouchTarget }} />
         </View>
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ResponsiveContainer maxWidth={650} withCardStyle={false}>
+          <View style={styles.card}>
+            <View style={styles.authorRow}>
+              <View style={styles.avatarRing}>
+                <View style={styles.avatar}><Text style={styles.avatarText}>{avatarLetter}</Text></View>
+              </View>
+              <View>
+                <Text style={styles.authorName}>{displayName}</Text>
+                <View style={styles.visRow}>
+                  <Ionicons name="earth" size={12} color={colors.textMuted} />
+                  <Text style={styles.visibility}> Public Campus Post</Text>
+                </View>
+              </View>
+            </View>
 
-        <GradientButton
-          title={loading ? (isEdit ? 'Updating…' : 'Posting…') : (isEdit ? 'Save Changes' : 'Post to Campus')}
-          onPress={handleSubmit}
-          loading={loading}
-          style={{ marginHorizontal: SIZES.md, marginTop: SIZES.lg }}
-        />
+            {/* Title Input */}
+            <View style={styles.titleWrapper}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder="Title (required)"
+                placeholderTextColor={colors.textDisabled}
+                value={title}
+                onChangeText={setTitle}
+                maxLength={100}
+              />
+            </View>
+
+            <TextInput
+              style={styles.textArea}
+              placeholder="Description... share details with the campus community!"
+              placeholderTextColor={colors.textDisabled}
+              multiline
+              maxLength={MAX_LENGTH}
+              value={content}
+              onChangeText={setContent}
+              textAlignVertical="top"
+            />
+
+            {/* Category Selector */}
+            <Text style={styles.label}>Select Category</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+              contentContainerStyle={styles.categoryContent}
+            >
+              {CATEGORIES.map((cat) => {
+                const isActive = category === cat.id;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    style={[styles.categoryChip, isActive ? styles.categoryChipActive : styles.categoryChipInactive]}
+                    onPress={() => setCategory(cat.id)}
+                  >
+                    <Ionicons
+                      name={cat.icon}
+                      size={16}
+                      color={isActive ? colors.textOnPrimary : colors.textSecondary}
+                    />
+                    <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
+                      {cat.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Marketplace Fields (rendered immediately if Buy/Sell category selected) */}
+            {category === 'Buy/Sell' && (
+              <View style={styles.marketplaceFields}>
+                <Text style={styles.label}>Price (₹)</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder="Enter price (e.g. 50)"
+                  placeholderTextColor={colors.textDisabled}
+                  keyboardType="numeric"
+                  value={String(price)}
+                  onChangeText={setPrice}
+                />
+
+                <Text style={styles.label}>Condition</Text>
+                <View style={styles.conditionRow}>
+                  {['New', 'Like New', 'Good', 'Used'].map((c) => (
+                    <Pressable
+                      key={c}
+                      style={[styles.conditionChip, condition === c && styles.conditionChipActive]}
+                      onPress={() => setCondition(c)}
+                    >
+                      <Text style={[styles.conditionChipText, condition === c && styles.conditionChipTextActive]}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Image Preview */}
+            {selectedImage && (
+              <View style={styles.imagePreviewWrap}>
+                <Image source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }} style={styles.imagePreview} />
+                <Pressable
+                  style={styles.removeImageBtn}
+                  onPress={() => setSelectedImage(null)}
+                >
+                  <Ionicons name="close-circle" size={24} color={colors.danger} />
+                </Pressable>
+              </View>
+            )}
+
+            {/* Upload Progress Indicator */}
+            {uploadingImage && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.info }]} />
+                </View>
+                <Text style={styles.progressText}>
+                  Uploading Image: {uploadProgress}%
+                </Text>
+              </View>
+            )}
+
+            {/* Link Input */}
+            {showLinkInput && (
+              <View style={styles.linkInputRow}>
+                <TextInput
+                  style={styles.linkInput}
+                  placeholder="https://example.com"
+                  placeholderTextColor={colors.textDisabled}
+                  value={attachedLink}
+                  onChangeText={setAttachedLink}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            )}
+
+            {/* Attached link badge */}
+            {attachedLink.trim() && !showLinkInput ? (
+              <Pressable style={styles.linkBadge} onPress={() => setShowLinkInput(true)}>
+                <Ionicons name="link" size={14} color={colors.info} />
+                <Text style={styles.linkBadgeText} numberOfLines={1}>{attachedLink.trim()}</Text>
+                <Pressable onPress={() => { setAttachedLink(''); }}>
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                </Pressable>
+              </Pressable>
+            ) : null}
+
+            <View style={styles.progressRow}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: isNearLimit ? colors.danger : colors.primary }]} />
+              </View>
+              <Text style={[styles.charCount, isNearLimit && { color: colors.danger }]}>{charsLeft}</Text>
+            </View>
+
+            <View style={styles.attachRow}>
+              <Pressable
+                style={({ pressed }) => [styles.attachBtn, selectedImage && { backgroundColor: colors.accentLight }, pressed && { opacity: 0.7 }]}
+                onPress={handlePickImage}
+              >
+                <Ionicons name="image-outline" size={20} color={selectedImage ? colors.accent : colors.textSecondary} />
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.attachBtn, attachedLink.trim() && { backgroundColor: colors.infoLight }, pressed && { opacity: 0.7 }]}
+                onPress={handleAttachLink}
+              >
+                <Ionicons name="link-outline" size={20} color={attachedLink.trim() ? colors.info : colors.textSecondary} />
+              </Pressable>
+            </View>
+          </View>
+
+          <GradientButton
+            title={loading ? (isEdit ? 'Updating…' : 'Posting…') : (isEdit ? 'Save Changes' : 'Post to Campus')}
+            onPress={handleSubmit}
+            loading={loading}
+            style={{ marginHorizontal: SPACING.md, marginTop: SPACING.lg }}
+          />
         </ResponsiveContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
+  appBarContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 56,
   },
-  closeBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  screenTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  scroll: { flexGrow: 1, paddingBottom: 40 },
-  card: { 
-    backgroundColor: colors.surface, borderRadius: 24, marginHorizontal: SIZES.md, 
-    padding: SIZES.lg, borderWidth: 1, borderColor: colors.borderLight, ...shadows.medium,
-    marginTop: SIZES.md,
+  closeBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  authorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SIZES.md },
-  avatarRing: { width: SIZES.avatarMd + 4, height: SIZES.avatarMd + 4, borderRadius: SIZES.radiusFull, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: SIZES.sm + 4 },
-  avatar: { width: SIZES.avatarMd, height: SIZES.avatarMd, borderRadius: SIZES.radiusFull, backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.primary, fontWeight: '800', fontSize: SIZES.fontMd },
-  authorName: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  visRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  visibility: { fontSize: 11, color: colors.textTertiary, fontWeight: '600' },
-  label: { fontSize: 13, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginTop: SIZES.sm, marginBottom: SIZES.md },
-  titleWrapper: { borderBottomWidth: 1, borderBottomColor: colors.borderLight, paddingBottom: 4, marginBottom: SIZES.xs },
-  titleInput: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, paddingVertical: 10 },
-  textArea: { 
-    minHeight: 120, fontSize: 16, lineHeight: 24, color: colors.textPrimary, 
-    paddingTop: SIZES.sm, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) 
+  screenTitle: { ...TYPOGRAPHY.title, color: colors.textPrimary },
+  scroll: { flexGrow: 1, paddingBottom: SPACING.xxxl },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.large,
+    marginHorizontal: SPACING.md,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
+    marginTop: SPACING.md,
   },
-  categoryScroll: { marginHorizontal: -SIZES.lg, marginBottom: SIZES.md },
-  categoryContent: { paddingHorizontal: SIZES.lg, gap: 10, paddingVertical: 4 },
-  categoryChip: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceLight, 
-    borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, gap: 6,
-    borderWidth: 1, borderColor: colors.borderLight
+  authorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
+  avatarRing: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.full,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.sm,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold, fontSize: 16 },
+  authorName: { ...TYPOGRAPHY.subtitle, color: colors.textPrimary },
+  visRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
+  visibility: { ...TYPOGRAPHY.caption, color: colors.textMuted },
+  label: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  titleWrapper: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle, paddingBottom: 4, marginBottom: SPACING.xs },
+  titleInput: { ...TYPOGRAPHY.h3, color: colors.textPrimary, paddingVertical: SPACING.xs },
+  textArea: {
+    minHeight: 120,
+    ...TYPOGRAPHY.body,
+    lineHeight: 24,
+    color: colors.textPrimary,
+    paddingTop: SPACING.sm,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  categoryScroll: { marginHorizontal: -SPACING.lg, marginBottom: SPACING.md },
+  categoryContent: { paddingHorizontal: SPACING.lg, gap: SPACING.xs, paddingVertical: 4 },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    minHeight: 36,
   },
   categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-  categoryLabelActive: { color: '#FFFFFF' },
-  imagePreviewWrap: { position: 'relative', marginTop: SIZES.md, borderRadius: SIZES.radiusMd, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderLight },
-  imagePreview: { width: '100%', height: 220, borderRadius: SIZES.radiusMd, backgroundColor: colors.surfaceLight },
-  removeImageBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.background, borderRadius: SIZES.radiusFull },
-  linkInputRow: { marginTop: SIZES.sm },
+  categoryChipInactive: { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderSubtle },
+  categoryLabel: { ...TYPOGRAPHY.caption, fontWeight: FONT_WEIGHTS.semibold, color: colors.textSecondary },
+  categoryLabelActive: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHTS.bold },
+  imagePreviewWrap: { position: 'relative', marginTop: SPACING.md, borderRadius: RADIUS.large, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  imagePreview: { width: '100%', height: 200, borderRadius: RADIUS.large, backgroundColor: colors.surfaceSubtle },
+  removeImageBtn: { position: 'absolute', top: SPACING.xs, right: SPACING.xs, backgroundColor: colors.surface, borderRadius: RADIUS.full },
+  linkInputRow: { marginTop: SPACING.sm },
   linkInput: {
-    backgroundColor: colors.surfaceLight, borderRadius: SIZES.radiusMd, borderWidth: 1, borderColor: colors.accentCyan,
-    paddingHorizontal: SIZES.md, height: 44, fontSize: SIZES.fontMd, color: colors.textPrimary,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.info,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   linkBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SIZES.sm,
-    backgroundColor: colors.accentCyan + '15', borderRadius: SIZES.radiusMd,
-    paddingHorizontal: SIZES.sm + 4, paddingVertical: SIZES.xs + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    backgroundColor: colors.infoLight,
+    borderRadius: RADIUS.medium,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
-  linkBadgeText: { flex: 1, fontSize: SIZES.fontSm, color: colors.accentCyan, fontWeight: '600' },
-  progressRow: { flexDirection: 'row', alignItems: 'center', marginTop: SIZES.sm, gap: SIZES.sm },
-  progressTrack: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.surfaceLight, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
-  charCount: { fontSize: SIZES.fontXs, color: colors.textTertiary, fontWeight: '600', minWidth: 28, textAlign: 'right' },
-  attachRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, marginTop: SIZES.md, paddingTop: SIZES.md, gap: SIZES.sm },
-  attachBtn: { width: 44, height: 44, borderRadius: SIZES.radiusMd, backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  linkBadgeText: { flex: 1, ...TYPOGRAPHY.caption, color: colors.info, fontWeight: FONT_WEIGHTS.semibold },
+  progressRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm, gap: SPACING.sm },
+  progressTrack: { flex: 1, height: 4, borderRadius: RADIUS.pill, backgroundColor: colors.surfaceSubtle, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: RADIUS.pill },
+  charCount: { ...TYPOGRAPHY.caption, fontSize: 11, color: colors.textMuted, fontWeight: FONT_WEIGHTS.semibold, minWidth: 28, textAlign: 'right' },
+  attachRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.borderSubtle, marginTop: SPACING.md, paddingTop: SPACING.md, gap: SPACING.sm },
+  attachBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
   progressContainer: {
-    marginBottom: SIZES.md,
-    marginTop: SIZES.sm,
+    marginBottom: SPACING.md,
+    marginTop: SPACING.sm,
   },
   progressBarBg: {
     height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceLight,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceSubtle,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: RADIUS.pill,
   },
   progressText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
     marginTop: 6,
     textAlign: 'center',
   },
   marketplaceFields: {
-    marginTop: SIZES.sm,
-    marginBottom: SIZES.sm,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   priceInput: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 14,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingHorizontal: SIZES.md,
-    height: 50,
-    fontSize: 16,
+    borderColor: colors.border,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget + 6,
+    ...TYPOGRAPHY.body,
     color: colors.textPrimary,
-    marginBottom: SIZES.sm,
+    marginBottom: SPACING.sm,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
-  conditionRow: { flexDirection: 'row', gap: SIZES.sm, marginBottom: SIZES.md, flexWrap: 'wrap' },
-  conditionChip: { 
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, 
-    borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.surfaceLight 
+  conditionRow: { flexDirection: 'row', gap: SPACING.xs, marginBottom: SPACING.md, flexWrap: 'wrap' },
+  conditionChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 36,
+    justifyContent: 'center',
   },
-  conditionChipActive: { borderColor: colors.accentGreen, backgroundColor: colors.accentGreen + '10' },
-  conditionChipText: { fontSize: 13, color: colors.textTertiary, fontWeight: '700' },
-  conditionChipTextActive: { color: colors.accentGreen, fontWeight: '800' },
+  conditionChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  conditionChipText: { ...TYPOGRAPHY.caption, color: colors.textSecondary, fontWeight: FONT_WEIGHTS.semibold },
+  conditionChipTextActive: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold },
 });
 
 export default CreatePostScreen;

@@ -1,3 +1,10 @@
+/**
+ * MyListingsScreen.js
+ * ─────────────────────────────────────────────
+ * Professional seller dashboard.
+ * Premium Phase 9.0 Design System Redesign.
+ */
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -10,9 +17,9 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuth } from '../context/AuthContext';
@@ -20,7 +27,10 @@ import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ResponsiveContainer from '../components/ResponsiveContainer';
-import { SIZES } from '../constants/theme';
+
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const formatPrice = (price) => {
   if (price === undefined || price === null || price === '') return '₹0';
@@ -35,13 +45,13 @@ const LazyImage = React.memo(({ uri, style, colors }) => {
   return (
     <View style={style}>
       {loading && !error && (
-        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSubtle }]}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
       {error ? (
-        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
-          <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSubtle }]}>
+          <Ionicons name="image-outline" size={20} color={colors.textDisabled} />
         </View>
       ) : (
         <Image
@@ -68,63 +78,77 @@ const MyListingItemCard = React.memo(({
   const isSold = item.status === 'Sold';
 
   const getStatusColor = (status) => {
-    if (status === 'Sold') return colors.error || '#EF4444';
-    if (status === 'Reserved') return colors.accentAmber || '#F59E0B';
-    return colors.accentGreen || '#10B981';
+    if (status === 'Sold') return colors.danger;
+    if (status === 'Reserved') return colors.warning;
+    return colors.accent;
   };
 
+  const statusColor = getStatusColor(item.status || 'Available');
+
   return (
-    <View style={[styles.card, isSold && { opacity: 0.85 }]}>
+    <View style={[styles.card, isSold && { opacity: 0.75 }]}>
       <View style={styles.cardContent}>
         {item.imageUrl ? (
           <LazyImage uri={item.imageUrl} style={styles.cardImage} colors={colors} />
         ) : (
-          <View style={[styles.cardImage, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
-            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+          <View style={[styles.cardImage, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSubtle }]}>
+            <Ionicons name="image-outline" size={24} color={colors.textDisabled} />
           </View>
         )}
         <View style={styles.cardInfo}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status || 'Available') + '15', borderColor: getStatusColor(item.status || 'Available') + '30' }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(item.status || 'Available') }]}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor + '15', borderColor: statusColor + '30' }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>
                 {item.status || 'Available'}
               </Text>
             </View>
           </View>
-          <Text style={[styles.cardPrice, { color: colors.primary }]}>{formatPrice(item.price)}</Text>
+          <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaText, { color: colors.textTertiary }]}>Condition: {item.condition || 'Good'}</Text>
+            <Text style={styles.metaText}>Condition: {item.condition || 'Good'}</Text>
             {item.downloads !== undefined && (
-              <Text style={[styles.metaText, { color: colors.textTertiary }]}>· {item.downloads} downloads</Text>
+              <Text style={styles.metaText}>· {item.downloads} downloads</Text>
             )}
           </View>
         </View>
       </View>
 
       <View style={styles.actionRow}>
-        <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => onEdit(item)} activeOpacity={0.7}>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, styles.editBtn, pressed && { opacity: 0.7 }]}
+          onPress={() => onEdit(item)}
+        >
           <Ionicons name="pencil" size={14} color={colors.primary} />
           <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => onDelete(item)} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={14} color={colors.error || '#EF4444'} />
-          <Text style={[styles.actionText, { color: colors.error || '#EF4444' }]}>Delete</Text>
-        </TouchableOpacity>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, styles.deleteBtn, pressed && { opacity: 0.7 }]}
+          onPress={() => onDelete(item)}
+        >
+          <Ionicons name="trash-outline" size={14} color={colors.danger} />
+          <Text style={[styles.actionText, { color: colors.danger }]}>Delete</Text>
+        </Pressable>
 
         {isReserved && (
-          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => onCancelReservation(item)} activeOpacity={0.7}>
-            <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber || '#F59E0B'} />
-            <Text style={[styles.actionText, { color: colors.accentAmber || '#F59E0B' }]}>Cancel Res.</Text>
-          </TouchableOpacity>
+          <Pressable
+            style={({ pressed }) => [styles.actionBtn, styles.cancelBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => onCancelReservation(item)}
+          >
+            <Ionicons name="close-circle-outline" size={14} color={colors.warning} />
+            <Text style={[styles.actionText, { color: colors.warning }]}>Cancel Res.</Text>
+          </Pressable>
         )}
 
         {!isSold && (
-          <TouchableOpacity style={[styles.actionBtn, styles.soldBtn]} onPress={() => onMarkSold(item)} activeOpacity={0.7}>
-            <Ionicons name="checkmark-circle-outline" size={14} color={colors.accentGreen || '#10B981'} />
-            <Text style={[styles.actionText, { color: colors.accentGreen || '#10B981' }]}>Mark Sold</Text>
-          </TouchableOpacity>
+          <Pressable
+            style={({ pressed }) => [styles.actionBtn, styles.soldBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => onMarkSold(item)}
+          >
+            <Ionicons name="checkmark-circle-outline" size={14} color={colors.accent} />
+            <Text style={[styles.actionText, { color: colors.accent }]}>Mark Sold</Text>
+          </Pressable>
         )}
       </View>
     </View>
@@ -132,12 +156,12 @@ const MyListingItemCard = React.memo(({
 });
 
 const MyListingsScreen = ({ navigation }) => {
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { deletePost, updatePost, cancelReservation } = useData();
 
-  // Unified Style Object declared near the top to prevent TDZ issues
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   const [myItems, setMyItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +169,6 @@ const MyListingsScreen = ({ navigation }) => {
 
   const activeUserId = user?.id;
 
-  // Real-time Firestore subscription matching user's marketplace posts
   useEffect(() => {
     if (!activeUserId) {
       setLoading(false);
@@ -171,7 +194,6 @@ const MyListingsScreen = ({ navigation }) => {
           });
         });
 
-        // Sort locally by createdAt desc safely
         postsList.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt?.seconds * 1000 || a.createdAt) : 0;
           const dateB = b.createdAt ? new Date(b.createdAt?.seconds * 1000 || b.createdAt) : 0;
@@ -190,7 +212,6 @@ const MyListingsScreen = ({ navigation }) => {
     return () => unsubscribe();
   }, [activeUserId]);
 
-  // Derived statistics (Memoized)
   const stats = useMemo(() => {
     let active = 0;
     let reserved = 0;
@@ -211,7 +232,6 @@ const MyListingsScreen = ({ navigation }) => {
     };
   }, [myItems]);
 
-  // Derived filtered items (Memoized)
   const filteredItems = useMemo(() => {
     return myItems.filter((item) => {
       const status = item.status || 'Available';
@@ -340,20 +360,18 @@ const MyListingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleGoBack}
+            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
           <Text style={styles.headerTitle}>My Listings</Text>
-          <View style={{ width: 38 }} />
-        </LinearGradient>
+          <View style={{ width: SIZES.layout.minTouchTarget }} />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -365,15 +383,15 @@ const MyListingsScreen = ({ navigation }) => {
               <Text style={styles.statsLabel}>Total</Text>
             </View>
             <View style={styles.statsCard}>
-              <Text style={[styles.statsValue, { color: colors.accentGreen || '#10B981' }]}>{stats.active}</Text>
+              <Text style={[styles.statsValue, { color: colors.accent }]}>{stats.active}</Text>
               <Text style={styles.statsLabel}>Active</Text>
             </View>
             <View style={styles.statsCard}>
-              <Text style={[styles.statsValue, { color: colors.accentAmber || '#F59E0B' }]}>{stats.reserved}</Text>
+              <Text style={[styles.statsValue, { color: colors.warning }]}>{stats.reserved}</Text>
               <Text style={styles.statsLabel}>Reserved</Text>
             </View>
             <View style={styles.statsCard}>
-              <Text style={[styles.statsValue, { color: colors.error || '#EF4444' }]}>{stats.sold}</Text>
+              <Text style={[styles.statsValue, { color: colors.danger }]}>{stats.sold}</Text>
               <Text style={styles.statsLabel}>Sold</Text>
             </View>
           </View>
@@ -383,16 +401,15 @@ const MyListingsScreen = ({ navigation }) => {
             {['All', 'Active', 'Reserved', 'Sold'].map((tab) => {
               const isActive = selectedTab === tab;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={tab}
-                  style={[styles.tabBtn, isActive && styles.tabBtnActive]}
+                  style={[styles.tabBtn, isActive ? styles.tabBtnActive : styles.tabBtnInactive]}
                   onPress={() => setSelectedTab(tab)}
-                  activeOpacity={0.7}
                 >
                   <Text style={[styles.tabText, isActive ? styles.tabTextActive : { color: colors.textSecondary }]}>
                     {tab}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </View>
@@ -411,11 +428,11 @@ const MyListingsScreen = ({ navigation }) => {
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <View style={styles.emptyIconCircle}>
-                    <Ionicons name="storefront-outline" size={40} color={colors.primary} />
+                    <Ionicons name="storefront-outline" size={32} color={colors.primary} />
                   </View>
                   <Text style={styles.emptyTitle}>No listings found</Text>
                   <Text style={styles.emptySubtitle}>
-                    {selectedTab === 'All' 
+                    {selectedTab === 'All'
                       ? "You haven't listed any items for sale yet."
                       : `You don't have any items in the "${selectedTab}" state.`}
                   </Text>
@@ -429,116 +446,126 @@ const MyListingsScreen = ({ navigation }) => {
   );
 };
 
-const createStyles = (colors) => StyleSheet.create({
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { zIndex: 10 },
+  appBarContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md,
-    paddingBottom: SIZES.md,
-    paddingTop: SIZES.sm,
+    paddingHorizontal: SPACING.md,
+    height: 56,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  iconBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
   },
   scroll: {
-    paddingBottom: 40,
+    paddingBottom: SPACING.xxxl,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md,
-    marginTop: SIZES.md,
-    gap: 8,
+    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    gap: SPACING.xs,
   },
   statsCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
+    ...elevation.xs,
   },
   statsValue: {
-    fontSize: 18,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h3,
     color: colors.textPrimary,
   },
   statsLabel: {
+    ...TYPOGRAPHY.caption,
     fontSize: 10,
-    fontWeight: '800',
-    color: colors.textTertiary,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.textMuted,
     marginTop: 2,
     textTransform: 'uppercase',
   },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: SIZES.md,
-    marginTop: 20,
-    gap: 8,
+    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.lg,
+    gap: SPACING.xs,
   },
   tabBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceLight,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 38,
   },
   tabBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  tabBtnInactive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
   tabText: {
-    fontSize: 12,
-    fontWeight: '800',
+    ...TYPOGRAPHY.caption,
+    fontWeight: FONT_WEIGHTS.semibold,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
+    fontWeight: FONT_WEIGHTS.bold,
   },
   list: {
-    paddingHorizontal: SIZES.md,
-    paddingTop: 16,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
   },
   loaderWrap: {
-    marginTop: 40,
+    marginTop: SPACING.xxxl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    padding: SIZES.md,
-    marginBottom: SIZES.sm + 2,
+    borderColor: colors.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...elevation.sm,
   },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   cardImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    marginRight: SIZES.md,
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.medium,
+    marginRight: SPACING.md,
   },
   cardInfo: {
     flex: 1,
@@ -549,25 +576,26 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...TYPOGRAPHY.subtitle,
+    color: colors.textPrimary,
     flex: 1,
-    marginRight: 8,
+    marginRight: SPACING.xs,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: RADIUS.small,
     borderWidth: 1,
   },
   statusText: {
+    ...TYPOGRAPHY.caption,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: FONT_WEIGHTS.bold,
     textTransform: 'uppercase',
   },
   cardPrice: {
-    fontSize: 14,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
     marginTop: 2,
   },
   metaRow: {
@@ -576,78 +604,77 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 4,
   },
   metaText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
   },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    gap: 8,
-    marginTop: 12,
+    gap: SPACING.xs,
+    marginTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    paddingTop: 12,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: SPACING.md,
     flexWrap: 'wrap',
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: SPACING.md,
+    minHeight: 36,
+    borderRadius: RADIUS.medium,
     borderWidth: 1,
     gap: 4,
   },
   actionText: {
-    fontSize: 12,
-    fontWeight: '800',
+    ...TYPOGRAPHY.caption,
+    fontWeight: FONT_WEIGHTS.bold,
   },
   editBtn: {
-    backgroundColor: colors.primaryLight || colors.primary + '10',
+    backgroundColor: colors.primaryLight,
     borderColor: colors.primary + '30',
   },
   deleteBtn: {
-    backgroundColor: '#EF444410',
-    borderColor: '#EF444430',
+    backgroundColor: colors.dangerLight,
+    borderColor: colors.danger + '30',
   },
   cancelBtn: {
-    backgroundColor: '#F59E0B10',
-    borderColor: '#F59E0B30',
+    backgroundColor: colors.warningLight,
+    borderColor: colors.warning + '30',
   },
   soldBtn: {
-    backgroundColor: '#10B98110',
-    borderColor: '#10B98130',
+    backgroundColor: colors.accentLight,
+    borderColor: colors.accent + '30',
   },
   emptyContainer: {
-    paddingVertical: 60,
+    paddingVertical: SPACING.massive,
+    paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surfaceLight,
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h3,
     color: colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: SPACING.xxs,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: colors.textTertiary,
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 20,
+    lineHeight: 20,
   },
 });
 

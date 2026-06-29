@@ -3,6 +3,7 @@
  * ─────────────────────────────────────────────
  * Campus marketplace to buy and sell items.
  * Uses DataContext for persistent data.
+ * Premium Phase 9.0 Design System Redesign.
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
@@ -18,11 +19,10 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +30,10 @@ import AnimatedPostCard from '../components/AnimatedPostCard';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadPostImage } from '../services/storageService';
 import { initChat } from '../services/chatService';
+
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const formatPrice = (price) => {
   if (price === undefined || price === null || price === '') return '₹0';
@@ -44,13 +48,13 @@ const LazyImage = React.memo(({ uri, style, colors }) => {
   return (
     <View style={style}>
       {loading && !error && (
-        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSubtle }]}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
       {error ? (
-        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLight }]}>
-          <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSubtle }]}>
+          <Ionicons name="image-outline" size={20} color={colors.textDisabled} />
         </View>
       ) : (
         <Image
@@ -84,26 +88,29 @@ const MarketplaceItemCard = React.memo(({
   const isReserving = reservingId === item.id || reservingId === item._id;
   const isOwner = userId && (userId === item.userId || userId === item.author);
 
+  const statusColor = STATUS_COLORS[item.status || 'Available'] || colors.accent;
+  const conditionColor = CONDITION_COLORS[item.condition] || colors.textSecondary;
+
   return (
-    <View style={[styles.card, isSold && { opacity: 0.85 }]}>
+    <View style={[styles.card, isSold && { opacity: 0.75 }]}>
       <View style={styles.cardTop}>
         {item.imageUrl ? (
           <LazyImage uri={item.imageUrl} style={styles.itemThumb} colors={colors} />
         ) : (
           <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
-            <Ionicons name="image-outline" size={24} color={colors.textTertiary} />
+            <Ionicons name="image-outline" size={24} color={colors.textDisabled} />
           </View>
         )}
         <View style={styles.itemInfo}>
           <View style={styles.titleRow}>
             <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
             {isSold ? (
-              <View style={[styles.inlineBadge, styles.soldBadge]}>
-                <Text style={[styles.inlineBadgeText, styles.soldBadgeText]}>Sold</Text>
+              <View style={[styles.inlineBadge, { backgroundColor: colors.danger }]}>
+                <Text style={[styles.inlineBadgeText, { color: colors.textOnPrimary }]}>Sold</Text>
               </View>
             ) : isReserved ? (
-              <View style={styles.inlineBadge}>
-                <Text style={styles.inlineBadgeText}>Reserved</Text>
+              <View style={[styles.inlineBadge, { backgroundColor: colors.warning }]}>
+                <Text style={[styles.inlineBadgeText, { color: colors.textOnPrimary }]}>Reserved</Text>
               </View>
             ) : null}
           </View>
@@ -121,8 +128,8 @@ const MarketplaceItemCard = React.memo(({
         </View>
         <View style={styles.priceContainer}>
           <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-          <View style={[styles.statusLabel, { backgroundColor: (STATUS_COLORS[item.status || 'Available']) + '15' }]}>
-            <Text style={[styles.statusLabelText, { color: STATUS_COLORS[item.status || 'Available'] }]}>
+          <View style={[styles.statusLabel, { backgroundColor: statusColor + '15' }]}>
+            <Text style={[styles.statusLabelText, { color: statusColor }]}>
               {item.status || 'Available'}
             </Text>
           </View>
@@ -131,108 +138,116 @@ const MarketplaceItemCard = React.memo(({
 
       <View style={styles.cardBottom}>
         <View style={styles.badges}>
-          <View style={[styles.conditionBadge, { backgroundColor: (CONDITION_COLORS[item.condition] || colors.textSecondary) + '18' }]}>
-            <Text style={[styles.conditionText, { color: CONDITION_COLORS[item.condition] || colors.textSecondary }]}>{item.condition}</Text>
+          <View style={[styles.conditionBadge, { backgroundColor: conditionColor + '18' }]}>
+            <Text style={[styles.conditionText, { color: conditionColor }]}>{item.condition || 'Good'}</Text>
           </View>
         </View>
 
         <View style={styles.actionRow}>
           {isOwner ? (
             <>
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.editBtn]} 
-                onPress={() => onEdit(item)} 
-                activeOpacity={0.7}
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, styles.editBtn, pressed && { opacity: 0.7 }]}
+                onPress={() => onEdit(item)}
               >
                 <Ionicons name="pencil" size={14} color={colors.primary} />
                 <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.deleteBtn]} 
-                onPress={() => onDelete(item.id || item._id)} 
-                activeOpacity={0.7}
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, styles.deleteBtn, pressed && { opacity: 0.7 }]}
+                onPress={() => onDelete(item.id || item._id)}
               >
-                <Ionicons name="trash-outline" size={14} color={colors.error || colors.accent} />
-                <Text style={[styles.actionText, { color: colors.error || colors.accent }]}>Delete</Text>
-              </TouchableOpacity>
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                <Text style={[styles.actionText, { color: colors.danger }]}>Delete</Text>
+              </Pressable>
 
               {isReserved && (
-                <TouchableOpacity 
-                  style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
-                  onPress={() => onCancelReservation(item)} 
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    { backgroundColor: colors.warningLight, borderColor: colors.warning + '40' },
+                    pressed && { opacity: 0.7 }
+                  ]}
+                  onPress={() => onCancelReservation(item)}
                 >
-                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
-                  <Text style={[styles.actionText, { color: colors.accentAmber }]}>Cancel Res.</Text>
-                </TouchableOpacity>
+                  <Ionicons name="close-circle-outline" size={14} color={colors.warning} />
+                  <Text style={[styles.actionText, { color: colors.warning }]}>Cancel Res.</Text>
+                </Pressable>
               )}
 
-              <TouchableOpacity 
-                style={[
-                  styles.actionBtn, 
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionBtn,
                   styles.soldBtn,
-                  isSold && styles.disabledBtn
-                ]} 
-                onPress={() => onMarkSold(item)} 
-                activeOpacity={0.7}
+                  isSold && styles.disabledBtn,
+                  pressed && !isSold && { opacity: 0.7 }
+                ]}
+                onPress={() => onMarkSold(item)}
                 disabled={isSold}
               >
-                <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textTertiary : colors.accentGreen} />
-                <Text style={[styles.actionText, { color: isSold ? colors.textTertiary : colors.accentGreen }]}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={isSold ? colors.textDisabled : colors.accent} />
+                <Text style={[styles.actionText, { color: isSold ? colors.textDisabled : colors.accent }]}>
                   {isSold ? 'Sold' : 'Mark Sold'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </>
           ) : (
             <>
               {isReserved && item.reservedBy === userId ? (
-                <TouchableOpacity 
-                  style={[styles.actionBtn, { backgroundColor: colors.accentAmber + '10', borderColor: colors.accentAmber + '40' }]} 
-                  onPress={() => onCancelReservation(item)} 
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    { backgroundColor: colors.warningLight, borderColor: colors.warning + '40' },
+                    pressed && { opacity: 0.7 }
+                  ]}
+                  onPress={() => onCancelReservation(item)}
                 >
-                  <Ionicons name="close-circle-outline" size={14} color={colors.accentAmber} />
-                  <Text style={[styles.actionText, { color: colors.accentAmber }]}>Withdraw</Text>
-                </TouchableOpacity>
+                  <Ionicons name="close-circle-outline" size={14} color={colors.warning} />
+                  <Text style={[styles.actionText, { color: colors.warning }]}>Withdraw</Text>
+                </Pressable>
               ) : (
-                <TouchableOpacity 
-                  style={[
-                    styles.actionBtn, 
-                    styles.reserveBtn, 
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    styles.reserveBtn,
                     (isReserved || isSold) && styles.disabledBtn,
-                    isReserving && styles.loadingBtn
-                  ]} 
-                  onPress={() => onReserve(item)} 
-                  activeOpacity={0.7}
+                    isReserving && styles.loadingBtn,
+                    pressed && !(isReserved || isSold || isReserving) && { opacity: 0.7 }
+                  ]}
+                  onPress={() => onReserve(item)}
                   disabled={isReserved || isSold || isReserving}
                 >
                   {isReserving ? (
-                    <ActivityIndicator size="small" color={colors.accentAmber} />
+                    <ActivityIndicator size="small" color={colors.warning} />
                   ) : (
                     <>
-                      <Ionicons 
-                        name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")} 
-                        size={14} 
-                        color={(isReserved || isSold) ? colors.textTertiary : colors.accentAmber} 
+                      <Ionicons
+                        name={isSold ? "checkmark-done-circle-outline" : (isReserved ? "lock-closed" : "bookmark-outline")}
+                        size={14}
+                        color={(isReserved || isSold) ? colors.textDisabled : colors.warning}
                       />
-                      <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textTertiary : colors.accentAmber }]}>
+                      <Text style={[styles.actionText, { color: (isReserved || isSold) ? colors.textDisabled : colors.warning }]}>
                         {isSold ? 'Sold' : (isReserved ? 'Reserved' : 'Reserve')}
                       </Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
 
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.chatBtn, isSold && styles.disabledBtn]} 
-                onPress={() => onContactSeller(item)} 
-                activeOpacity={0.7}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  styles.chatBtn,
+                  isSold && styles.disabledBtn,
+                  pressed && !isSold && { opacity: 0.85 }
+                ]}
+                onPress={() => onContactSeller(item)}
                 disabled={isSold}
               >
-                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
-                <Text style={[styles.actionText, styles.chatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
-              </TouchableOpacity>
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textDisabled : colors.textOnPrimary} />
+                <Text style={[styles.actionText, styles.chatText, isSold && { color: colors.textDisabled }]}>Contact Seller</Text>
+              </Pressable>
             </>
           )}
         </View>
@@ -242,15 +257,14 @@ const MarketplaceItemCard = React.memo(({
 });
 
 const BuySellScreen = ({ navigation, route }) => {
-  const { colors, shadows, isDark } = useTheme();
-  const { 
-    items, itemsLoading, posts, 
-    toggleLike, toggleSave, votePoll, userId, refreshData,
+  const { colors, isDark } = useTheme();
+  const {
+    items, itemsLoading,
+    toggleLike, toggleSave, votePoll, userId,
     addItem, reserveItem, cancelReservation, updatePost, deletePost,
     loadMarketplacePosts, marketplaceHasMore, marketplaceLoadingMore
   } = useData();
 
-  // State Hooks (declared together near the top of the component)
   const [showSell, setShowSell] = useState(false);
   const [itemTitle, setItemTitle] = useState('');
   const [itemPrice, setItemPrice] = useState('');
@@ -258,21 +272,19 @@ const BuySellScreen = ({ navigation, route }) => {
   const [posting, setPosting] = useState(false);
   const [reservingId, setReservingId] = useState(null);
 
-  // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedCondition, setSelectedCondition] = useState('All Conditions');
-  
-  // Photo upload and edit listing states
+
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingItem, setEditingItem] = useState(null);
 
-  // Pagination & Refreshing States
   const [refreshing, setRefreshing] = useState(false);
 
-  const styles = useMemo(() => createStyles(colors, shadows, isDark), [colors, shadows, isDark]);
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   const handleGoBack = useCallback(() => {
     if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
@@ -304,7 +316,7 @@ const BuySellScreen = ({ navigation, route }) => {
   const renderFooter = useCallback(() => {
     if (!marketplaceLoadingMore) return null;
     return (
-      <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ paddingVertical: SPACING.lg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -313,7 +325,6 @@ const BuySellScreen = ({ navigation, route }) => {
   const handleLike = useCallback((postId) => toggleLike(postId), [toggleLike]);
   const handleSave = useCallback((postId) => toggleSave(postId), [toggleSave]);
 
-  // Unified Feed: Items mapped to product layout cleanly to prevent duplicate generic posts
   const mergedData = useMemo(() => {
     return items.map(i => ({ ...i, isGenericPost: false })).sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt) : 0;
@@ -322,20 +333,16 @@ const BuySellScreen = ({ navigation, route }) => {
     });
   }, [items]);
 
-  // Filter items locally on search query, status chip, and condition chip
   const filteredData = useMemo(() => {
     return mergedData.filter(item => {
-      // 1. Status Filter (default 'Available' if not set)
       const statusValue = item.status || 'Available';
-      const matchesStatus = selectedStatus === 'All' || 
+      const matchesStatus = selectedStatus === 'All' ||
         statusValue.toUpperCase() === selectedStatus.toUpperCase();
 
-      // 2. Condition Filter
       const conditionValue = item.condition || '';
       const matchesCondition = selectedCondition === 'All Conditions' ||
         conditionValue.toUpperCase() === selectedCondition.toUpperCase();
 
-      // 3. Search Query
       const query = searchQuery.trim().toLowerCase();
       if (!query) return matchesStatus && matchesCondition;
 
@@ -349,11 +356,11 @@ const BuySellScreen = ({ navigation, route }) => {
   }, [mergedData, selectedStatus, selectedCondition, searchQuery]);
 
   const CONDITION_COLORS = useMemo(() => ({
-    'New': colors.accentGreen, 'Like New': colors.accentCyan, 'Good': colors.accentAmber, 'Used': colors.textSecondary,
+    'New': colors.accent, 'Like New': colors.info, 'Good': colors.warning, 'Used': colors.textSecondary,
   }), [colors]);
 
   const STATUS_COLORS = useMemo(() => ({
-    'Available': colors.accentGreen, 'Reserved': colors.accentAmber, 'Sold': colors.accent,
+    'Available': colors.accent, 'Reserved': colors.warning, 'Sold': colors.danger,
   }), [colors]);
 
   const handlePickImage = useCallback(async () => {
@@ -395,7 +402,6 @@ const BuySellScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (route?.params?.editItem) {
       handleEdit(route.params.editItem);
-      // Clear route parameters so it doesn't trigger repeatedly
       navigation.setParams({ editItem: null });
     }
   }, [route?.params?.editItem, handleEdit, navigation]);
@@ -417,9 +423,9 @@ const BuySellScreen = ({ navigation, route }) => {
         'Are you sure you want to delete this item listing?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Delete', 
-            style: 'destructive', 
+          {
+            text: 'Delete',
+            style: 'destructive',
             onPress: async () => {
               try {
                 await deletePost(itemId);
@@ -427,7 +433,7 @@ const BuySellScreen = ({ navigation, route }) => {
               } catch (e) {
                 Alert.alert('Error', 'Failed to delete listing.');
               }
-            } 
+            }
           }
         ]
       );
@@ -456,10 +462,7 @@ const BuySellScreen = ({ navigation, route }) => {
         'Are you sure you sold this item?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Confirm', 
-            onPress: performMarkSold
-          }
+          { text: 'Confirm', onPress: performMarkSold }
         ]
       );
     }
@@ -500,7 +503,6 @@ const BuySellScreen = ({ navigation, route }) => {
     }
   }, [cancelReservation]);
 
-
   const handleSell = useCallback(async () => {
     if (!itemTitle.trim() || !itemPrice.trim()) {
       Alert.alert('Missing Info', 'Please enter title and price.');
@@ -509,7 +511,7 @@ const BuySellScreen = ({ navigation, route }) => {
     setPosting(true);
     try {
       let imageUrl = selectedImage ? (typeof selectedImage === 'string' ? selectedImage : selectedImage.uri) : null;
-      
+
       if (selectedImage && selectedImage.uri && selectedImage.uri !== editingItem?.imageUrl) {
         setUploadingImage(true);
         setUploadProgress(0);
@@ -546,8 +548,7 @@ const BuySellScreen = ({ navigation, route }) => {
         console.log('[Marketplace] Successfully posted item to central DB. ID:', newItemId);
         Alert.alert('Listed! 🛒', 'Your item is now visible to all students on campus!');
       }
-      
-      // Clear form
+
       setItemTitle('');
       setItemPrice('');
       setItemCondition('Good');
@@ -555,7 +556,6 @@ const BuySellScreen = ({ navigation, route }) => {
       setEditingItem(null);
       setShowSell(false);
 
-      // Navigate back to Home on successful creation (if not editing)
       if (!editingItem && navigation && typeof navigation.navigate === 'function') {
         navigation.navigate('Main', { screen: 'Home' });
       }
@@ -569,7 +569,7 @@ const BuySellScreen = ({ navigation, route }) => {
   const handleReserve = useCallback(async (item) => {
     const id = item.id || item._id;
     if (item.status === 'Reserved' || item.status === 'Sold') return;
-    
+
     setReservingId(id);
     try {
       await reserveItem(id);
@@ -593,7 +593,7 @@ const BuySellScreen = ({ navigation, route }) => {
       Alert.alert('Info', 'You cannot contact yourself.');
       return;
     }
-    
+
     try {
       const chatObj = await initChat(sellerId, sellerName, item);
       navigation.navigate('Chat', { chat: chatObj });
@@ -649,33 +649,28 @@ const BuySellScreen = ({ navigation, route }) => {
   return (
     <View style={styles.screen}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <SafeAreaView style={{ backgroundColor: isDark ? colors.background : '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={handleGoBack} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleGoBack}
+            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
           <Text style={styles.headerTitle}>Buy / Sell</Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity 
-              style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
-              activeOpacity={0.7} 
+          <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
+            <Pressable
+              style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }]}
               onPress={() => navigation.navigate('MyListings')}
             >
-              <Ionicons name="list" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
+              <Ionicons name="list" size={20} color={colors.textPrimary} />
+            </Pressable>
 
-            <TouchableOpacity 
-              style={[styles.addBtn, { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(255, 255, 255, 0.15)' }]} 
-              activeOpacity={0.7} 
+            <Pressable
+              style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }]}
               onPress={() => {
                 if (showSell) {
-                  // Clear state when closing the Sell form
                   setItemTitle('');
                   setItemPrice('');
                   setItemCondition('Good');
@@ -685,98 +680,113 @@ const BuySellScreen = ({ navigation, route }) => {
                 setShowSell(!showSell);
               }}
             >
-              <Ionicons name={showSell ? 'close' : 'add'} size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+              <Ionicons name={showSell ? 'close' : 'add'} size={22} color={colors.textPrimary} />
+            </Pressable>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       {showSell && (
         <View style={styles.sellCard}>
           <Text style={styles.sellTitle}>{editingItem ? 'Edit Listing' : 'Sell an Item'}</Text>
-          
-          {/* Image Picker Widget */}
+
           {selectedImage ? (
             <View style={styles.imagePreviewWrap}>
-              <Image 
-                source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }} 
-                style={styles.imagePreview} 
+              <Image
+                source={{ uri: typeof selectedImage === 'string' ? selectedImage : selectedImage.uri }}
+                style={styles.imagePreview}
               />
-              <TouchableOpacity
+              <Pressable
                 style={styles.removeImageBtn}
                 onPress={() => setSelectedImage(null)}
-                activeOpacity={0.7}
               >
-                <Ionicons name="close-circle" size={24} color={colors.accent} />
-              </TouchableOpacity>
+                <Ionicons name="close-circle" size={24} color={colors.danger} />
+              </Pressable>
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.imagePickerBtn}
+            <Pressable
+              style={({ pressed }) => [styles.imagePickerBtn, pressed && { opacity: 0.8 }]}
               onPress={handlePickImage}
-              activeOpacity={0.7}
             >
               <Ionicons name="image-outline" size={24} color={colors.primary} />
               <Text style={styles.imagePickerText}>Add Listing Image</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
 
-          {/* Upload Progress Indicator */}
           {uploadingImage && (
             <View style={styles.progressContainer}>
               <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.accentCyan }]} />
+                <View style={[styles.progressBarFill, { width: `${uploadProgress}%`, backgroundColor: colors.info }]} />
               </View>
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+              <Text style={styles.progressText}>
                 Uploading Image: {uploadProgress}%
               </Text>
             </View>
           )}
 
-          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Item name" placeholderTextColor={colors.textTertiary} value={itemTitle} onChangeText={setItemTitle} />
-          <TextInput style={[styles.sellInput, { color: colors.textPrimary }]} placeholder="Price (e.g. 50)" placeholderTextColor={colors.textTertiary} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} />
+          <TextInput
+            style={styles.sellInput}
+            placeholder="Item name"
+            placeholderTextColor={colors.textDisabled}
+            value={itemTitle}
+            onChangeText={setItemTitle}
+          />
+          <TextInput
+            style={styles.sellInput}
+            placeholder="Price (e.g. 50)"
+            placeholderTextColor={colors.textDisabled}
+            keyboardType="numeric"
+            value={itemPrice}
+            onChangeText={setItemPrice}
+          />
           <View style={styles.conditionRow}>
             {['New', 'Like New', 'Good', 'Used'].map((c) => (
-              <TouchableOpacity key={c} style={[styles.conditionChip, itemCondition === c && styles.conditionChipActive]} onPress={() => setItemCondition(c)} activeOpacity={0.7}>
+              <Pressable
+                key={c}
+                style={[styles.conditionChip, itemCondition === c && styles.conditionChipActive]}
+                onPress={() => setItemCondition(c)}
+              >
                 <Text style={[styles.conditionChipText, itemCondition === c && styles.conditionChipTextActive]}>{c}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
-          <TouchableOpacity style={[styles.sellBtn, posting && { opacity: 0.7 }]} onPress={handleSell} activeOpacity={0.8} disabled={posting}>
-            {posting ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+          <Pressable
+            style={({ pressed }) => [styles.sellBtn, (posting || pressed) && { opacity: 0.85 }]}
+            onPress={handleSell}
+            disabled={posting}
+          >
+            {posting ? <ActivityIndicator size="small" color={colors.textOnPrimary} /> : (
               <>
-                <Ionicons name="storefront-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="storefront-outline" size={18} color={colors.textOnPrimary} />
                 <Text style={styles.sellBtnText}>{editingItem ? 'Save Changes' : 'List Item'}</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
       {!showSell && (
         <View style={styles.filterSectionContainer}>
-          <Text style={styles.sectionTitle}>Search Marketplace</Text>
+          <Text style={styles.sectionTitle}>Marketplace</Text>
 
-          {/* Premium Search Bar */}
           <View style={styles.searchBarContainer}>
-            <Ionicons name="search-outline" size={20} color={colors.textTertiary} style={styles.searchIcon} />
+            <Ionicons name="search-outline" size={18} color={colors.textDisabled} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search item title or seller name..."
-              placeholderTextColor={colors.textTertiary}
+              style={styles.searchInput}
+              placeholder="Search item title or seller..."
+              placeholderTextColor={colors.textDisabled}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCorrect={false}
               autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-              </TouchableOpacity>
+              <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                <Ionicons name="close-circle" size={18} color={colors.textDisabled} />
+              </Pressable>
             )}
           </View>
 
-          {/* Status Section */}
           <View style={styles.filterGroup}>
             <Text style={styles.filterGroupLabel}>Status</Text>
             <ScrollView
@@ -788,30 +798,20 @@ const BuySellScreen = ({ navigation, route }) => {
               {['All', 'Available', 'Reserved', 'Sold'].map((status) => {
                 const isActive = selectedStatus === status;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={status}
-                    style={[
-                      styles.chipBtn,
-                      isActive ? styles.chipBtnActive : styles.chipBtnInactive
-                    ]}
+                    style={[styles.chipBtn, isActive ? styles.chipBtnActive : styles.chipBtnInactive]}
                     onPress={() => setSelectedStatus(status)}
-                    activeOpacity={0.6}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        isActive ? styles.chipTextActive : { color: colors.textSecondary }
-                      ]}
-                    >
+                    <Text style={[styles.chipText, isActive ? styles.chipTextActive : { color: colors.textSecondary }]}>
                       {status}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </ScrollView>
           </View>
 
-          {/* Condition Section */}
           <View style={[styles.filterGroup, styles.conditionFilterGroup]}>
             <Text style={styles.filterGroupLabel}>Condition</Text>
             <ScrollView
@@ -823,24 +823,15 @@ const BuySellScreen = ({ navigation, route }) => {
               {['All Conditions', 'New', 'Like New', 'Good', 'Used'].map((cond) => {
                 const isActive = selectedCondition === cond;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={cond}
-                    style={[
-                      styles.chipBtn,
-                      isActive ? styles.chipBtnActive : styles.chipBtnInactive
-                    ]}
+                    style={[styles.chipBtn, isActive ? styles.chipBtnActive : styles.chipBtnInactive]}
                     onPress={() => setSelectedCondition(cond)}
-                    activeOpacity={0.6}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        isActive ? styles.chipTextActive : { color: colors.textSecondary }
-                      ]}
-                    >
+                    <Text style={[styles.chipText, isActive ? styles.chipTextActive : { color: colors.textSecondary }]}>
                       {cond}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </ScrollView>
@@ -867,17 +858,17 @@ const BuySellScreen = ({ navigation, route }) => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons name="storefront-outline" size={40} color={colors.primary} />
+                <Ionicons name="storefront-outline" size={32} color={colors.primary} />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' 
-                  ? 'No matches found 🔍' 
-                  : 'No items yet 🛍️'}
+                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions'
+                  ? 'No matches found'
+                  : 'No items yet'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions' 
-                  ? 'Try broadening your search query or choosing other filter options.'
-                  : 'Be the first to list something in the campus marketplace!'}
+                {searchQuery.trim() !== '' || selectedStatus !== 'All' || selectedCondition !== 'All Conditions'
+                  ? 'Try broadening your search query or adjusting your filters.'
+                  : 'Be the first student to list an item for sale!'}
               </Text>
             </View>
           }
@@ -887,227 +878,286 @@ const BuySellScreen = ({ navigation, route }) => {
   );
 };
 
-const createStyles = (colors, shadows, isDark) => StyleSheet.create({
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
+  appBarContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
+  },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 56,
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  addBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  list: { padding: SIZES.md, paddingBottom: SIZES.xxxl },
-  sellCard: { 
-    margin: SIZES.md, backgroundColor: colors.surface, borderRadius: 24, 
-    padding: SIZES.lg, borderWidth: 1, borderColor: colors.border, ...shadows.large 
+  iconBtn: {
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  sellTitle: { fontSize: 13, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: SIZES.md },
+  headerTitle: {
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
+  },
+  list: { padding: SPACING.md, paddingBottom: SPACING.massive },
+  sellCard: {
+    margin: SPACING.md,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.md,
+  },
+  sellTitle: {
+    ...TYPOGRAPHY.label,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: SPACING.md,
+  },
   sellInput: {
-    backgroundColor: colors.surfaceLight, borderRadius: 14, borderWidth: 1, borderColor: colors.borderLight, 
-    paddingHorizontal: SIZES.md, height: 50, fontSize: 16, color: colors.textPrimary, marginBottom: SIZES.sm,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: SPACING.md,
+    minHeight: SIZES.layout.minTouchTarget + 6,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    marginBottom: SPACING.sm,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
-  conditionRow: { flexDirection: 'row', gap: SIZES.sm, marginBottom: SIZES.md, flexWrap: 'wrap' },
-  conditionChip: { 
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, 
-    borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.surfaceLight 
+  conditionRow: { flexDirection: 'row', gap: SPACING.xs, marginBottom: SPACING.md, flexWrap: 'wrap' },
+  conditionChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 36,
+    justifyContent: 'center',
   },
-  conditionChipActive: { borderColor: colors.accentGreen, backgroundColor: colors.accentGreen + '10' },
-  conditionChipText: { fontSize: 13, color: colors.textTertiary, fontWeight: '700' },
-  conditionChipTextActive: { color: colors.accentGreen, fontWeight: '800' },
-  sellBtn: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    backgroundColor: colors.accentGreen, borderRadius: 14, paddingVertical: 14, 
-    gap: 8, marginTop: SIZES.xs, ...shadows.glow 
+  conditionChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  conditionChipText: { ...TYPOGRAPHY.caption, color: colors.textSecondary, fontWeight: FONT_WEIGHTS.semibold },
+  conditionChipTextActive: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold },
+  sellBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: RADIUS.medium,
+    minHeight: SIZES.layout.minTouchTarget + 6,
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
+    ...elevation.sm,
   },
-  sellBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15, textTransform: 'uppercase', letterSpacing: 1 },
-  card: { 
-    backgroundColor: colors.surface, borderRadius: 20, padding: SIZES.md, 
-    marginBottom: SIZES.sm + 2, borderWidth: 1, borderColor: colors.borderLight,
-    ...shadows.small,
+  sellBtnText: { ...TYPOGRAPHY.button, color: colors.textOnPrimary },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.large,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center' },
-  itemThumb: { 
-    width: 60, height: 60, borderRadius: 12, 
-    marginRight: SIZES.md, backgroundColor: colors.surfaceLight 
+  itemThumb: {
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.medium,
+    marginRight: SPACING.md,
+    backgroundColor: colors.surfaceSubtle,
   },
   itemThumbPlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderStyle: 'dashed'
+    borderColor: colors.border,
+    borderStyle: 'dashed',
   },
   itemInfo: { flex: 1 },
-  itemTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
-  itemMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
-  itemSeller: { fontSize: 12, color: colors.textTertiary, fontWeight: '600', maxWidth: 120 },
-  dot: { fontSize: 10, color: colors.textTertiary },
-  itemTime: { fontSize: 12, color: colors.textTertiary },
-  itemPrice: { fontSize: 18, fontWeight: '900', color: colors.accentGreen },
-  cardBottom: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-    marginTop: SIZES.md, paddingTop: SIZES.sm, borderTopWidth: 1, borderTopColor: colors.borderLight 
+  itemTitle: { ...TYPOGRAPHY.subtitle, color: colors.textPrimary },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: SPACING.xxs },
+  itemSeller: { ...TYPOGRAPHY.caption, color: colors.textMuted, maxWidth: 130 },
+  dot: { ...TYPOGRAPHY.caption, color: colors.textDisabled },
+  itemTime: { ...TYPOGRAPHY.caption, color: colors.textMuted },
+  itemPrice: { ...TYPOGRAPHY.h3, color: colors.textPrimary },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
-  badges: { flexDirection: 'row', gap: 6 },
-  conditionBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  conditionText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-  
-  actionRow: { flexDirection: 'row', gap: 12, width: '100%', maxWidth: 320 },
-  actionBtn: { 
+  badges: { flexDirection: 'row', gap: SPACING.xxs },
+  conditionBadge: { borderRadius: RADIUS.small, paddingHorizontal: SPACING.xs, paddingVertical: 4 },
+  conditionText: { ...TYPOGRAPHY.caption, fontSize: 11, fontWeight: FONT_WEIGHTS.bold },
+
+  actionRow: { flexDirection: 'row', gap: SPACING.xs, width: '100%', maxWidth: 340 },
+  actionBtn: {
     flex: 1,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, 
-    paddingVertical: 10, borderRadius: 12, borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
   },
-  reserveBtn: { 
-    backgroundColor: colors.accentAmber + '10',
-    borderColor: colors.accentAmber + '40',
+  reserveBtn: {
+    backgroundColor: colors.warningLight,
+    borderColor: colors.warning + '40',
   },
-  chatBtn: { 
+  chatBtn: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-    ...shadows.glow,
+    ...elevation.xs,
   },
   disabledBtn: {
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.borderLight,
-    opacity: 0.6,
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.borderSubtle,
+    opacity: 0.5,
   },
-  loadingBtn: { paddingHorizontal: 20 },
-  actionText: { fontSize: 13, fontWeight: '900' },
-  chatText: { color: '#FFF' },
+  loadingBtn: { paddingHorizontal: SPACING.md },
+  actionText: { ...TYPOGRAPHY.caption, fontWeight: FONT_WEIGHTS.bold },
+  chatText: { color: colors.textOnPrimary },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
-  inlineBadge: { backgroundColor: colors.accentAmber, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  inlineBadgeText: { fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' },
-  soldBadge: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  soldBadgeText: { color: '#FFF' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flex: 1, paddingRight: SPACING.xs },
+  inlineBadge: { borderRadius: RADIUS.small, paddingHorizontal: SPACING.xs, paddingVertical: 2 },
+  inlineBadgeText: { ...TYPOGRAPHY.caption, fontSize: 10, fontWeight: FONT_WEIGHTS.bold },
   soldBtn: {
-    backgroundColor: colors.accentGreen + '10',
-    borderColor: colors.accentGreen + '40',
+    backgroundColor: colors.accentLight,
+    borderColor: colors.accent + '40',
   },
 
   reservedByContainer: {
-    marginTop: 6,
-    padding: 6,
-    backgroundColor: colors.accentAmber + '12',
-    borderRadius: 8,
+    marginTop: SPACING.xs,
+    padding: SPACING.xs,
+    backgroundColor: colors.warningLight,
+    borderRadius: RADIUS.small,
     borderWidth: 1,
-    borderColor: colors.accentAmber + '25',
+    borderColor: colors.warning + '30',
     alignSelf: 'flex-start',
   },
   reservedByStatus: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: colors.accentAmber,
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.warning,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   reservedByText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...TYPOGRAPHY.caption,
     color: colors.textSecondary,
     marginTop: 2,
   },
-  
+
   priceContainer: { alignItems: 'flex-end' },
-  statusLabel: { marginTop: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  statusLabelText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  reservedIndicator: { 
-    position: 'absolute', top: -2, right: -2, width: 10, height: 10, 
-    borderRadius: 5, backgroundColor: colors.accentAmber, borderWidth: 2, borderColor: colors.surface 
-  },
+  statusLabel: { marginTop: 4, paddingHorizontal: SPACING.xs, paddingVertical: 2, borderRadius: RADIUS.small },
+  statusLabelText: { ...TYPOGRAPHY.caption, fontSize: 10, fontWeight: FONT_WEIGHTS.bold },
   loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  
+
   // Empty State Styles
   emptyContainer: {
-    padding: 60,
+    paddingVertical: SPACING.massive,
+    paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SIZES.xxxl,
   },
   emptyIconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.surfaceLight,
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h3,
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: SPACING.xxs,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: colors.textTertiary,
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
 
   // Image Picker & Uploading Styles
   imagePickerBtn: {
-    height: 100,
-    borderRadius: 16,
-    borderWidth: 2,
+    height: 96,
+    borderRadius: RADIUS.large,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.border,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.md,
+    marginBottom: SPACING.md,
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.xs,
   },
   imagePickerText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '700',
+    ...TYPOGRAPHY.label,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.semibold,
   },
   imagePreviewWrap: {
     position: 'relative',
-    borderRadius: 16,
+    borderRadius: RADIUS.large,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    marginBottom: SIZES.md,
+    borderColor: colors.border,
+    marginBottom: SPACING.md,
   },
   imagePreview: {
     width: '100%',
-    height: 160,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceLight,
+    height: 180,
+    borderRadius: RADIUS.large,
+    backgroundColor: colors.surfaceSubtle,
   },
   removeImageBtn: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: colors.background,
-    borderRadius: SIZES.radiusFull,
+    top: SPACING.xs,
+    right: SPACING.xs,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.full,
   },
   progressContainer: {
-    marginBottom: SIZES.md,
+    marginBottom: SPACING.md,
   },
   progressBarBg: {
     height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceLight,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceSubtle,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: RADIUS.pill,
   },
   progressText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1116,92 +1166,95 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
     borderColor: colors.primary + '30',
   },
   deleteBtn: {
-    backgroundColor: (colors.error || colors.accent) + '15',
-    borderColor: (colors.error || colors.accent) + '30',
+    backgroundColor: colors.dangerLight,
+    borderColor: colors.danger + '30',
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 18,
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    height: 52,
+    borderRadius: RADIUS.medium,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    minHeight: SIZES.layout.minTouchTarget + 4,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
+    borderColor: colors.border,
+    ...elevation.xs,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: SPACING.xs,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 8,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    paddingVertical: SPACING.sm,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   clearSearchBtn: {
-    padding: 4,
+    padding: SPACING.xxs,
   },
   filterSectionContainer: {
-    paddingHorizontal: SIZES.md,
-    paddingTop: SIZES.md,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
     backgroundColor: colors.background,
     width: '100%',
     alignSelf: 'center',
     maxWidth: Platform.OS === 'web' ? 700 : '100%',
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '900',
+    ...TYPOGRAPHY.h2,
     color: colors.textPrimary,
-    marginBottom: SIZES.md,
-    letterSpacing: -0.5,
+    marginBottom: SPACING.md,
   },
   filterGroup: {
-    marginBottom: 18,
+    marginBottom: SPACING.md,
   },
   conditionFilterGroup: {
-    marginBottom: 28,
+    marginBottom: SPACING.lg,
   },
   filterGroupLabel: {
+    ...TYPOGRAPHY.caption,
     fontSize: 11,
-    fontWeight: '900',
-    color: colors.textTertiary,
-    marginBottom: 8,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: colors.textMuted,
+    marginBottom: SPACING.xs,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   chipsScrollView: {
-    maxHeight: 50,
+    maxHeight: 48,
   },
   chipsScrollContainer: {
     paddingHorizontal: 2,
     alignItems: 'center',
-    gap: 8,
-    paddingBottom: 8,
+    gap: SPACING.xs,
+    paddingBottom: 4,
   },
   chipBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   chipBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   chipBtnInactive: {
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '800',
+    ...TYPOGRAPHY.caption,
+    fontWeight: FONT_WEIGHTS.semibold,
     textAlign: 'center',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
+    fontWeight: FONT_WEIGHTS.bold,
   },
 });
 
