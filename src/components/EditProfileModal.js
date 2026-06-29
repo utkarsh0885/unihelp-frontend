@@ -1,4 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+/**
+ * EditProfileModal.js
+ * ─────────────────────────────────────────────
+ * Premium Modal Sheet to edit user profile.
+ * Premium Phase 9.0 Design System Redesign.
+ */
+
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,33 +17,37 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Keyboard,
   Image,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadProfileImage } from '../services/storageService';
 import { Ionicons } from '@expo/vector-icons';
-import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import InputField from './InputField';
-import GradientButton from './GradientButton';
+
+// Design System
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const EditProfileModal = ({ visible, onClose, user }) => {
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const { updateUser } = useAuth();
   const { showToast } = useToast();
   
-  const [name, setName] = React.useState(user?.name || '');
-  const [specialisation, setSpecialisation] = React.useState(user?.specialisation || '');
-  const [avatarUrl, setAvatarUrl] = React.useState(user?.avatarUrl || null);
-  const [saving, setSaving] = React.useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [name, setName] = useState(user?.name || '');
+  const [specialisation, setSpecialisation] = useState(user?.specialisation || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const slideAnim = useRef(new Animated.Value(600)).current;
+  const elevation = useMemo(() => getElevation(isDark), [isDark]);
+  const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
 
   // Sync state when user object changes or modal opens
   useEffect(() => {
@@ -180,189 +191,259 @@ const EditProfileModal = ({ visible, onClose, user }) => {
     }
   };
 
+  const avatarLetter = name ? name.charAt(0).toUpperCase() : 'U';
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={handleClose} />
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
         
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.sheetContainer}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 40}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.sheetContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <Animated.View
+            style={[
+              styles.sheet,
+              { transform: [{ translateY: slideAnim }] }
+            ]}
           >
-            <Animated.View
-              style={[
-                styles.sheet,
-                { 
-                  backgroundColor: colors.surface, 
-                  borderTopColor: colors.borderLight,
-                  transform: [{ translateY: slideAnim }]
-                },
-                shadows.large,
-              ]}
-            >
-              <View style={styles.dragHandleWrap} {...panResponder.panHandlers}>
-                <View style={[styles.dragHandle, { backgroundColor: colors.border }]} />
-              </View>
-              
-              <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>Edit Profile</Text>
-                <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-                  <Ionicons name="close" size={24} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
+            <View style={styles.dragHandleWrap} {...panResponder.panHandlers}>
+              <View style={styles.dragHandle} />
+            </View>
+            
+            <View style={styles.header}>
+              <Text style={styles.title}>Edit Personal Info</Text>
+              <Pressable onPress={handleClose} style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.7 }]}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
 
-              <ScrollView 
-                style={styles.contentScroll} 
-                contentContainerStyle={styles.contentContainer}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <TouchableOpacity 
-                  style={[styles.avatarEdit, { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }]}
+            <ScrollView 
+              style={styles.contentScroll} 
+              contentContainerStyle={styles.contentContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Avatar Picker Container */}
+              <View style={styles.avatarSection}>
+                <Pressable 
+                  style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.85 }]}
                   onPress={handlePickAvatar}
                   disabled={uploadingAvatar || saving}
-                  activeOpacity={0.7}
                 >
-                  {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarTextPlaceholder}>
-                      {name.charAt(0).toUpperCase() || 'U'}
-                    </Text>
-                  )}
-                  <View style={[styles.cameraOverlay, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-                    <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  <View style={styles.avatarCircle}>
+                    {avatarUrl ? (
+                      <Image source={{ uri: avatarUrl }} style={styles.avatarImage} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.avatarPlaceholderText}>{avatarLetter}</Text>
+                    )}
                   </View>
+
+                  <View style={styles.cameraBadge}>
+                    <Ionicons name="camera" size={14} color={colors.textOnPrimary} />
+                  </View>
+
                   {uploadingAvatar && (
-                    <View style={styles.uploadLoader}>
+                    <View style={styles.uploadingOverlay}>
                       <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.progressText}>
-                        {uploadProgress}%
-                      </Text>
+                      <Text style={styles.uploadingText}>{uploadProgress}%</Text>
                     </View>
                   )}
-                </TouchableOpacity>
+                </Pressable>
+                <Text style={styles.avatarHint}>Tap photo to upload new picture</Text>
+              </View>
 
+              <View style={styles.formSection}>
                 <InputField
                   label="Display Name"
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. Utkarsh Singh"
                   value={name}
                   onChangeText={setName}
                 />
                 
+                <View style={{ height: SPACING.sm }} />
+
                 <InputField
-                  label="Specialisation"
-                  placeholder="e.g. Computer Science, Mechanical, MBA"
+                  label="Academic Specialisation"
+                  placeholder="e.g. Computer Science, Mechanical Engineering"
                   value={specialisation}
                   onChangeText={setSpecialisation}
                 />
+              </View>
 
-                <GradientButton 
-                  title="Save Changes" 
-                  loading={saving}
-                  onPress={handleSave} 
-                  style={{ marginTop: SIZES.lg }} 
-                />
-                
-                <View style={{ height: 40 }} />
-              </ScrollView>
-            </Animated.View>
-          </KeyboardAvoidingView>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  (saving || uploadingAvatar) && styles.saveBtnDisabled,
+                  pressed && !(saving || uploadingAvatar) && { opacity: 0.85 }
+                ]}
+                onPress={handleSave}
+                disabled={saving || uploadingAvatar}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={18} color={colors.textOnPrimary} />
+                    <Text style={styles.saveBtnText}>Save Profile Changes</Text>
+                  </>
+                )}
+              </Pressable>
+              
+              <View style={{ height: SPACING.xl }} />
+            </ScrollView>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
     justifyContent: 'flex-end',
     width: '100%',
+    maxHeight: '90%',
   },
   sheet: {
-    borderTopLeftRadius: SIZES.radiusXl,
-    borderTopRightRadius: SIZES.radiusXl,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     borderWidth: 1,
-    paddingBottom: Platform.OS === 'ios' ? SIZES.xxxl : SIZES.lg,
+    borderColor: colors.border,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.xxxl : SPACING.lg,
+    ...elevation.md,
   },
   dragHandleWrap: {
     alignItems: 'center',
-    paddingVertical: SIZES.md,
+    paddingVertical: SPACING.sm,
   },
   dragHandle: {
-    width: 40,
+    width: 44,
     height: 4,
-    borderRadius: 2,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.borderSubtle,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SIZES.lg,
-    paddingBottom: SIZES.md,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   title: {
-    fontSize: SIZES.fontLg,
-    fontWeight: '700',
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
   },
   closeBtn: {
-    padding: 4,
+    width: SIZES.layout.minTouchTarget,
+    height: SIZES.layout.minTouchTarget,
+    borderRadius: RADIUS.medium,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   contentScroll: {
     flexShrink: 1,
   },
   contentContainer: {
-    paddingHorizontal: SIZES.lg,
-    paddingBottom: SIZES.xl,
-    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
-  avatarEdit: {
-    width: 80,
-    height: 80,
-    borderRadius: SIZES.radiusFull,
-    alignSelf: 'center',
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  avatarWrap: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+  },
+  avatarCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 2,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.lg,
-    position: 'relative',
+    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 40,
   },
-  avatarTextPlaceholder: {
-    fontSize: 32,
-    fontWeight: '900',
+  avatarPlaceholderText: {
+    ...TYPOGRAPHY.h1,
+    color: colors.primary,
   },
-  cameraOverlay: {
+  cameraBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    bottom: 2,
+    right: 2,
+    width: 30,
+    height: 30,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.primary,
     borderWidth: 2,
-  },
-  uploadLoader: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 40,
+    ...elevation.xs,
   },
-  progressText: {
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingText: {
+    ...TYPOGRAPHY.caption,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: FONT_WEIGHTS.bold,
     color: '#FFFFFF',
-    marginTop: 2,
+    marginTop: 4,
+  },
+  avatarHint: {
+    ...TYPOGRAPHY.caption,
+    color: colors.textMuted,
+    marginTop: SPACING.xs,
+  },
+  formSection: {
+    marginBottom: SPACING.lg,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: RADIUS.medium,
+    height: SIZES.layout.minTouchTarget + 8,
+    gap: 8,
+    ...elevation.sm,
+  },
+  saveBtnDisabled: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  saveBtnText: {
+    ...TYPOGRAPHY.button,
+    color: colors.textOnPrimary,
   },
 });
 
