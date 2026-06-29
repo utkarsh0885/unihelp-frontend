@@ -1,8 +1,9 @@
 /**
- * AnimatedPostCard – Firestore-Backed + Theme-Aware
- * ─────────────────────────────────────────────
+ * AnimatedPostCard – Premium Design System
+ * ─────────────────────────────────────────
  * Post card with working like, save, comment buttons.
  * Entry animations + like spring animation.
+ * All visual styling uses Design System tokens.
  */
 
 import React, { memo, useCallback, useMemo, useState } from 'react';
@@ -18,13 +19,17 @@ import {
   Modal,
   Platform,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { useNavigation } from '@react-navigation/native';
 import { initChat } from '../services/chatService';
+
+// Design System imports
+import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
+import { getElevation } from '../theme/elevation';
 
 const formatPrice = (price) => {
   if (price === undefined || price === null || price === '') return '₹0';
@@ -32,333 +37,328 @@ const formatPrice = (price) => {
   return `₹${cleaned}`;
 };
 
-const createStyles = (colors, shadows) => StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 18, // Rounded corners 16-20 range
-    marginHorizontal: SIZES.md,
-    marginBottom: SIZES.lg + 8, // Increased spacing between posts
-    padding: 16, // Padding 16
-    ...shadows.large, // Premium elevation
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.md,
-  },
-  avatarContainer: { flexDirection: 'row', alignItems: 'center' },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 12, // Modern squircle-like radius
-    backgroundColor: colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SIZES.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  avatarText: {
-    fontSize: SIZES.fontMd,
-    fontWeight: '900',
-    color: colors.primary,
-  },
-  username: {
-    fontSize: SIZES.fontMd,
-    fontWeight: '900', // Highlight username (bold)
-    color: colors.textPrimary,
-  },
-  timestamp: {
-    fontSize: SIZES.fontXs,
-    color: colors.textTertiary,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  moreBtn: {
-    padding: 8,
-  },
-  categoryBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  categoryBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginBottom: 6,
-    letterSpacing: -0.3,
-  },
-  content: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: SIZES.md,
-    fontWeight: '400',
-  },
-  marketDetailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: SIZES.md,
-  },
-  marketPrice: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.accentGreen || '#34D399',
-  },
-  marketConditionBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  marketConditionText: {
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  marketStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  marketStatusText: {
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  webModalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-    borderRadius: 18,
-  },
-  imageContainer: {
-    width: '100%',
-    height: 240,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceLight,
-    marginBottom: SIZES.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  postImage: {
-    width: '100%',
-    height: '100%',
-  },
-  pollSection: {
-    marginBottom: SIZES.lg,
-  },
-  pollOption: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: SIZES.radiusSm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: SIZES.xs,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  pollOptionVoted: {
-    borderColor: colors.primaryLight,
-  },
-  pollProgress: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: colors.primaryGlow,
-    // Add a transition-like feel if platform supports or just solid glow
-  },
-  pollFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SIZES.xs,
-  },
-  pollOptionInner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: SIZES.md,
-  },
-  pollOptionText: {
-    fontSize: SIZES.fontMd,
-    color: colors.textPrimary,
-  },
-  pollVotes: {
-    fontSize: SIZES.fontSm,
-    fontWeight: '800',
-  },
-  pollTotalVotes: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    marginTop: SIZES.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    opacity: 0.3, // Subtle divider
-    marginBottom: SIZES.md,
-    marginHorizontal: -4,
-  },
-  marketActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: SIZES.md,
-    marginBottom: SIZES.md,
-    width: '100%',
-    maxWidth: 320,
-  },
-  marketActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 6,
-  },
-  marketReserveBtn: {
-    backgroundColor: (colors.accentAmber || '#FBBF24') + '10',
-    borderColor: (colors.accentAmber || '#FBBF24') + '35',
-  },
-  marketChatBtn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  marketEditBtn: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary + '30',
-  },
-  marketDeleteBtn: {
-    backgroundColor: (colors.error || colors.accent || '#FF4B4B') + '15',
-    borderColor: (colors.error || colors.accent || '#FF4B4B') + '30',
-  },
-  marketSoldBtn: {
-    backgroundColor: (colors.accentGreen || '#34D399') + '15',
-    borderColor: (colors.accentGreen || '#34D399') + '30',
-  },
-  marketDisabledBtn: {
-    opacity: 0.6,
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.borderLight,
-  },
-  marketLoadingBtn: {
-    opacity: 0.8,
-  },
-  marketChatText: {
-    color: '#FFF',
-  },
-  marketActionText: {
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-  },
-  actionLabel: {
-    fontSize: SIZES.fontXs,
-    color: colors.textPrimary, // Better contrast
-    fontWeight: '700',
-  },
-  actionCount: {
-    fontSize: SIZES.fontXs,
-    color: colors.textTertiary,
-    fontWeight: '800',
-    marginLeft: -2,
-  },
-  menuOverlay: {
-    position: 'absolute',
-    top: -2000,
-    bottom: -2000,
-    left: -2000,
-    right: -2000,
-    backgroundColor: 'transparent',
-    zIndex: 9998,
-  },
-  floatingMenu: {
-    position: 'absolute',
-    top: 45,
-    right: 16,
-    width: 150,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  floatingMenuBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  floatingMenuBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  deleteMenuBtnBorder: {
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    borderRadius: 0,
-    marginTop: 4,
-    paddingTop: 10,
-  },
-  cancelMenuBtn: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: 4,
-  },
-});
+const createStyles = (colors, isDark) => {
+  const elevation = getElevation(isDark);
+
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.large,
+      marginHorizontal: SPACING.lg,
+      marginBottom: SPACING.md,
+      padding: SPACING.md,
+      ...elevation.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: SPACING.sm,
+    },
+    avatarContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    avatar: {
+      width: SIZES.avatars.md,
+      height: SIZES.avatars.md,
+      borderRadius: RADIUS.medium,
+      backgroundColor: isDark ? colors.primaryLight : colors.surfaceLight || colors.secondaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: SPACING.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    avatarText: {
+      ...TYPOGRAPHY.bodySmall,
+      fontWeight: FONT_WEIGHTS.bold,
+      color: colors.primary,
+    },
+    username: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.textPrimary,
+    },
+    timestamp: {
+      ...TYPOGRAPHY.caption,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    moreBtn: {
+      padding: SPACING.xs,
+    },
+    categoryBadge: {
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: 3,
+      borderRadius: RADIUS.small,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    categoryBadgeText: {
+      fontSize: 10,
+      fontWeight: FONT_WEIGHTS.semibold,
+      letterSpacing: 0.5,
+    },
+    title: {
+      ...TYPOGRAPHY.title,
+      color: colors.textPrimary,
+      marginBottom: SPACING.xxs,
+    },
+    content: {
+      ...TYPOGRAPHY.body,
+      color: colors.textSecondary,
+      lineHeight: 23,
+      marginBottom: SPACING.sm,
+    },
+    marketDetailsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+      marginBottom: SPACING.sm,
+    },
+    marketPrice: {
+      ...TYPOGRAPHY.h2,
+      color: colors.accentGreen || '#10B981',
+    },
+    marketConditionBadge: {
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: 3,
+      borderRadius: RADIUS.small,
+    },
+    marketConditionText: {
+      fontSize: 10,
+      fontWeight: FONT_WEIGHTS.semibold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    marketStatusBadge: {
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: 3,
+      borderRadius: RADIUS.small,
+    },
+    marketStatusText: {
+      fontSize: 10,
+      fontWeight: FONT_WEIGHTS.semibold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    webModalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      borderRadius: RADIUS.large,
+    },
+    imageContainer: {
+      width: '100%',
+      height: 220,
+      borderRadius: RADIUS.large,
+      overflow: 'hidden',
+      backgroundColor: colors.surfaceLight || colors.secondaryLight,
+      marginBottom: SPACING.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    postImage: {
+      width: '100%',
+      height: '100%',
+    },
+    pollSection: {
+      marginBottom: SPACING.md,
+    },
+    pollOption: {
+      backgroundColor: colors.surfaceLight || colors.secondaryLight,
+      borderRadius: RADIUS.medium,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.xs,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    pollOptionVoted: {
+      borderColor: colors.primaryLight,
+    },
+    pollProgress: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      backgroundColor: colors.primaryGlow || colors.primaryLight,
+    },
+    pollFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: SPACING.xxs,
+    },
+    pollOptionInner: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+    },
+    pollOptionText: {
+      ...TYPOGRAPHY.bodySmall,
+      color: colors.textPrimary,
+    },
+    pollVotes: {
+      ...TYPOGRAPHY.label,
+      fontWeight: FONT_WEIGHTS.bold,
+    },
+    pollTotalVotes: {
+      ...TYPOGRAPHY.caption,
+      color: colors.textMuted,
+      fontWeight: FONT_WEIGHTS.medium,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.borderLight,
+      marginBottom: SPACING.sm,
+      marginHorizontal: -SPACING.xxs,
+    },
+    marketActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+      marginTop: SPACING.sm,
+      marginBottom: SPACING.sm,
+      width: '100%',
+      maxWidth: 320,
+    },
+    marketActionBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: SPACING.xs,
+      borderRadius: RADIUS.medium,
+      borderWidth: 1,
+      gap: SPACING.xxs,
+      minHeight: 38,
+    },
+    marketReserveBtn: {
+      backgroundColor: (colors.accentAmber || '#FBBF24') + '10',
+      borderColor: (colors.accentAmber || '#FBBF24') + '35',
+    },
+    marketChatBtn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    marketEditBtn: {
+      backgroundColor: colors.primaryLight,
+      borderColor: colors.primary + '30',
+    },
+    marketDeleteBtn: {
+      backgroundColor: (colors.error || colors.accent || '#FF4B4B') + '15',
+      borderColor: (colors.error || colors.accent || '#FF4B4B') + '30',
+    },
+    marketSoldBtn: {
+      backgroundColor: (colors.accentGreen || '#34D399') + '15',
+      borderColor: (colors.accentGreen || '#34D399') + '30',
+    },
+    marketDisabledBtn: {
+      opacity: 0.6,
+      backgroundColor: colors.surfaceLight || colors.secondaryLight,
+      borderColor: colors.borderLight,
+    },
+    marketLoadingBtn: {
+      opacity: 0.8,
+    },
+    marketChatText: {
+      color: isDark ? colors.textOnPrimary : '#FFFFFF',
+    },
+    marketActionText: {
+      ...TYPOGRAPHY.label,
+      fontWeight: FONT_WEIGHTS.semibold,
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.xxs,
+    },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: SPACING.xxs,
+      gap: SPACING.xxs,
+      paddingVertical: SPACING.xxs + 2,
+      paddingHorizontal: SPACING.xs,
+      borderRadius: RADIUS.pill,
+    },
+    actionLabel: {
+      ...TYPOGRAPHY.caption,
+      color: colors.textSecondary,
+      fontWeight: FONT_WEIGHTS.medium,
+    },
+    actionCount: {
+      ...TYPOGRAPHY.caption,
+      color: colors.textMuted,
+      fontWeight: FONT_WEIGHTS.semibold,
+      marginLeft: -2,
+    },
+    menuOverlay: {
+      position: 'absolute',
+      top: -2000,
+      bottom: -2000,
+      left: -2000,
+      right: -2000,
+      backgroundColor: 'transparent',
+      zIndex: 9998,
+    },
+    floatingMenu: {
+      position: 'absolute',
+      top: 45,
+      right: SPACING.md,
+      width: 160,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.large,
+      padding: SPACING.xxs,
+      borderWidth: 1,
+      borderColor: colors.border,
+      zIndex: 9999,
+      ...elevation.lg,
+    },
+    floatingMenuBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: SPACING.xs + 2,
+      paddingHorizontal: SPACING.sm,
+      borderRadius: RADIUS.medium,
+      gap: SPACING.xs,
+    },
+    floatingMenuBtnText: {
+      ...TYPOGRAPHY.bodySmall,
+      fontWeight: FONT_WEIGHTS.medium,
+    },
+    deleteMenuBtnBorder: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderLight,
+      borderRadius: 0,
+      marginTop: SPACING.xxs,
+      paddingTop: SPACING.xs + 2,
+    },
+    cancelMenuBtn: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: SPACING.xs,
+      marginTop: SPACING.xxs,
+    },
+  });
+};
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVotePoll, onEdit, onDelete, userId, index = 0 }) => {
   const { colors, shadows, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const navigation = useNavigation();
   const { reserveItem, cancelReservation, deletePost, updatePost, userId: contextUserId } = useData();
   const activeUserId = userId || contextUserId;
@@ -437,7 +437,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
 
   const onPressIn = () => {
     Animated.spring(cardScale, { 
-      toValue: 0.97, 
+      toValue: 0.98, 
       useNativeDriver: true, 
       tension: 110, 
       friction: 12 
@@ -666,7 +666,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         </View>
         
         {/* Category Badge & More Options */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
           {post.category && (
             <View style={[styles.categoryBadge, { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }]}>
               <Text style={[styles.categoryBadgeText, { color: isDark ? colors.secondary : colors.primary }]}>
@@ -677,7 +677,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           
           {isOwner && (onEdit || onDelete) && (
             <TouchableOpacity style={styles.moreBtn} onPress={handleOptions}>
-              <Ionicons name="ellipsis-vertical" size={20} color={colors.textTertiary} />
+              <Ionicons name="ellipsis-vertical" size={SIZES.icons.md} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -733,20 +733,19 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
             const percentage = totalVotes > 0 ? ((opt.votes || 0) / totalVotes) * 100 : 0;
             const hasVoted = post.poll.votedBy?.includes(userId);
             
-            // Interaction logic: simple scaling pop on vote
             return (
               <TouchableOpacity
                 key={i}
                 style={[
                   styles.pollOption, 
                   hasVoted && styles.pollOptionVoted,
-                  isDark && hasVoted && { borderColor: '#38BDF8' }
+                  isDark && hasVoted && { borderColor: colors.primary }
                 ]}
                 activeOpacity={hasVoted ? 1 : 0.7}
                 disabled={hasVoted}
                 onPress={() => onVotePoll && onVotePoll(post.id, i)}
               >
-                {/* Progress Bar (Animated via stylesheet width for simplicity in list) */}
+                {/* Progress Bar */}
                 {hasVoted && (
                   <View 
                     style={[
@@ -762,13 +761,13 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                       <Ionicons 
                         name="checkmark-circle" 
                         size={18} 
-                        color={isDark ? colors.secondary : colors.primary} 
-                        style={{ marginRight: 8 }} 
+                        color={colors.primary} 
+                        style={{ marginRight: SPACING.xs }} 
                       />
                     )}
                     <Text style={[
                       styles.pollOptionText, 
-                      hasVoted && { fontWeight: '800', color: isDark ? colors.textPrimary : colors.primary }
+                      hasVoted && { fontWeight: FONT_WEIGHTS.bold, color: colors.primary }
                     ]}>
                       {opt.text}
                     </Text>
@@ -777,7 +776,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 {hasVoted && (
                   <Text style={[
                     styles.pollVotes, 
-                    { color: isDark ? colors.secondary : colors.primary }
+                    { color: colors.primary }
                   ]}>
                     {Math.round(percentage)}%
                   </Text>
@@ -894,7 +893,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 activeOpacity={0.7}
                 disabled={isSold}
               >
-                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : "#FFF"} />
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color={isSold ? colors.textTertiary : (isDark ? colors.textOnPrimary : "#FFF")} />
                 <Text style={[styles.marketActionText, styles.marketChatText, isSold && { color: colors.textTertiary }]}>Contact Seller</Text>
               </TouchableOpacity>
             </>
@@ -912,7 +911,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           style={[
             styles.actionBtn, 
             { transform: [{ scale: likeScale }] },
-            likeHovered && { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.08)' }
+            likeHovered && { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.06)' }
           ]}
           onPress={handleLike}
           activeOpacity={0.6}
@@ -921,10 +920,10 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         >
           <Ionicons
             name={isLiked ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isLiked ? '#EF4444' : colors.textPrimary}
+            size={SIZES.icons.md}
+            color={isLiked ? '#EF4444' : colors.textSecondary}
           />
-          <Text style={[styles.actionLabel, isLiked && { color: '#EF4444', fontWeight: '800' }]}>
+          <Text style={[styles.actionLabel, isLiked && { color: '#EF4444', fontWeight: FONT_WEIGHTS.semibold }]}>
             {isLiked ? 'Liked' : 'Like'}
           </Text>
           {post.likes > 0 && (
@@ -936,14 +935,14 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         <TouchableOpacity 
           style={[
             styles.actionBtn,
-            commentHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+            commentHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)' }
           ]} 
           onPress={handleComment} 
           activeOpacity={0.6}
           onMouseEnter={() => setCommentHovered(true)}
           onMouseLeave={() => setCommentHovered(false)}
         >
-          <Ionicons name="chatbubble-outline" size={20} color={colors.textPrimary} />
+          <Ionicons name="chatbubble-outline" size={SIZES.icons.sm} color={colors.textSecondary} />
           <Text style={styles.actionLabel}>
             {post.commentsCount === 1 ? '1 Comment' : (post.commentsCount > 1 ? `${post.commentsCount} Comments` : 'Comment')}
           </Text>
@@ -953,18 +952,16 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         <TouchableOpacity 
           style={[
             styles.actionBtn,
-            shareHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+            shareHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)' }
           ]} 
           onPress={handleShare} 
           activeOpacity={0.6}
           onMouseEnter={() => setShareHovered(true)}
           onMouseLeave={() => setShareHovered(false)}
         >
-          <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+          <Ionicons name="share-outline" size={SIZES.icons.sm} color={colors.textSecondary} />
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
-
-        {/* Message button hidden for public release */}
 
         <View style={{ flex: 1 }} />
 
@@ -973,7 +970,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           style={[
             styles.actionBtn, 
             { transform: [{ scale: saveScale }] },
-            saveHovered && { backgroundColor: isDark ? 'rgba(79, 157, 255, 0.15)' : 'rgba(30, 58, 138, 0.08)' }
+            saveHovered && { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(15, 23, 42, 0.06)' }
           ]}
           onPress={handleSave}
           activeOpacity={0.6}
@@ -982,8 +979,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         >
           <Ionicons
             name={isSaved ? 'bookmark' : 'bookmark-outline'}
-            size={20}
-            color={isSaved ? colors.primary : colors.textPrimary}
+            size={SIZES.icons.sm}
+            color={isSaved ? colors.primary : colors.textSecondary}
           />
         </AnimatedTouchable>
       </View>
@@ -1013,7 +1010,7 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 onEdit(post);
               }}
             >
-              <Ionicons name="create-outline" size={18} color={colors.textPrimary} style={{ marginRight: 8 }} />
+              <Ionicons name="create-outline" size={18} color={colors.textPrimary} />
               <Text style={[styles.floatingMenuBtnText, { color: colors.textPrimary }]}>Edit Post</Text>
             </TouchableOpacity>
           )}
@@ -1047,8 +1044,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.floatingMenuBtnText, { color: colors.accent }]}>Delete Post</Text>
+              <Ionicons name="trash-outline" size={18} color={colors.accent || colors.error || '#EF4444'} />
+              <Text style={[styles.floatingMenuBtnText, { color: colors.accent || colors.error || '#EF4444' }]}>Delete Post</Text>
             </TouchableOpacity>
           )}
 
