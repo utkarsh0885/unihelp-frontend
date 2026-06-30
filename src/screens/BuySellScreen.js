@@ -147,11 +147,15 @@ const MarketplaceItemCard = React.memo(({
           {isOwner ? (
             <>
               <Pressable
-                style={({ pressed }) => [styles.actionBtn, styles.editBtn, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [
+                  styles.actionBtn, 
+                  styles.editBtn, 
+                  pressed && { backgroundColor: '#1E40AF', borderColor: '#1E40AF' }
+                ]}
                 onPress={() => onEdit(item)}
               >
-                <Ionicons name="pencil" size={14} color={colors.primary} />
-                <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+                <Ionicons name="pencil" size={14} color="#FFFFFF" />
+                <Text style={[styles.actionText, { color: '#FFFFFF' }]}>Edit</Text>
               </Pressable>
 
               <Pressable
@@ -1162,8 +1166,8 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     textAlign: 'center',
   },
   editBtn: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary + '30',
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
   },
   deleteBtn: {
     backgroundColor: colors.dangerLight,

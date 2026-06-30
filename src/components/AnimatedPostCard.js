@@ -259,8 +259,8 @@ const createStyles = (colors, isDark) => {
       borderColor: colors.primary,
     },
     marketEditBtn: {
-      backgroundColor: colors.primaryLight,
-      borderColor: colors.primary + '30',
+      backgroundColor: '#2563EB',
+      borderColor: '#2563EB',
     },
     marketDeleteBtn: {
       backgroundColor: (colors.error || colors.accent || '#FF4B4B') + '15',
@@ -679,8 +679,18 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         {/* Category Badge & More Options */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
           {post.category && (
-            <View style={[styles.categoryBadge, { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }]}>
-              <Text style={[styles.categoryBadgeText, { color: isDark ? colors.secondary : colors.primary }]}>
+            <View style={[
+              styles.categoryBadge,
+              post.category === 'Buy/Sell'
+                ? { backgroundColor: '#2563EB', borderColor: '#2563EB' }
+                : { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }
+            ]}>
+              <Text style={[
+                styles.categoryBadgeText,
+                post.category === 'Buy/Sell'
+                  ? { color: '#FFFFFF', fontWeight: '800' }
+                  : { color: isDark ? colors.secondary : colors.primary }
+              ]}>
                 {post.category.toUpperCase()}
               </Text>
             </View>
@@ -814,8 +824,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 onPress={handleEditItem} 
                 activeOpacity={0.7}
               >
-                <Ionicons name="pencil" size={14} color={colors.primary} />
-                <Text style={[styles.marketActionText, { color: colors.primary }]}>Edit</Text>
+                <Ionicons name="pencil" size={14} color="#FFFFFF" />
+                <Text style={[styles.marketActionText, { color: '#FFFFFF' }]}>Edit</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
