@@ -8,53 +8,58 @@
 
 export const LIGHT_COLORS = {
   // Base Core
-  primary: '#0F172A',         // Deep Navy Blue
-  primaryHover: '#1E293B',
-  primaryPressed: '#334155',
-  primaryLight: 'rgba(15, 23, 42, 0.06)',
+  primary: '#2563EB',         // Bright Premium Blue
+  primaryHover: '#1D4ED8',
+  primaryPressed: '#1E40AF',
+  primaryLight: '#60A5FA',    // Primary Light
+  primaryGlow: 'rgba(37, 99, 235, 0.15)',
 
-  secondary: '#475569',       // Slate Blue
-  secondaryHover: '#334155',
-  secondaryLight: 'rgba(71, 85, 105, 0.08)',
+  secondary: '#3B82F6',       // Accent Blue
+  secondaryHover: '#2563EB',
+  secondaryLight: 'rgba(59, 130, 246, 0.1)',
 
-  accent: '#059669',          // Emerald Green
-  accentHover: '#047857',
-  accentLight: 'rgba(5, 150, 105, 0.1)',
+  accent: '#3B82F6',          // Accent
+  accentHover: '#2563EB',
+  accentLight: 'rgba(59, 130, 246, 0.12)',
 
-  warning: '#D97706',         // Amber
-  warningLight: 'rgba(217, 119, 6, 0.1)',
+  warning: '#F59E0B',         // Warning
+  warningLight: 'rgba(245, 158, 11, 0.12)',
 
-  danger: '#DC2626',          // Muted Red
-  dangerHover: '#B91C1C',
-  dangerLight: 'rgba(220, 38, 38, 0.08)',
+  danger: '#EF4444',          // Danger
+  dangerHover: '#DC2626',
+  dangerLight: 'rgba(239, 68, 68, 0.12)',
 
-  info: '#0284C7',            // Sky Blue
-  infoLight: 'rgba(2, 132, 199, 0.1)',
+  success: '#10B981',         // Success
+  successLight: 'rgba(16, 185, 129, 0.12)',
+
+  info: '#3B82F6',
+  infoLight: 'rgba(59, 130, 246, 0.12)',
 
   // Surfaces & Backgrounds
-  background: '#F8FAFC',      // Warm White
-  surface: '#FFFFFF',         // Pure White Card
+  background: '#F8FAFC',      // Background
+  surface: '#FFFFFF',         // Cards
   surfaceElevated: '#FFFFFF',
-  surfaceSubtle: '#F1F5F9',   // Layered neutral surface
-  surfaceHover: '#E2E8F0',
-  surfaceGlass: 'rgba(255, 255, 255, 0.85)',
+  surfaceSubtle: '#F1F5F9',
+  surfaceHover: '#EFF6FF',
+  surfaceGlass: 'rgba(255, 255, 255, 0.9)',
 
   // Typography Hierarchy
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#64748B',
-  textDisabled: '#94A3B8',
+  textPrimary: '#111827',     // Text
+  textSecondary: '#6B7280',   // Secondary text
+  textMuted: '#9CA3AF',
+  textDisabled: '#D1D5DB',
   textOnPrimary: '#FFFFFF',
   textOnAccent: '#FFFFFF',
 
   // Borders & Dividers
-  border: 'rgba(15, 23, 42, 0.12)',
-  borderSubtle: 'rgba(15, 23, 42, 0.06)',
-  borderFocus: '#0F172A',
+  border: 'rgba(37, 99, 235, 0.12)',
+  borderLight: 'rgba(107, 114, 128, 0.1)',
+  borderSubtle: 'rgba(107, 114, 128, 0.06)',
+  borderFocus: '#2563EB',
 
   // Overlays & Shadows
-  overlay: 'rgba(15, 23, 42, 0.4)',
-  shadow: '#0F172A',
+  overlay: 'rgba(17, 24, 39, 0.4)',
+  shadow: '#2563EB',
   shimmerHighlight: '#F8FAFC',
 };
 

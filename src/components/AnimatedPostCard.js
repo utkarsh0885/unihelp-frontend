@@ -43,48 +43,54 @@ const createStyles = (colors, isDark) => {
   return StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
-      borderRadius: RADIUS.large,
-      marginHorizontal: SPACING.lg,
-      marginBottom: SPACING.md,
-      padding: SPACING.md,
-      ...elevation.sm,
+      borderRadius: 24,
+      marginHorizontal: 16,
+      marginBottom: 16,
+      padding: 20,
       borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(37,99,235,0.08)',
+      shadowColor: '#2563EB',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDark ? 0.25 : 0.08,
+      shadowRadius: 16,
+      elevation: 6,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: SPACING.sm,
+      marginBottom: 14,
     },
     avatarContainer: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     avatar: {
-      width: SIZES.avatars.md,
-      height: SIZES.avatars.md,
-      borderRadius: RADIUS.medium,
-      backgroundColor: isDark ? colors.primaryLight : colors.surfaceLight || colors.secondaryLight,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(37, 99, 235, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: SPACING.sm,
+      marginRight: 12,
       borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.15)',
     },
     avatarText: {
-      ...TYPOGRAPHY.bodySmall,
-      fontWeight: FONT_WEIGHTS.bold,
-      color: colors.primary,
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#2563EB',
     },
     username: {
-      ...TYPOGRAPHY.subtitle,
+      fontSize: 16,
+      fontWeight: '700',
       color: colors.textPrimary,
+      letterSpacing: -0.2,
     },
     timestamp: {
-      ...TYPOGRAPHY.caption,
-      color: colors.textMuted,
-      marginTop: 1,
+      fontSize: 12,
+      color: colors.textSecondary || '#6B7280',
+      marginTop: 2,
     },
     moreBtn: {
       padding: SPACING.xs,
@@ -158,27 +164,27 @@ const createStyles = (colors, isDark) => {
     },
     imageContainer: {
       width: '100%',
-      height: 220,
-      borderRadius: RADIUS.large,
+      height: 240,
+      borderRadius: 20,
       overflow: 'hidden',
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      marginBottom: SPACING.sm,
+      backgroundColor: colors.surfaceLight || 'rgba(37, 99, 235, 0.04)',
+      marginBottom: 14,
       borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(37,99,235,0.08)',
     },
     postImage: {
       width: '100%',
       height: '100%',
     },
     pollSection: {
-      marginBottom: SPACING.md,
+      marginBottom: 16,
     },
     pollOption: {
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      borderRadius: RADIUS.medium,
+      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#F8FAFC',
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: SPACING.xs,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(37, 99, 235, 0.12)',
+      marginBottom: 8,
       overflow: 'hidden',
       position: 'relative',
     },
@@ -282,21 +288,24 @@ const createStyles = (colors, isDark) => {
     actions: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: SPACING.xxs,
+      paddingTop: 4,
     },
     actionBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginRight: SPACING.xxs,
-      gap: SPACING.xxs,
-      paddingVertical: SPACING.xxs + 2,
-      paddingHorizontal: SPACING.xs,
-      borderRadius: RADIUS.pill,
+      marginRight: 6,
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(37, 99, 235, 0.08)',
     },
     actionLabel: {
-      ...TYPOGRAPHY.caption,
-      color: colors.textSecondary,
-      fontWeight: FONT_WEIGHTS.medium,
+      fontSize: 13,
+      color: colors.textSecondary || '#6B7280',
+      fontWeight: '600',
     },
     actionCount: {
       ...TYPOGRAPHY.caption,
@@ -657,11 +666,13 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{post.avatar}</Text>
+            <Text style={styles.avatarText}>{post.avatar || (post.username ? post.username[0].toUpperCase() : 'U')}</Text>
           </View>
           <View>
-            <Text style={styles.username}>{post.username}</Text>
-            <Text style={styles.timestamp}>{post.timestamp || 'Just now'}</Text>
+            <Text style={styles.username}>{post.username || 'Anonymous'}</Text>
+            <Text style={styles.timestamp}>
+              {post.department || post.specialisation || 'Campus Member'} • {post.timestamp || 'Just now'}
+            </Text>
           </View>
         </View>
         

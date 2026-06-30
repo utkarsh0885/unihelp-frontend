@@ -1,11 +1,11 @@
 /**
- * HomeScreen – Premium University Feed
- * ─────────────────────────────────────
- * Uses DataContext for persistent posts.
- * Design System tokens for all visual styling.
+ * HomeScreen – Premium University Super App Feed
+ * ────────────────────────────────────────────────
+ * Uses DataContext for persistent posts & business logic.
+ * Visual Rebuild: Mobile-First, Apple/Dribbble quality design.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,437 +17,38 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import AnimatedPostCard from '../components/AnimatedPostCard';
 import ExpandableFAB from '../components/ExpandableFAB';
 
-// Design System imports
-import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
-import { getElevation } from '../theme/elevation';
-
-const createStyles = (colors, isDark) => {
-  const elevation = getElevation(isDark);
-
-  return StyleSheet.create({
-    screen: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-
-    // ── App Bar ──────────────────────────────────────────────────────
-    appBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.sm,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-      ...elevation.xs,
-    },
-    appBarLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    logoMark: {
-      width: 34,
-      height: 34,
-      borderRadius: RADIUS.medium,
-      backgroundColor: isDark ? colors.primaryLight : colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: SPACING.sm,
-    },
-    appName: {
-      ...TYPOGRAPHY.title,
-      color: colors.textPrimary,
-      letterSpacing: -0.3,
-    },
-    appBarRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xxs,
-    },
-    appBarIconBtn: {
-      width: SIZES.layout.minTouchTarget,
-      height: SIZES.layout.minTouchTarget,
-      borderRadius: SIZES.layout.minTouchTarget / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    appBarIconBtnPressed: {
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-    },
-    badgeDot: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#EF4444',
-      borderWidth: 1.5,
-      borderColor: colors.surface,
-    },
-
-    // ── Hero Header ─────────────────────────────────────────────────
-    heroSection: {
-      paddingHorizontal: SPACING.lg,
-      paddingTop: SPACING.xl,
-      paddingBottom: SPACING.lg,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-    },
-    greetingLabel: {
-      ...TYPOGRAPHY.caption,
-      color: colors.textMuted,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-      fontWeight: FONT_WEIGHTS.semibold,
-      marginBottom: SPACING.xxs,
-    },
-    heroTitle: {
-      ...TYPOGRAPHY.h1,
-      color: colors.textPrimary,
-      marginBottom: SPACING.xxs,
-    },
-    heroSubtitle: {
-      ...TYPOGRAPHY.bodySmall,
-      color: colors.textSecondary,
-      lineHeight: 20,
-    },
-
-    // ── Discover Hub / Quick Actions ────────────────────────────────
-    sectionWrap: {
-      marginTop: SPACING.xl,
-    },
-    sectionLabel: {
-      ...TYPOGRAPHY.label,
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      paddingHorizontal: SPACING.lg,
-      marginBottom: SPACING.sm,
-    },
-    quickActionsScroll: {
-      paddingHorizontal: SPACING.lg,
-      gap: SPACING.xs,
-    },
-    actionChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.medium,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.xs + 2,
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...elevation.xs,
-    },
-    actionChipPressed: {
-      opacity: 0.85,
-      transform: [{ scale: 0.97 }],
-    },
-    actionIconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: RADIUS.small,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: SPACING.xs,
-    },
-    actionChipText: {
-      ...TYPOGRAPHY.label,
-      color: colors.textPrimary,
-      fontWeight: FONT_WEIGHTS.semibold,
-    },
-
-    // ── Trending Cards ──────────────────────────────────────────────
-    trendingTitle: {
-      ...TYPOGRAPHY.h3,
-      color: colors.textPrimary,
-      paddingHorizontal: SPACING.lg,
-      marginBottom: SPACING.md,
-    },
-    trendingScroll: {
-      paddingHorizontal: SPACING.lg,
-      gap: SPACING.md,
-      paddingBottom: SPACING.sm,
-    },
-    trendingCard: {
-      width: 280,
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.large,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...elevation.sm,
-    },
-    trendingCardPressed: {
-      opacity: 0.95,
-    },
-    trendingInner: {
-      padding: SPACING.md,
-    },
-    trendingHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: SPACING.sm,
-    },
-    trendingAvatar: {
-      width: SIZES.avatars.sm,
-      height: SIZES.avatars.sm,
-      borderRadius: RADIUS.small,
-      backgroundColor: isDark ? colors.primaryLight : colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: SPACING.xs,
-    },
-    trendingAvatarText: {
-      ...TYPOGRAPHY.caption,
-      color: isDark ? colors.primary : '#FFFFFF',
-      fontWeight: FONT_WEIGHTS.bold,
-    },
-    trendingUser: {
-      ...TYPOGRAPHY.bodySmall,
-      color: colors.textPrimary,
-      fontWeight: FONT_WEIGHTS.semibold,
-    },
-    trendingBadge: {
-      ...TYPOGRAPHY.caption,
-      color: colors.accent,
-      fontWeight: FONT_WEIGHTS.semibold,
-      fontSize: 10,
-      marginTop: 1,
-    },
-    trendingContentTitle: {
-      ...TYPOGRAPHY.subtitle,
-      color: colors.textPrimary,
-      marginBottom: SPACING.xxs,
-    },
-    trendingContentBody: {
-      ...TYPOGRAPHY.bodySmall,
-      color: colors.textSecondary,
-      lineHeight: 20,
-    },
-    trendingStats: {
-      flexDirection: 'row',
-      gap: SPACING.md,
-      marginTop: SPACING.sm,
-      paddingTop: SPACING.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderLight,
-    },
-    trendingStatItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xxs,
-    },
-    trendingStatValue: {
-      ...TYPOGRAPHY.caption,
-      color: colors.textMuted,
-      fontWeight: FONT_WEIGHTS.medium,
-    },
-
-    // ── Category Filter Bar ─────────────────────────────────────────
-    filterBarContainer: {
-      marginTop: SPACING.lg,
-      marginBottom: SPACING.sm,
-    },
-    filterScroll: {
-      paddingHorizontal: SPACING.lg,
-      gap: SPACING.xs,
-    },
-    filterPill: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.xs,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-    },
-    filterPillActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterText: {
-      ...TYPOGRAPHY.label,
-      color: colors.textSecondary,
-    },
-    filterTextActive: {
-      color: isDark ? colors.textOnPrimary : '#FFFFFF',
-    },
-
-    // ── Feed Section Header ─────────────────────────────────────────
-    feedSectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: SPACING.lg,
-      marginTop: SPACING.md,
-      marginBottom: SPACING.sm,
-    },
-
-    // ── Empty State ─────────────────────────────────────────────────
-    emptyContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: SPACING.xxl,
-      paddingVertical: SPACING.massive,
-    },
-    emptyIconCircle: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: SPACING.lg,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-    },
-    emptyTitle: {
-      ...TYPOGRAPHY.h3,
-      color: colors.textPrimary,
-      marginBottom: SPACING.xs,
-      textAlign: 'center',
-    },
-    emptySubtitle: {
-      ...TYPOGRAPHY.bodySmall,
-      color: colors.textMuted,
-      textAlign: 'center',
-      marginBottom: SPACING.xl,
-      lineHeight: 20,
-      maxWidth: 260,
-    },
-    emptyButton: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.sm,
-      borderRadius: RADIUS.medium,
-      minHeight: SIZES.layout.minTouchTarget,
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...elevation.sm,
-    },
-    emptyButtonPressed: {
-      opacity: 0.9,
-    },
-    emptyButtonText: {
-      ...TYPOGRAPHY.button,
-      color: isDark ? colors.textOnPrimary : '#FFFFFF',
-    },
-
-    // ── Error State ─────────────────────────────────────────────────
-    errorBanner: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: SPACING.xxl,
-      paddingVertical: SPACING.massive,
-    },
-    errorIconCircle: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      backgroundColor: colors.error ? `${colors.error}15` : 'rgba(239,68,68,0.08)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: SPACING.lg,
-      borderWidth: 1,
-      borderColor: colors.error ? `${colors.error}30` : 'rgba(239,68,68,0.2)',
-    },
-    errorTitle: {
-      ...TYPOGRAPHY.h3,
-      color: colors.textPrimary,
-      marginBottom: SPACING.xs,
-      textAlign: 'center',
-    },
-    errorSubtitle: {
-      ...TYPOGRAPHY.bodySmall,
-      color: colors.textMuted,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginBottom: SPACING.xl,
-      maxWidth: 300,
-    },
-    retryButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.sm,
-      borderRadius: RADIUS.medium,
-      minHeight: SIZES.layout.minTouchTarget,
-      gap: SPACING.xs,
-      ...elevation.sm,
-    },
-    retryButtonPressed: {
-      opacity: 0.9,
-    },
-    retryButtonText: {
-      ...TYPOGRAPHY.button,
-      color: isDark ? colors.textOnPrimary : '#FFFFFF',
-    },
-
-    // ── Loading Skeletons ───────────────────────────────────────────
-    skeletonWrap: {
-      paddingTop: SPACING.lg,
-      paddingHorizontal: SPACING.lg,
-    },
-    skeletonCard: {
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.large,
-      padding: SPACING.md,
-      marginBottom: SPACING.md,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-    },
-    skeletonRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: SPACING.md,
-    },
-    skeletonCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      marginRight: SPACING.sm,
-    },
-    skeletonLine: {
-      height: 14,
-      backgroundColor: colors.surfaceLight || colors.secondaryLight,
-      borderRadius: RADIUS.small,
-      marginBottom: SPACING.xs,
-    },
-
-    // ── FlatList ────────────────────────────────────────────────────
-    list: {
-      paddingBottom: 150,
-    },
-  });
-};
-
 // ── Constants defined OUTSIDE the component ───────────────────────────────────────────
-// ❗  These were previously inside HomeScreen, recreated on every render.
-//    Moving them here makes them true constants with stable references.
 const QUICK_ACTIONS = [
-  { id: 'events', title: 'Events', icon: 'calendar-outline', screen: 'Calendar', color: '#059669' },
-  { id: 'polls', title: 'Polls', icon: 'bar-chart-outline', screen: 'CreatePoll', color: '#D97706' },
-  { id: 'notes', title: 'Notes', icon: 'document-text-outline', screen: 'ShareNotes', color: '#0284C7' },
-  { id: 'lostfound', title: 'Lost & Found', icon: 'search-outline', screen: 'LostAndFound', color: '#7C3AED' },
+  { id: 'notes', title: 'Notes', icon: 'document-text', screen: 'ShareNotes' },
+  { id: 'marketplace', title: 'Marketplace', icon: 'cart', screen: 'BuySell' },
+  { id: 'events', title: 'Events', icon: 'calendar', screen: 'DiscoverEvents' },
+  { id: 'calendar', title: 'Calendar', icon: 'calendar-number', screen: 'Calendar' },
+  { id: 'polls', title: 'Polls', icon: 'stats-chart', screen: 'CreatePoll' },
+  { id: 'resources', title: 'Resources', icon: 'library', screen: 'Saved' },
+  { id: 'lostfound', title: 'Lost & Found', icon: 'search', screen: 'LostAndFound' },
+  { id: 'createpost', title: 'Create Post', icon: 'add-circle', screen: 'CreatePost' },
 ];
 
 const CATEGORIES = ['All', 'Buy/Sell', 'Events', 'Polls', 'Lost & Found'];
+
+const HERO_MESSAGES = [
+  { title: "🚀 Campus Super App Live!", tip: "💡 Daily Tip: Tap Trending Notes below to check out top exam study guides." },
+  { title: "🌟 Midterm Prep & Tech Fest!", tip: "💡 Daily Tip: Join campus study groups or check upcoming events this week." },
+  { title: "🎓 Discover & Share Knowledge", tip: "💡 Daily Tip: Create a poll to ask peers for instant advice and feedback." }
+];
 
 // ── Skeleton Shimmer Component ──────────────────────────────────────────────────────
 const SkeletonPulse = React.memo(({ styles: s }) => {
@@ -477,7 +78,7 @@ const SkeletonPulse = React.memo(({ styles: s }) => {
           </View>
           <View style={[s.skeletonLine, { width: '100%' }]} />
           <View style={[s.skeletonLine, { width: '85%' }]} />
-          <View style={[s.skeletonLine, { width: '100%', height: 160, marginTop: SPACING.xs }]} />
+          <View style={[s.skeletonLine, { width: '100%', height: 160, marginTop: 12 }]} />
         </Animated.View>
       ))}
     </View>
@@ -486,7 +87,7 @@ const SkeletonPulse = React.memo(({ styles: s }) => {
 
 const HomeScreen = ({ navigation }) => {
   // ── Render counter — detects runaway re-renders ─────────────────────────────────
-  const renderCountRef = React.useRef(0);
+  const renderCountRef = useRef(0);
   renderCountRef.current += 1;
   if (renderCountRef.current <= 5 || renderCountRef.current % 20 === 0) {
     console.log(`[HomeScreen] render #${renderCountRef.current}`);
@@ -495,7 +96,11 @@ const HomeScreen = ({ navigation }) => {
     console.error('[HomeScreen] 🚨 RENDER LOOP DETECTED — renderCount exceeded 100!');
   }
 
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1024;
+
   const { colors, shadows, isDark } = useTheme();
+  const { user } = useAuth();
   const {
     posts: rawPosts,
     postsLoading,
@@ -516,14 +121,13 @@ const HomeScreen = ({ navigation }) => {
     [rawPosts]
   );
 
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(colors, isDark, isDesktop), [colors, isDark, isDesktop]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [heroMsgIndex, setHeroMsgIndex] = useState(0);
 
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-
-
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -534,30 +138,24 @@ const HomeScreen = ({ navigation }) => {
     setRefreshing(false);
   }, [refreshData]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim]);
 
-  // ── Debug: trace postsLoading transitions (fires only when values genuinely change)
-  React.useEffect(() => {
+  useEffect(() => {
     if (postsLoading) {
       console.log('[HomeScreen] ⏳ postsLoading=true → skeleton visible');
     } else {
       console.log(`[HomeScreen] ✅ postsLoading=false → posts.length=${posts.length}, postsError=${postsError ?? 'none'}`);
     }
-    // ⚠️ Do NOT add posts array here — it fires on every poll even when data is unchanged.
-    // postsLoading and postsError are primitive/null values, safe to watch.
-  }, [postsLoading, postsError]);
+  }, [postsLoading, postsError, posts.length]);
 
-  // Debug: market items
-  React.useEffect(() => {
+  useEffect(() => {
     console.log(`[HomeScreen] 🛝 items.length=${items.length}`);
-    // ⚠️ items is an array — only log count change, do NOT put items in deps of any
-    // effect that calls setState, or it creates a loop.
   }, [items.length]);
 
   const handleLike = useCallback((postId) => {
@@ -588,8 +186,6 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [deletePost]);
 
-
-
   const renderItem = useCallback(
     ({ item, index }) => (
       <AnimatedPostCard
@@ -611,17 +207,12 @@ const HomeScreen = ({ navigation }) => {
   const keyExtractor = useCallback((item) => item.id, []);
 
   // ── Smart Feed Logic ──
-
-  // Trending: top 5 posts by engagement — only recalculates when posts changes
   const trendingPosts = useMemo(() => {
     return [...posts]
       .sort((a, b) => ((b.likes ?? 0) + (b.commentsCount ?? 0)) - ((a.likes ?? 0) + (a.commentsCount ?? 0)))
       .slice(0, 5);
   }, [posts]);
 
-  // ❗ CATEGORIES is now a module-level constant — NOT inside the component
-
-  // Smart Filtering — recalculates only when posts or selectedCategory changes
   const filteredPosts = useMemo(() => {
     if (selectedCategory === 'All') return posts;
     if (selectedCategory === 'Polls') return posts.filter(p => !!p.poll);
@@ -631,55 +222,109 @@ const HomeScreen = ({ navigation }) => {
   // ── Time-aware greeting ──
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 17) return 'Good Afternoon,';
+    return 'Good Evening,';
   }, []);
+
+  const handleFABNavigation = useCallback((screen) => {
+    try {
+      console.log(`[FAB] Navigating to screen: ${screen}`);
+      navigation.navigate(screen, {});
+    } catch (err) {
+      console.error(`[FAB] Navigation to screen ${screen} failed:`, err?.message);
+      Alert.alert('Navigation Error', `Could not open ${screen}. Please try again.`);
+    }
+  }, [navigation]);
+
+  const displayName = user?.name || user?.displayName || 'Utkarsh';
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+
+  const currentHero = HERO_MESSAGES[heroMsgIndex % HERO_MESSAGES.length];
 
   const ListHeader = useMemo(() => (
     <View style={{ backgroundColor: colors.background }}>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.greetingLabel}>{greeting}</Text>
-        <Text style={styles.heroTitle}>What's happening</Text>
-        <Text style={styles.heroSubtitle}>Updates, events, and everything around you.</Text>
+      {/* ── HERO BANNER (Rounded 24px, large blue gradient card) ── */}
+      <View style={styles.heroCard}>
+        {/* Decorative background circles */}
+        <View style={styles.heroCircleTopRight} />
+        <View style={styles.heroCircleBottomLeft} />
+
+        {/* Top Row: Campus Highlights */}
+        <View style={styles.heroTopRow}>
+          <View style={styles.highlightBadge}>
+            <Text style={styles.highlightBadgeText}>✨ CAMPUS HIGHLIGHTS</Text>
+          </View>
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>Live Feed</Text>
+          </View>
+        </View>
+
+        {/* Headline & Daily Tip */}
+        <Text style={styles.heroTitle}>{currentHero.title}</Text>
+        <Text style={styles.heroTip}>{currentHero.tip}</Text>
+
+        {/* Bottom Interactive Pills */}
+        <View style={styles.heroPillRow}>
+          <TouchableOpacity
+            style={styles.heroPillBtn}
+            onPress={() => navigation.navigate('ShareNotes', {})}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="document-text" size={14} color="#FFFFFF" />
+            <Text style={styles.heroPillText}>Trending Notes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.heroPillBtn}
+            onPress={() => navigation.navigate('Calendar', {})}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="calendar" size={14} color="#FFFFFF" />
+            <Text style={styles.heroPillText}>Upcoming Events</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.heroPillBtn, styles.heroPillBtnSecondary]}
+            onPress={() => setHeroMsgIndex(prev => prev + 1)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="bulb" size={14} color="#FFFFFF" />
+            <Text style={styles.heroPillText}>Daily Tip</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.sectionWrap}>
-        <Text style={styles.sectionLabel}>Discover</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickActionsScroll}
-        >
+      {/* ── QUICK ACTIONS (Circular premium icons, white background, blue icon) ── */}
+      <View style={styles.quickActionsSection}>
+        <Text style={styles.sectionTitle}>Explore Campus</Text>
+        <View style={styles.quickActionsGrid}>
           {QUICK_ACTIONS.map(action => (
-            <Pressable
+            <TouchableOpacity
               key={action.id}
-              style={({ pressed }) => [
-                styles.actionChip,
-                pressed && styles.actionChipPressed,
-              ]}
+              style={styles.quickActionItem}
               onPress={() => navigation.navigate(action.screen, {})}
+              activeOpacity={0.7}
             >
-              <View style={[styles.actionIconWrap, { backgroundColor: action.color }]}>
-                <Ionicons name={action.icon} size={16} color="#FFFFFF" />
+              <View style={styles.quickActionCircle}>
+                <Ionicons name={action.icon} size={24} color="#2563EB" />
               </View>
-              <Text style={styles.actionChipText}>{action.title}</Text>
-            </Pressable>
+              <Text style={styles.quickActionLabel} numberOfLines={1}>{action.title}</Text>
+            </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
-      {/* Trending Section */}
+      {/* ── TRENDING SECTION ── */}
       {trendingPosts.length > 0 && (
-        <Animated.View style={[styles.sectionWrap, { opacity: fadeAnim }]}>
-          <Text style={styles.trendingTitle}>Trending</Text>
+        <Animated.View style={[styles.trendingSection, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Trending Discussions</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.trendingScroll}
-            snapToInterval={280 + SPACING.md}
+            snapToInterval={290 + 16}
             decelerationRate="fast"
           >
             {trendingPosts.map((post) => (
@@ -687,34 +332,34 @@ const HomeScreen = ({ navigation }) => {
                 key={post.id}
                 style={({ pressed }) => [
                   styles.trendingCard,
-                  pressed && styles.trendingCardPressed,
+                  pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() => handleComment(post)}
               >
                 <View style={styles.trendingInner}>
                   <View style={styles.trendingHeader}>
                     <View style={styles.trendingAvatar}>
-                      <Text style={styles.trendingAvatarText}>{post.avatar}</Text>
+                      <Text style={styles.trendingAvatarText}>{post.avatar || (post.username ? post.username[0].toUpperCase() : 'U')}</Text>
                     </View>
-                    <View>
-                      <Text style={styles.trendingUser}>{post.username}</Text>
-                      <Text style={styles.trendingBadge}>Featured</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.trendingUser} numberOfLines={1}>{post.username || 'Anonymous'}</Text>
+                      <Text style={styles.trendingSubtext}>Hot Post</Text>
                     </View>
                   </View>
                   <Text style={styles.trendingContentTitle} numberOfLines={1}>
-                    {post.title || 'Community Update'}
+                    {post.title || 'Campus Update'}
                   </Text>
                   <Text style={styles.trendingContentBody} numberOfLines={2}>
                     {post.content}
                   </Text>
                   <View style={styles.trendingStats}>
                     <View style={styles.trendingStatItem}>
-                      <Ionicons name="heart" size={SIZES.icons.xs} color={isDark ? '#F87171' : '#EF4444'} />
-                      <Text style={styles.trendingStatValue}>{post.likes}</Text>
+                      <Ionicons name="heart" size={14} color="#EF4444" />
+                      <Text style={styles.trendingStatValue}>{post.likes || 0}</Text>
                     </View>
                     <View style={styles.trendingStatItem}>
-                      <Ionicons name="chatbubble" size={SIZES.icons.xs} color={colors.textMuted} />
-                      <Text style={styles.trendingStatValue}>{post.commentsCount}</Text>
+                      <Ionicons name="chatbubble" size={14} color={colors.textSecondary} />
+                      <Text style={styles.trendingStatValue}>{post.commentsCount || 0}</Text>
                     </View>
                   </View>
                 </View>
@@ -724,7 +369,7 @@ const HomeScreen = ({ navigation }) => {
         </Animated.View>
       )}
 
-      {/* Category Filter Bar */}
+      {/* ── CATEGORY FILTER BAR ── */}
       <View style={styles.filterBarContainer}>
         <ScrollView
           horizontal
@@ -752,48 +397,81 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       {/* Feed Section Title */}
-      <View style={styles.feedSectionHeader}>
-        <Text style={styles.sectionLabel}>
-          {selectedCategory === 'All' ? 'Latest Activity' : `${selectedCategory}`}
+      <View style={styles.feedHeaderRow}>
+        <Text style={styles.sectionTitle}>
+          {selectedCategory === 'All' ? 'Latest Activity' : `${selectedCategory} Feed`}
         </Text>
       </View>
     </View>
-  // ── ListHeader: useMemo deps ───────────────────────────────────────────────────
-  // ❗ Do NOT include 'posts' here. trendingPosts is already derived from posts
-  //    via its own useMemo. Adding 'posts' would cause ListHeader to rebuild on
-  //    every single API poll (every 15s), hammering the JS thread.
-  ), [trendingPosts, selectedCategory, styles, navigation, colors, isDark, fadeAnim, handleComment, greeting]);
+  ), [currentHero, heroMsgIndex, trendingPosts, selectedCategory, styles, navigation, colors, fadeAnim, handleComment, greeting, displayName]);
 
   const EmptyState = useMemo(() => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconCircle}>
-        <Ionicons name="chatbubbles-outline" size={36} color={colors.primary} />
+        <Ionicons name="chatbubbles-outline" size={40} color="#2563EB" />
       </View>
       <Text style={styles.emptyTitle}>No posts yet</Text>
       <Text style={styles.emptySubtitle}>
-        Be the first to share something with the community.
+        Be the first campus pioneer to share notes, events, or start a discussion.
       </Text>
-      <Pressable
-        style={({ pressed }) => [
-          styles.emptyButton,
-          pressed && styles.emptyButtonPressed,
-        ]}
+      <TouchableOpacity
+        style={styles.emptyButton}
         onPress={() => navigation.navigate('CreatePost', {})}
+        activeOpacity={0.8}
       >
         <Text style={styles.emptyButtonText}>Create Post</Text>
-      </Pressable>
+      </TouchableOpacity>
     </View>
-  ), [colors, styles, navigation]);
+  ), [styles, navigation]);
 
-  const handleFABNavigation = useCallback((screen) => {
-    try {
-      console.log(`[FAB] Navigating to screen: ${screen}`);
-      navigation.navigate(screen, {});
-    } catch (err) {
-      console.error(`[FAB] Navigation to screen ${screen} failed:`, err?.message);
-      Alert.alert('Navigation Error', `Could not open ${screen}. Please try again.`);
-    }
-  }, [navigation]);
+  const renderRightSidebar = () => (
+    <View style={styles.rightSidebar}>
+      {/* Bulletin Card */}
+      <View style={styles.sidebarCard}>
+        <View style={styles.sidebarHeader}>
+          <Ionicons name="megaphone" size={18} color="#2563EB" />
+          <Text style={styles.sidebarTitle}>Campus Bulletin</Text>
+        </View>
+        <Text style={styles.sidebarText}>
+          📌 Midterm Examination timetables are now available on the student dashboard. Make sure to verify your exam hall allocations.
+        </Text>
+      </View>
+
+      {/* Study Resources Card */}
+      <View style={styles.sidebarCard}>
+        <View style={styles.sidebarHeader}>
+          <Ionicons name="library" size={18} color="#10B981" />
+          <Text style={styles.sidebarTitle}>Study Resources</Text>
+        </View>
+        <Text style={styles.sidebarText}>
+          📚 Top downloaded notes this week: Data Structures, Linear Algebra, and OS Concepts.
+        </Text>
+        <TouchableOpacity 
+          style={styles.sidebarActionBtn}
+          onPress={() => navigation.navigate('ShareNotes', {})}
+        >
+          <Text style={styles.sidebarActionText}>Browse Library →</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Upcoming Events Card */}
+      <View style={styles.sidebarCard}>
+        <View style={styles.sidebarHeader}>
+          <Ionicons name="calendar" size={18} color="#F59E0B" />
+          <Text style={styles.sidebarTitle}>Upcoming Events</Text>
+        </View>
+        <Text style={styles.sidebarText}>
+          🎉 Annual Tech Symposium & Hackathon begins this Friday at 4:00 PM in Main Auditorium.
+        </Text>
+        <TouchableOpacity 
+          style={styles.sidebarActionBtn}
+          onPress={() => navigation.navigate('Calendar', {})}
+        >
+          <Text style={styles.sidebarActionText}>View Calendar →</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -804,103 +482,651 @@ const HomeScreen = ({ navigation }) => {
       />
 
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* App Bar */}
-        <View style={styles.appBar}>
-          <View style={styles.appBarLeft}>
-            <View style={styles.logoMark}>
-              <Ionicons name="school" size={18} color={isDark ? colors.primary : '#FFFFFF'} />
+        {/* ── HEADER (Minimal top row only) ── */}
+        <View style={styles.headerBar}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerAvatar}>
+              <Text style={styles.headerAvatarText}>{avatarLetter}</Text>
             </View>
-            <Text style={styles.appName}>UniHelp</Text>
+            <View>
+              <Text style={styles.greetingText}>{greeting}</Text>
+              <Text style={styles.userNameText} numberOfLines={1}>{displayName}</Text>
+            </View>
           </View>
-          <View style={styles.appBarRight}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.appBarIconBtn,
-                pressed && styles.appBarIconBtnPressed,
-              ]}
+
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
               onPress={() => navigation.navigate('Notifications')}
               accessibilityRole="button"
               accessibilityLabel="Notifications"
             >
-              <Ionicons name="notifications-outline" size={SIZES.icons.md} color={colors.textPrimary} />
+              <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
               {unreadCount > 0 && <View style={styles.badgeDot} />}
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.appBarIconBtn,
-                pressed && styles.appBarIconBtnPressed,
-              ]}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.headerProfileBtn}
               onPress={() => handleFABNavigation('Profile')}
               accessibilityRole="button"
               accessibilityLabel="Profile"
             >
-              <Ionicons name="person-outline" size={SIZES.icons.md} color={colors.textPrimary} />
-            </Pressable>
+              <Ionicons name="person" size={20} color="#2563EB" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {postsLoading ? (
-          <SkeletonPulse styles={styles} />
-        ) : postsError ? (
-          // ── Error fallback UI (replaces infinite skeleton) ──
-          <View style={styles.errorBanner}>
-            <View style={styles.errorIconCircle}>
-              <Ionicons name="cloud-offline-outline" size={32} color={colors.error || '#EF4444'} />
-            </View>
-            <Text style={styles.errorTitle}>
-              {postsError.startsWith('404') ? 'Feature Offline' : 'Failed to Load Feed'}
-            </Text>
-            <Text style={styles.errorSubtitle}>
-              {postsError.includes('NETWORK_ERROR') || postsError.includes('timeout')
-                ? `The server may be waking up — this can take up to 30 seconds on free hosting.\n\nTap Retry to try again.`
-                : `We encountered a problem: ${postsError}\n\nTap Retry to try again.`}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.retryButton,
-                pressed && styles.retryButtonPressed,
-              ]}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh" size={16} color={isDark ? colors.textOnPrimary : '#FFFFFF'} />
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredPosts}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            ListHeaderComponent={ListHeader}
-            ListEmptyComponent={EmptyState}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={6}
-            maxToRenderPerBatch={6}
-            windowSize={10}
-            removeClippedSubviews={true}
-            bounces={true}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
+        {/* ── FEED & SIDEBAR WRAPPER (Responsive desktop-centered layout) ── */}
+        <View style={styles.layoutContainer}>
+          <View style={styles.mainColumn}>
+            {postsLoading ? (
+              <SkeletonPulse styles={styles} />
+            ) : postsError ? (
+              <View style={styles.errorBanner}>
+                <View style={styles.errorIconCircle}>
+                  <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
+                </View>
+                <Text style={styles.errorTitle}>
+                  {postsError.startsWith('404') ? 'Feature Offline' : 'Failed to Load Feed'}
+                </Text>
+                <Text style={styles.errorSubtitle}>
+                  {postsError.includes('NETWORK_ERROR') || postsError.includes('timeout')
+                    ? `The server may be waking up — this can take up to 30 seconds on free hosting.\n\nTap Retry to try again.`
+                    : `We encountered a problem: ${postsError}\n\nTap Retry to try again.`}
+                </Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={onRefresh}
+                >
+                  <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredPosts}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                ListHeaderComponent={ListHeader}
+                ListEmptyComponent={EmptyState}
+                contentContainerStyle={styles.list}
+                showsVerticalScrollIndicator={false}
+                initialNumToRender={6}
+                maxToRenderPerBatch={6}
+                windowSize={10}
+                removeClippedSubviews={true}
+                bounces={true}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#2563EB"
+                    colors={['#2563EB']}
+                  />
+                }
               />
-            }
-          />
-        )}
+            )}
+          </View>
+
+          {isDesktop && renderRightSidebar()}
+        </View>
 
         <ExpandableFAB
           onPost={() => handleFABNavigation('CreatePost')}
           onEvent={() => handleFABNavigation('Calendar')}
           onPoll={() => handleFABNavigation('CreatePoll')}
         />
-
-
       </View>
     </SafeAreaView>
   );
 };
+
+// ── Styles (Premium Mobile-First Design System) ──
+const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  layoutContainer: {
+    flex: 1,
+    flexDirection: isDesktop ? 'row' : 'column',
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  mainColumn: {
+    flex: 1,
+    maxWidth: isDesktop ? 820 : '100%',
+  },
+  rightSidebar: {
+    width: 340,
+    marginLeft: 24,
+    paddingTop: 16,
+    paddingRight: 16,
+  },
+
+  // ── Header Bar (Minimal top row only) ──
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(37,99,235,0.08)',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  headerAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  greetingText: {
+    fontSize: 11,
+    color: colors.textSecondary || '#6B7280',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  userNameText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(37,99,235,0.08)',
+  },
+  headerProfileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#2563EB',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
+
+  // ── Hero Banner (Rounded 24px, large blue gradient card) ──
+  heroCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    borderRadius: 24,
+    backgroundColor: '#2563EB',
+    padding: 22,
+    overflow: 'hidden',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  heroCircleTopRight: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  heroCircleBottomLeft: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  highlightBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  highlightBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  liveText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: -0.4,
+  },
+  heroTip: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  heroPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  heroPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  heroPillBtnSecondary: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  heroPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // ── Quick Actions (Circular premium icons, white background, blue icon) ──
+  quickActionsSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textSecondary || '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 14,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 18,
+  },
+  quickActionItem: {
+    width: '23%',
+    alignItems: 'center',
+  },
+  quickActionCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.3 : 0.12,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(37, 99, 235, 0.08)',
+  },
+  quickActionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
+  // ── Trending Section ──
+  trendingSection: {
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  trendingScroll: {
+    gap: 16,
+    paddingBottom: 4,
+  },
+  trendingCard: {
+    width: 290,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(37,99,235,0.08)',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.25 : 0.08,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  trendingInner: {
+    flex: 1,
+  },
+  trendingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trendingAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(37, 99, 235, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  trendingAvatarText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  trendingUser: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  trendingSubtext: {
+    fontSize: 11,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  trendingContentTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  trendingContentBody: {
+    fontSize: 13,
+    color: colors.textSecondary || '#6B7280',
+    lineHeight: 18,
+  },
+  trendingStats: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+  },
+  trendingStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trendingStatValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary || '#6B7280',
+  },
+
+  // ── Category Filter Bar ──
+  filterBarContainer: {
+    marginBottom: 12,
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(37, 99, 235, 0.1)',
+  },
+  filterPillActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary || '#6B7280',
+  },
+  filterTextActive: {
+    color: '#FFFFFF',
+  },
+  feedHeaderRow: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+
+  // ── Desktop Right Sidebar Cards ──
+  sidebarCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(37,99,235,0.08)',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.25 : 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  sidebarTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  sidebarText: {
+    fontSize: 13,
+    color: colors.textSecondary || '#6B7280',
+    lineHeight: 20,
+  },
+  sidebarActionBtn: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+  },
+  sidebarActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  // ── Empty & Error States ──
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary || '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    maxWidth: 280,
+  },
+  emptyButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  errorBanner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  errorIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary || '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    maxWidth: 300,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // ── Skeletons ──
+  skeletonWrap: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  skeletonCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  skeletonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+    marginRight: 12,
+  },
+  skeletonLine: {
+    height: 14,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+
+  list: {
+    paddingBottom: 110,
+  },
+});
 
 export default HomeScreen;

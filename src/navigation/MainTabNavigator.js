@@ -34,8 +34,8 @@ const MainTabNavigator = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarActiveTintColor: '#2563EB',
+        tabBarInactiveTintColor: '#6B7280',
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
         tabBarIcon: ({ focused }) => {
@@ -45,8 +45,8 @@ const MainTabNavigator = () => {
             <View style={focused ? styles.activeIconWrap : styles.inactiveIconWrap}>
               <Ionicons
                 name={focused ? icons.active : icons.inactive}
-                size={26}
-                color={focused ? colors.primary : colors.textTertiary}
+                size={22}
+                color={focused ? '#2563EB' : '#6B7280'}
               />
               {showBadge && <View style={styles.badgeDot} />}
             </View>
@@ -63,36 +63,46 @@ const MainTabNavigator = () => {
 
 const createStyles = (colors, shadows) => StyleSheet.create({
   tabBar: {
-    backgroundColor: colors.tabBar,
-    borderTopWidth: 1,
-    borderColor: colors.borderLight,
-    height: 75,
-    paddingBottom: 20, // Padding for safe area / home indicator
-    ...shadows.large,
-    elevation: 25,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    position: 'absolute',
+    bottom: 16,
+    left: 20,
+    right: 20,
+    height: 68,
+    backgroundColor: colors.surface || '#FFFFFF',
+    borderRadius: 34,
+    borderTopWidth: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.1)',
+    paddingBottom: 8,
+    paddingTop: 8,
+    elevation: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    marginBottom: 10,
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   activeIconWrap: {
     padding: 4,
-    marginTop: 8,
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inactiveIconWrap: {
     padding: 4,
-    marginTop: 8,
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeDot: {
     position: 'absolute',
-    top: 4,
-    right: 2,
+    top: 2,
+    right: 0,
     width: 8,
     height: 8,
     borderRadius: 4,

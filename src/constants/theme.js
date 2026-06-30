@@ -57,49 +57,49 @@ export const DARK_COLORS = {
 
 // ── Light Mode Palette (Clean High-Contrast) ──
 export const LIGHT_COLORS = {
-  background: '#F5F5F5', 
+  background: '#F8FAFC', 
   backgroundAlt: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceElevated: '#F8FAFC',
-  surfaceGlass: 'rgba(255, 255, 255, 0.85)',
-  surfaceLight: 'rgba(30, 58, 138, 0.05)', 
+  surfaceElevated: '#FFFFFF',
+  surfaceGlass: 'rgba(255, 255, 255, 0.9)',
+  surfaceLight: 'rgba(37, 99, 235, 0.08)', 
 
-  primary: '#1E3A8A', 
-  primaryDark: '#0B1C45',
-  primaryLight: 'rgba(30, 58, 138, 0.1)',
+  primary: '#2563EB', 
+  primaryDark: '#1D4ED8',
+  primaryLight: '#60A5FA',
   primaryGlow: 'rgba(37, 99, 235, 0.15)',
 
-  secondary: '#2563EB',
-  secondaryLight: 'rgba(37, 99, 235, 0.1)',
+  secondary: '#3B82F6',
+  secondaryLight: 'rgba(59, 130, 246, 0.1)',
 
-  accent: '#D72638', 
+  accent: '#3B82F6', 
   accentGreen: '#10B981',
   accentAmber: '#F59E0B',
   accentCyan: '#06B6D4',
-  accentPurple: '#A61E2C',
+  accentPurple: '#8B5CF6',
 
-  textPrimary: '#111111', 
-  textSecondary: '#555555',
-  textTertiary: '#888888',
+  textPrimary: '#111827', 
+  textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
   textOnPrimary: '#FFFFFF',
 
-  border: 'rgba(17, 24, 39, 0.15)',
-  borderLight: 'rgba(17, 24, 39, 0.08)',
+  border: 'rgba(37, 99, 235, 0.12)',
+  borderLight: 'rgba(107, 114, 128, 0.1)',
 
-  gradientStart: '#1E3A8A',
-  gradientEnd: '#2563EB',
-  gradientAlt: ['#1E3A8A', '#2563EB', '#1E3A8A'],
+  gradientStart: '#2563EB',
+  gradientEnd: '#3B82F6',
+  gradientAlt: ['#2563EB', '#3B82F6', '#60A5FA'],
 
   success: '#10B981',
-  error: '#D72638',
+  error: '#EF4444',
   warning: '#F59E0B',
-  info: '#06B6D4',
+  info: '#3B82F6',
 
-  shadow: '#111827',
-  overlay: 'rgba(0, 0, 0, 0.4)',
-  tabBar: 'rgba(255, 255, 255, 0.98)',
+  shadow: '#2563EB',
+  overlay: 'rgba(17, 24, 39, 0.4)',
+  tabBar: 'rgba(255, 255, 255, 0.95)',
   inputBg: '#FFFFFF',
-  inputBorder: 'rgba(30, 58, 138, 0.2)',
+  inputBorder: 'rgba(37, 99, 235, 0.2)',
 };
 
 /**
