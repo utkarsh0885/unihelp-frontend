@@ -14,7 +14,6 @@ import {
   StyleSheet,
   Animated,
   Alert,
-  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SIZES } from '../constants/theme';
@@ -40,16 +39,6 @@ const PostCard = ({ post, onLike }) => {
       { text: 'Cancel', style: 'cancel' },
       { text: 'OK' },
     ]);
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `${post.username} on UNIHELP:\n\n"${post.content}"`,
-      });
-    } catch {
-      Alert.alert('Shared! 🔗', 'Post link copied to clipboard.');
-    }
   };
 
   const handleBookmark = () => {
@@ -102,20 +91,18 @@ const PostCard = ({ post, onLike }) => {
 
         <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={handleReply}>
           <Ionicons name="chatbubble-outline" size={18} color={colors.textTertiary} />
-          <Text style={styles.actionLabel}>Reply</Text>
+          <Text style={styles.actionLabel}>Comment</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={handleShare}>
-          <Ionicons name="arrow-redo-outline" size={18} color={colors.textTertiary} />
-          <Text style={styles.actionLabel}>Share</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.bookmarkBtn} activeOpacity={0.7} onPress={handleBookmark}>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={handleBookmark}>
           <Ionicons
             name={bookmarked ? 'bookmark' : 'bookmark-outline'}
             size={18}
-            color={bookmarked ? colors.primary : colors.textTertiary}
+            color={bookmarked ? '#2563EB' : colors.textTertiary}
           />
+          <Text style={[styles.actionLabel, bookmarked && { color: '#2563EB' }]}>
+            {bookmarked ? 'Saved' : 'Save'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

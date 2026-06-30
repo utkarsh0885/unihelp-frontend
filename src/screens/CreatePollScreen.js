@@ -18,8 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SIZES, GRADIENTS } from '../constants/theme';
+import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import GradientButton from '../components/GradientButton';
@@ -112,20 +111,15 @@ const CreatePollScreen = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <TouchableOpacity onPress={handleGoBack} style={styles.closeBtn} activeOpacity={0.7}>
-            <Ionicons name="close" size={22} color="#FFFFFF" />
+            <Ionicons name="close" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.screenTitle}>Create Poll</Text>
           <View style={{ width: 38 }} />
-        </LinearGradient>
+        </View>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
@@ -222,17 +216,17 @@ const CreatePollScreen = ({ navigation }) => {
 
 const createStyles = (colors, shadows) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
+  appBarContainer: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 10 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm + (Platform.OS === 'ios' ? 40 : 20),
+    paddingHorizontal: SIZES.md, height: 56,
   },
-  closeBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  screenTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+  closeBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceSubtle, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle },
+  screenTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   scroll: { flexGrow: 1, paddingBottom: SIZES.xxxl },
   card: { 
-    backgroundColor: colors.surface, borderRadius: 24, marginHorizontal: SIZES.md, 
-    padding: SIZES.lg, borderWidth: 1, borderColor: colors.borderLight, ...shadows.medium,
+    backgroundColor: colors.surface, borderRadius: 20, marginHorizontal: SIZES.md, 
+    padding: SIZES.lg, borderWidth: 1, borderColor: colors.border, ...shadows.medium,
     marginTop: SIZES.md,
   },
   label: { fontSize: 13, fontWeight: '900', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: SIZES.md },

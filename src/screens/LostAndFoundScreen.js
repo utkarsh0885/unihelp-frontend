@@ -16,9 +16,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SIZES, GRADIENTS } from '../constants/theme';
+import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import AnimatedPostCard from '../components/AnimatedPostCard';
@@ -62,18 +61,13 @@ const LostAndFoundScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       
       {/* Header */}
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Lost & Found</Text>
           <TouchableOpacity 
@@ -81,9 +75,9 @@ const LostAndFoundScreen = ({ navigation }) => {
             activeOpacity={0.7} 
             onPress={() => navigation.navigate('CreatePost', { defaultCategory: 'Lost & Found' })}
           >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
+            <Ionicons name="add" size={24} color={colors.textOnPrimary} />
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
       </View>
 
       {/* Feed */}
@@ -125,14 +119,14 @@ const LostAndFoundScreen = ({ navigation }) => {
 
 const createStyles = (colors, shadows) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { ...shadows.medium, zIndex: 10 },
+  appBarContainer: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 10 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md, height: 56,
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  addBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceSubtle, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  addBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   list: { padding: SIZES.md, paddingBottom: SIZES.xxxl },
   loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loaderText: { fontSize: SIZES.fontMd, color: colors.textTertiary, marginTop: SIZES.md },

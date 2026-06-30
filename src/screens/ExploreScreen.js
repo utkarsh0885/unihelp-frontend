@@ -19,9 +19,8 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SIZES, GRADIENTS } from '../constants/theme';
+import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 
@@ -31,51 +30,39 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     paddingBottom: 120,
   },
   appBarContainer: {
-    ...shadows.large,
-    elevation: 20,
-    backgroundColor: colors.background,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
-    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    zIndex: 10,
   },
-  gradientHeader: {
-    paddingTop: SIZES.sm,
-    paddingBottom: SIZES.xl,
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SIZES.md,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    height: 56,
   },
-  headerInfo: {
-    marginTop: SIZES.xs,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  badge: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: SIZES.radiusFull,
-    alignSelf: 'flex-start',
-    marginBottom: SIZES.sm,
+  searchSection: {
+    paddingHorizontal: SIZES.md,
+    paddingTop: SIZES.md,
   },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  pageTitle: {
-    fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.8,
-  },
-  pageSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: SIZES.lg },
-  
-  // Search Styles
   searchWrap: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16, height: 50, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: 16,
+    height: 48,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  searchIcon: { marginRight: 12 },
-  searchInput: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '500' },
 
   sectionTitle: {
     fontSize: 13, fontWeight: '900', color: colors.textTertiary, 
@@ -339,47 +326,37 @@ const ExploreScreen = ({ navigation }) => {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? colors.background : '#1E3A8A' }]} edges={['top']}>
-        <StatusBar style="light" />
-        <ScrollView 
-          style={{ flex: 1 }} 
-          contentContainerStyle={styles.content} 
-          showsVerticalScrollIndicator={false}
-          bounces={true}
-        >
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.surface }]} edges={['top']}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      
+      {/* Clean Surface Header */}
+      <View style={styles.appBarContainer}>
+        <View style={styles.headerBar}>
+          <Text style={styles.headerTitle}>Explore Campus</Text>
+        </View>
+      </View>
+
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={styles.content} 
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+      >
         <View>
-          {/* Premium Gradient Header Container */}
-          <Animated.View style={[styles.appBarContainer, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
-            <LinearGradient
-              colors={isDark ? ['#1A1A1A', '#0D0D0D'] : ['#1E3A8A', '#2563EB']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientHeader}
-            >
-              <View style={styles.headerInfo}>
-                <View style={styles.headerRow}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>CAMPUS HUB</Text>
-                  </View>
-                </View>
-                <Text style={styles.pageTitle}>Explore</Text>
-                <Text style={styles.pageSub}>Everything you need in one place</Text>
-                
-                {/* Premium Search Hub */}
-                <View style={[styles.searchWrap, { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.1)' }]}>
-                  <Ionicons name="search" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.searchIcon} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search for events, notes, polls..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    returnKeyType="search"
-                  />
-                </View>
-              </View>
-            </LinearGradient>
-          </Animated.View>
+          {/* Search Bar Section */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchWrap}>
+              <Ionicons name="search" size={20} color={colors.textTertiary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search for events, notes, polls..."
+                placeholderTextColor={colors.textTertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
+            </View>
+          </View>
 
           {/* Feature Cards Grid / Search Results */}
           <View style={styles.cardsSection}>

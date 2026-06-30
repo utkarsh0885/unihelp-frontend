@@ -13,7 +13,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Share,
   Animated,
   Image,
   Modal,
@@ -410,7 +409,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
   // Hover states for premium web interaction
   const [likeHovered, setLikeHovered] = React.useState(false);
   const [commentHovered, setCommentHovered] = React.useState(false);
-  const [shareHovered, setShareHovered] = React.useState(false);
   const [saveHovered, setSaveHovered] = React.useState(false);
   const [menuVisible, setMenuVisible] = React.useState(false);
 
@@ -463,21 +461,6 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
       friction: 12 
     }).start();
   };
-
-  const handleShare = useCallback(async (e) => {
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-    try {
-      await Share.share({
-        message: `${post.username} on UNIHELP:\n\n"${post.content}"`,
-      });
-    } catch {
-      if (Platform.OS === 'web') {
-        alert('Post link copied to clipboard.');
-      } else {
-        Alert.alert('Shared! 🔗', 'Post link copied to clipboard.');
-      }
-    }
-  }, [post.username, post.content]);
 
   const handleOptions = useCallback((e) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
@@ -968,29 +951,12 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           </Text>
         </TouchableOpacity>
 
-        {/* Share */}
-        <TouchableOpacity 
-          style={[
-            styles.actionBtn,
-            shareHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)' }
-          ]} 
-          onPress={handleShare} 
-          activeOpacity={0.6}
-          onMouseEnter={() => setShareHovered(true)}
-          onMouseLeave={() => setShareHovered(false)}
-        >
-          <Ionicons name="share-outline" size={SIZES.icons.sm} color={colors.textSecondary} />
-          <Text style={styles.actionLabel}>Share</Text>
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }} />
-
-        {/* Save/Bookmark */}
+        {/* Save */}
         <AnimatedTouchable
           style={[
             styles.actionBtn, 
             { transform: [{ scale: saveScale }] },
-            saveHovered && { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(15, 23, 42, 0.06)' }
+            saveHovered && { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : 'rgba(37, 99, 235, 0.06)' }
           ]}
           onPress={handleSave}
           activeOpacity={0.6}
@@ -1000,8 +966,11 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           <Ionicons
             name={isSaved ? 'bookmark' : 'bookmark-outline'}
             size={SIZES.icons.sm}
-            color={isSaved ? colors.primary : colors.textSecondary}
+            color={isSaved ? '#2563EB' : colors.textSecondary}
           />
+          <Text style={[styles.actionLabel, isSaved && { color: '#2563EB', fontWeight: FONT_WEIGHTS.semibold }]}>
+            {isSaved ? 'Saved' : 'Save'}
+          </Text>
         </AnimatedTouchable>
       </View>
     </AnimatedTouchable>

@@ -52,7 +52,7 @@ const GradientButton = ({ title, onPress, loading = false, style, gradientColors
         style={[styles.wrapper, style]}
       >
         <LinearGradient
-          colors={gradientColors || [colors.primary, colors.primary + 'CC']}
+          colors={[colors.primary, colors.primary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[styles.inner, loading && { opacity: 0.7 }]}

@@ -17,9 +17,8 @@ import {
   Animated,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
@@ -112,14 +111,9 @@ const MyPostsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient 
-          colors={['#1E3A8A', '#2563EB']} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 0 }} 
-          style={styles.headerBar}
-        >
+        <View style={styles.headerBar}>
           <Animated.View style={{ transform: [{ scale: backScale }] }}>
             <TouchableOpacity 
               onPress={() => navigation.goBack()} 
@@ -128,19 +122,19 @@ const MyPostsScreen = ({ navigation }) => {
               style={styles.backBtn} 
               activeOpacity={1}
             >
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
           </Animated.View>
           <Text style={styles.headerTitle}>My Posts</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleSort} style={styles.sortBtn} activeOpacity={0.7}>
-              <Ionicons name="funnel-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="funnel-outline" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.countBadge}>
               <Text style={styles.countText}>{userPosts.length}</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       {postsLoading ? (
@@ -165,24 +159,26 @@ const MyPostsScreen = ({ navigation }) => {
 const createStyles = (colors, shadows) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   appBarContainer: {
-    ...shadows.medium,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     zIndex: 10,
   },
   headerBar: { 
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md, height: 56,
   },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceSubtle, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sortBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  sortBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfaceSubtle, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle },
   countBadge: { 
-    backgroundColor: 'rgba(255,255,255,0.2)', 
+    backgroundColor: colors.primary + '15', 
     borderRadius: 8, 
     paddingHorizontal: 10, 
     paddingVertical: 4 
   },
-  countText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
+  countText: { fontSize: 13, fontWeight: '700', color: colors.primary },
   
   list: { 
     paddingTop: SIZES.md,

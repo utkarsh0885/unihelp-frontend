@@ -71,9 +71,6 @@ const ExpandableFAB = ({ onPost, onEvent, onPoll }) => {
     ],
   };
 
-  // Premium Gradient (Blue -> Cyan for tech/campus feel)
-  const premiumGradient = ['#1E3A8A', '#06B6D4'];
-
   return (
     <View style={styles.container}>
 

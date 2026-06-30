@@ -21,7 +21,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
@@ -32,7 +31,7 @@ import { uploadEventPoster } from '../services/storageService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const CATEGORIES = [
-  { label: 'Social', icon: 'people', color: '#1E3A8A' },
+  { label: 'Social', icon: 'people', color: '#2563EB' },
   { label: 'Academic', icon: 'book', color: '#D72638' },
   { label: 'Workshop', icon: 'hammer', color: '#10B981' },
   { label: 'Sports', icon: 'football', color: '#D72638' },
@@ -210,16 +209,12 @@ const CreateEventScreen = ({ navigation, route = {} }) => {
       style={{ flex: 1, backgroundColor: colors.background }} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       
       <View style={styles.appBarContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <TouchableOpacity onPress={handleGoBack} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color="#FFFFFF" />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Event</Text>
           <TouchableOpacity 
@@ -229,7 +224,7 @@ const CreateEventScreen = ({ navigation, route = {} }) => {
           >
             <Text style={styles.createBtnText}>{loading ? '...' : 'Post'}</Text>
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -401,15 +396,15 @@ const CreateEventScreen = ({ navigation, route = {} }) => {
 };
 
 const createStyles = (colors, shadows, isDark) => StyleSheet.create({
-  appBarContainer: { zIndex: 10 },
+  appBarContainer: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 10 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SIZES.md, paddingBottom: SIZES.md, paddingTop: SIZES.sm,
+    paddingHorizontal: SIZES.md, height: 56,
   },
-  closeBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-  createBtn: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
-  createBtnText: { color: colors.primary, fontWeight: '900', fontSize: 13, textTransform: 'uppercase' },
+  closeBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceSubtle, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
+  createBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  createBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13, textTransform: 'uppercase' },
   scrollContent: { padding: SIZES.md },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 13, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },

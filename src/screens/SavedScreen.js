@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
@@ -69,14 +68,9 @@ const SavedScreen = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={{ backgroundColor: '#1E3A8A' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']} />
       <View style={styles.appBarContainer}>
-        <LinearGradient 
-          colors={['#1E3A8A', '#2563EB']} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 0 }} 
-          style={styles.headerBar}
-        >
+        <View style={styles.headerBar}>
           <Animated.View style={{ transform: [{ scale: backScale }] }}>
             <TouchableOpacity 
               onPress={() => navigation.goBack()} 
@@ -85,16 +79,16 @@ const SavedScreen = ({ navigation }) => {
               style={styles.backBtn} 
               activeOpacity={1}
             >
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
           </Animated.View>
           <Text style={styles.headerTitle}>Saved Posts</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleSort} style={styles.sortBtn} activeOpacity={0.7}>
-              <Ionicons name="funnel-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="funnel-outline" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       <FlatList
@@ -123,39 +117,42 @@ const EmptyState = ({ colors, styles }) => (
 
 const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  appBarContainer: { zIndex: 10 },
+  appBarContainer: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 10 },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
+    height: 56,
     justifyContent: 'space-between',
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   sortBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   listContent: { 
     paddingTop: SIZES.md, 
