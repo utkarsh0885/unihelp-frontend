@@ -37,7 +37,6 @@ const QUICK_ACTIONS = [
   { id: 'events', title: 'Events', icon: 'calendar', screen: 'DiscoverEvents' },
   { id: 'calendar', title: 'Calendar', icon: 'calendar-number', screen: 'Calendar' },
   { id: 'polls', title: 'Polls', icon: 'stats-chart', screen: 'CreatePoll' },
-  { id: 'resources', title: 'Resources', icon: 'library', screen: 'Saved' },
   { id: 'lostfound', title: 'Lost & Found', icon: 'search', screen: 'LostAndFound' },
   { id: 'createpost', title: 'Create Post', icon: 'add-circle', screen: 'CreatePost' },
 ];
@@ -250,11 +249,8 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.heroCircleTopRight} />
         <View style={styles.heroCircleBottomLeft} />
 
-        {/* Top Row: Campus Highlights */}
-        <View style={styles.heroTopRow}>
-          <View style={styles.highlightBadge}>
-            <Text style={styles.highlightBadgeText}>✨ CAMPUS HIGHLIGHTS</Text>
-          </View>
+        {/* Top Row: Live Feed Indicator */}
+        <View style={[styles.heroTopRow, { justifyContent: 'flex-end' }]}>
           <View style={styles.liveIndicator}>
             <View style={styles.liveDot} />
             <Text style={styles.liveText}>Live Feed</Text>
@@ -426,43 +422,40 @@ const HomeScreen = ({ navigation }) => {
 
   const renderRightSidebar = () => (
     <View style={styles.rightSidebar}>
-      {/* Bulletin Card */}
-      <View style={styles.sidebarCard}>
-        <View style={styles.sidebarHeader}>
-          <Ionicons name="megaphone" size={18} color="#2563EB" />
-          <Text style={styles.sidebarTitle}>Campus Bulletin</Text>
-        </View>
-        <Text style={styles.sidebarText}>
-          📌 Midterm Examination timetables are now available on the student dashboard. Make sure to verify your exam hall allocations.
-        </Text>
-      </View>
-
-      {/* Study Resources Card */}
-      <View style={styles.sidebarCard}>
-        <View style={styles.sidebarHeader}>
-          <Ionicons name="library" size={18} color="#10B981" />
-          <Text style={styles.sidebarTitle}>Study Resources</Text>
-        </View>
-        <Text style={styles.sidebarText}>
-          📚 Top downloaded notes this week: Data Structures, Linear Algebra, and OS Concepts.
-        </Text>
-        <TouchableOpacity 
-          style={styles.sidebarActionBtn}
-          onPress={() => navigation.navigate('ShareNotes', {})}
-        >
-          <Text style={styles.sidebarActionText}>Browse Library →</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Upcoming Events Card */}
       <View style={styles.sidebarCard}>
         <View style={styles.sidebarHeader}>
           <Ionicons name="calendar" size={18} color="#F59E0B" />
           <Text style={styles.sidebarTitle}>Upcoming Events</Text>
         </View>
-        <Text style={styles.sidebarText}>
-          🎉 Annual Tech Symposium & Hackathon begins this Friday at 4:00 PM in Main Auditorium.
-        </Text>
+
+        {events && events.length > 0 ? (
+          <View style={{ gap: 12 }}>
+            {events.slice(0, 4).map((evt) => (
+              <TouchableOpacity
+                key={evt.id}
+                style={styles.sidebarEventItem}
+                onPress={() => handleComment(evt)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.sidebarEventTitle} numberOfLines={1}>
+                  {evt.title || evt.content || 'Campus Event'}
+                </Text>
+                <Text style={styles.sidebarEventMeta} numberOfLines={1}>
+                  {evt.eventDate || evt.timestamp || 'Upcoming'} • {evt.username || 'Event Organizer'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.sidebarEmptyState}>
+            <Ionicons name="calendar-outline" size={28} color={colors.textMuted || '#9CA3AF'} style={{ marginBottom: 6 }} />
+            <Text style={styles.sidebarEmptyText}>
+              No upcoming events. Create one from Explore → Events.
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity 
           style={styles.sidebarActionBtn}
           onPress={() => navigation.navigate('Calendar', {})}
@@ -989,6 +982,30 @@ const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary || '#6B7280',
     lineHeight: 20,
+  },
+  sidebarEventItem: {
+    paddingVertical: 4,
+  },
+  sidebarEventTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  sidebarEventMeta: {
+    fontSize: 11,
+    color: colors.textSecondary || '#6B7280',
+  },
+  sidebarEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  sidebarEmptyText: {
+    fontSize: 13,
+    color: colors.textSecondary || '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   sidebarActionBtn: {
     marginTop: 12,
