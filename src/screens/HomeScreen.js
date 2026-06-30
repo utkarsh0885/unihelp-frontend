@@ -236,10 +236,14 @@ const HomeScreen = ({ navigation }) => {
 
   const ListHeader = useMemo(() => (
     <View style={{ backgroundColor: colors.background }}>
-      {/* ── QUICK ACTIONS (Circular premium icons, white background, blue icon) ── */}
+      {/* ── QUICK ACTIONS (Horizontally scrollable row, circular premium icons) ── */}
       <View style={styles.quickActionsSection}>
-        <Text style={styles.sectionTitle}>Explore Campus</Text>
-        <View style={styles.quickActionsGrid}>
+        <Text style={[styles.sectionTitle, { paddingHorizontal: 20 }]}>Explore Campus</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickActionsScroll}
+        >
           {QUICK_ACTIONS.map(action => (
             <TouchableOpacity
               key={action.id}
@@ -248,12 +252,12 @@ const HomeScreen = ({ navigation }) => {
               activeOpacity={0.7}
             >
               <View style={styles.quickActionCircle}>
-                <Ionicons name={action.icon} size={24} color="#2563EB" />
+                <Ionicons name={action.icon} size={28} color="#2563EB" />
               </View>
-              <Text style={styles.quickActionLabel} numberOfLines={1}>{action.title}</Text>
+              <Text style={styles.quickActionLabel} numberOfLines={2}>{action.title}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       {/* ── TRENDING SECTION ── */}
@@ -628,9 +632,8 @@ const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
 
   // ── Quick Actions (Circular premium icons, white background, blue icon) ──
   quickActionsSection: {
-    paddingHorizontal: 16,
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 14,
@@ -640,21 +643,21 @@ const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 14,
   },
-  quickActionsGrid: {
+  quickActionsScroll: {
+    paddingHorizontal: 20,
+    gap: 20,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 18,
+    alignItems: 'flex-start',
   },
   quickActionItem: {
-    width: '23%',
+    width: 78,
     alignItems: 'center',
   },
   quickActionCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#FFFFFF',
+    width: 74,
+    height: 74,
+    borderRadius: 999,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#2563EB',
@@ -663,14 +666,15 @@ const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(37, 99, 235, 0.08)',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(37, 99, 235, 0.08)',
   },
   quickActionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textPrimary,
     marginTop: 8,
     textAlign: 'center',
+    lineHeight: 16,
   },
 
   // ── Trending Section ──
