@@ -34,8 +34,8 @@ const MainTabNavigator = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
         tabBarIcon: ({ focused }) => {
@@ -46,7 +46,7 @@ const MainTabNavigator = () => {
               <Ionicons
                 name={focused ? icons.active : icons.inactive}
                 size={22}
-                color={focused ? '#2563EB' : '#6B7280'}
+                color={focused ? colors.primary : colors.textTertiary}
               />
               {showBadge && <View style={styles.badgeDot} />}
             </View>
@@ -72,7 +72,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     borderRadius: 34,
     borderTopWidth: 0,
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.1)',
+    borderColor: colors.border,
     paddingBottom: 8,
     paddingTop: 8,
     elevation: 12,
@@ -106,7 +106,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.error,
   },
 });
 

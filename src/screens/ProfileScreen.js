@@ -469,7 +469,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: FONT_WEIGHTS.bold,
-    color: colors.textMuted,
+    color: isDark ? 'rgba(255, 255, 255, 0.85)' : colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: SPACING.xs,

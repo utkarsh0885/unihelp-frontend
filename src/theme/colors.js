@@ -47,6 +47,7 @@ export const LIGHT_COLORS = {
   textPrimary: '#111827',     // Text
   textSecondary: '#6B7280',   // Secondary text
   textMuted: '#9CA3AF',
+  textTertiary: '#9CA3AF',
   textDisabled: '#D1D5DB',
   textOnPrimary: '#FFFFFF',
   textOnAccent: '#FFFFFF',
@@ -61,6 +62,12 @@ export const LIGHT_COLORS = {
   overlay: 'rgba(17, 24, 39, 0.4)',
   shadow: '#2563EB',
   shimmerHighlight: '#F8FAFC',
+  error: '#EF4444',
+  success: '#10B981',
+  backgroundAlt: '#FFFFFF',
+  inputBg: '#FFFFFF',
+  inputBorder: 'rgba(37, 99, 235, 0.2)',
+  tabBar: 'rgba(255, 255, 255, 0.95)',
 };
 
 export const DARK_COLORS = {
@@ -69,6 +76,8 @@ export const DARK_COLORS = {
   primaryHover: '#0284C7',
   primaryPressed: '#0369A1',
   primaryLight: 'rgba(56, 189, 248, 0.15)',
+  primaryDark: '#2563EB',
+  primaryGlow: 'rgba(56, 189, 248, 0.3)',
 
   secondary: '#94A3B8',       // Slate 400
   secondaryHover: '#CBD5E1',
@@ -77,6 +86,7 @@ export const DARK_COLORS = {
   accent: '#10B981',          // Emerald Green
   accentHover: '#059669',
   accentLight: 'rgba(16, 185, 129, 0.15)',
+  accentPurple: '#C084FC',
 
   warning: '#F59E0B',         // Amber
   warningLight: 'rgba(245, 158, 11, 0.15)',
@@ -84,12 +94,15 @@ export const DARK_COLORS = {
   danger: '#EF4444',          // Muted Red
   dangerHover: '#DC2626',
   dangerLight: 'rgba(239, 68, 68, 0.15)',
+  error: '#EF4444',
+  success: '#10B981',
 
   info: '#38BDF8',            // Cyan
   infoLight: 'rgba(56, 189, 248, 0.15)',
 
   // Surfaces & Backgrounds
   background: '#0B0F19',      // Rich Graphite
+  backgroundAlt: '#111827',
   surface: '#111827',         // Layered Dark Neutral
   surfaceElevated: '#1E293B', // Elevated Card Surface
   surfaceSubtle: '#172033',   // Subtle secondary card surface
@@ -97,15 +110,17 @@ export const DARK_COLORS = {
   surfaceGlass: 'rgba(17, 24, 39, 0.85)',
 
   // Typography Hierarchy
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#CBD5E1',
+  textMuted: '#94A3B8',
+  textTertiary: '#94A3B8',
   textDisabled: '#475569',
   textOnPrimary: '#0B0F19',
   textOnAccent: '#0B0F19',
 
   // Borders & Dividers
   border: 'rgba(255, 255, 255, 0.12)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
   borderSubtle: 'rgba(255, 255, 255, 0.06)',
   borderFocus: '#38BDF8',
 
@@ -113,6 +128,9 @@ export const DARK_COLORS = {
   overlay: 'rgba(0, 0, 0, 0.75)',
   shadow: '#000000',
   shimmerHighlight: '#1E293B',
+  inputBg: '#172033',
+  inputBorder: 'rgba(255, 255, 255, 0.12)',
+  tabBar: 'rgba(17, 24, 39, 0.98)',
 };
 
 /**

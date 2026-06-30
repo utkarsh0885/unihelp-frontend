@@ -155,7 +155,7 @@ const MarketplaceItemCard = React.memo(({
                 onPress={() => onEdit(item)}
               >
                 <Ionicons name="pencil" size={14} color="#FFFFFF" />
-                <Text style={[styles.actionText, { color: '#FFFFFF' }]}>Edit</Text>
+                <Text style={[styles.actionText, { color: colors.textOnPrimary }]}>Edit</Text>
               </Pressable>
 
               <Pressable

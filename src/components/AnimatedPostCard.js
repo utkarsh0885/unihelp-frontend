@@ -78,7 +78,7 @@ const createStyles = (colors, isDark) => {
     avatarText: {
       fontSize: 16,
       fontWeight: '700',
-      color: '#2563EB',
+      color: colors.primary,
     },
     username: {
       fontSize: 16,
@@ -88,7 +88,8 @@ const createStyles = (colors, isDark) => {
     },
     timestamp: {
       fontSize: 12,
-      color: colors.textSecondary || '#6B7280',
+      color: colors.textMuted,
+      fontWeight: '500',
       marginTop: 2,
     },
     moreBtn: {
@@ -100,12 +101,12 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       paddingHorizontal: 12,
       borderRadius: 999,
-      backgroundColor: '#2563EB',
+      backgroundColor: colors.primary,
     },
     categoryBadgeText: {
       fontSize: 11,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: colors.textOnPrimary,
       letterSpacing: 0.6,
       textTransform: 'uppercase',
     },
@@ -806,8 +807,8 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
                 onPress={handleEditItem} 
                 activeOpacity={0.7}
               >
-                <Ionicons name="pencil" size={14} color="#FFFFFF" />
-                <Text style={[styles.marketActionText, { color: '#FFFFFF' }]}>Edit</Text>
+                <Ionicons name="pencil" size={14} color={colors.textOnPrimary} />
+                <Text style={[styles.marketActionText, { color: colors.textOnPrimary }]}>Edit</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -924,13 +925,13 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           <Ionicons
             name={isLiked ? 'heart' : 'heart-outline'}
             size={SIZES.icons.md}
-            color={isLiked ? '#EF4444' : colors.textSecondary}
+            color={isLiked ? colors.error : colors.textSecondary}
           />
-          <Text style={[styles.actionLabel, isLiked && { color: '#EF4444', fontWeight: FONT_WEIGHTS.semibold }]}>
+          <Text style={[styles.actionLabel, isLiked && { color: colors.error, fontWeight: FONT_WEIGHTS.semibold }]}>
             {isLiked ? 'Liked' : 'Like'}
           </Text>
           {post.likes > 0 && (
-            <Text style={[styles.actionCount, isLiked && { color: '#EF4444' }]}>{post.likes}</Text>
+            <Text style={[styles.actionCount, isLiked && { color: colors.error }]}>{post.likes}</Text>
           )}
         </AnimatedTouchable>
 
@@ -966,9 +967,9 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
           <Ionicons
             name={isSaved ? 'bookmark' : 'bookmark-outline'}
             size={SIZES.icons.sm}
-            color={isSaved ? '#2563EB' : colors.textSecondary}
+            color={isSaved ? colors.primary : colors.textSecondary}
           />
-          <Text style={[styles.actionLabel, isSaved && { color: '#2563EB', fontWeight: FONT_WEIGHTS.semibold }]}>
+          <Text style={[styles.actionLabel, isSaved && { color: colors.primary, fontWeight: FONT_WEIGHTS.semibold }]}>
             {isSaved ? 'Saved' : 'Save'}
           </Text>
         </AnimatedTouchable>

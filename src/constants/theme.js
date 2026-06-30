@@ -13,46 +13,65 @@ export const DARK_COLORS = {
   backgroundAlt: '#1A1A1A',
   surface: '#1A1A1A',
   surfaceElevated: '#2A2A2A',
+  surfaceSubtle: '#1F2937',
+  surfaceHover: '#2A2A2A',
   surfaceGlass: 'rgba(13, 13, 13, 0.85)',
   surfaceLight: 'rgba(79, 157, 255, 0.1)',
 
   // Primary palette (Obsidian Accent: #4F9DFF)
   primary: '#4F9DFF', 
   primaryDark: '#2563EB',
+  primaryHover: '#38BDF8',
+  primaryPressed: '#0284C7',
   primaryLight: 'rgba(79, 157, 255, 0.25)',
   primaryGlow: 'rgba(79, 157, 255, 0.4)',
 
   secondary: '#38BDF8',
+  secondaryHover: '#CBD5E1',
   secondaryLight: 'rgba(56, 189, 248, 0.2)',
 
   accent: '#4F9DFF', // Main accent
+  accentHover: '#38BDF8',
+  accentLight: 'rgba(79, 157, 255, 0.15)',
   accentGreen: '#34D399',
   accentAmber: '#FBBF24',
   accentCyan: '#22D3EE',
   accentPurple: '#C084FC',
 
   textPrimary: '#FFFFFF', 
-  textSecondary: '#A1A1AA', // Slate 400
-  textTertiary: '#71717A', // Slate 500
+  textSecondary: '#CBD5E1', 
+  textMuted: '#94A3B8',
+  textTertiary: '#94A3B8',
+  textDisabled: '#475569',
   textOnPrimary: '#0D0D0D',
+  textOnAccent: '#0D0D0D',
 
-  border: 'rgba(255, 255, 255, 0.1)',
+  border: 'rgba(255, 255, 255, 0.12)',
   borderLight: 'rgba(255, 255, 255, 0.05)',
+  borderSubtle: 'rgba(255, 255, 255, 0.06)',
+  borderFocus: '#4F9DFF',
 
   gradientStart: '#4F9DFF',
   gradientEnd: '#2563EB',
   gradientAlt: ['#0D0D0D', '#1A1A1A', '#0D0D0D'],
 
   success: '#10B981',
+  successLight: 'rgba(16, 185, 129, 0.15)',
   error: '#EF4444',
+  danger: '#EF4444',
+  dangerHover: '#DC2626',
+  dangerLight: 'rgba(239, 68, 68, 0.15)',
   warning: '#F59E0B',
+  warningLight: 'rgba(245, 158, 11, 0.15)',
   info: '#06B6D4',
+  infoLight: 'rgba(6, 182, 212, 0.15)',
 
   shadow: '#000000',
   overlay: 'rgba(0, 0, 0, 0.8)',
   tabBar: 'rgba(13, 13, 13, 0.98)',
   inputBg: '#1A1A1A',
-  inputBorder: 'rgba(255, 255, 255, 0.1)',
+  inputBorder: 'rgba(255, 255, 255, 0.12)',
+  shimmerHighlight: '#2A2A2A',
 };
 
 // ── Light Mode Palette (Clean High-Contrast) ──
@@ -61,18 +80,25 @@ export const LIGHT_COLORS = {
   backgroundAlt: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
+  surfaceSubtle: '#F1F5F9',
+  surfaceHover: '#EFF6FF',
   surfaceGlass: 'rgba(255, 255, 255, 0.9)',
   surfaceLight: 'rgba(37, 99, 235, 0.08)', 
 
   primary: '#2563EB', 
   primaryDark: '#1D4ED8',
+  primaryHover: '#1D4ED8',
+  primaryPressed: '#1E40AF',
   primaryLight: '#60A5FA',
   primaryGlow: 'rgba(37, 99, 235, 0.15)',
 
   secondary: '#3B82F6',
+  secondaryHover: '#2563EB',
   secondaryLight: 'rgba(59, 130, 246, 0.1)',
 
   accent: '#3B82F6', 
+  accentHover: '#2563EB',
+  accentLight: 'rgba(59, 130, 246, 0.12)',
   accentGreen: '#10B981',
   accentAmber: '#F59E0B',
   accentCyan: '#06B6D4',
@@ -80,26 +106,38 @@ export const LIGHT_COLORS = {
 
   textPrimary: '#111827', 
   textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
   textTertiary: '#9CA3AF',
+  textDisabled: '#D1D5DB',
   textOnPrimary: '#FFFFFF',
+  textOnAccent: '#FFFFFF',
 
   border: 'rgba(37, 99, 235, 0.12)',
   borderLight: 'rgba(107, 114, 128, 0.1)',
+  borderSubtle: 'rgba(107, 114, 128, 0.06)',
+  borderFocus: '#2563EB',
 
   gradientStart: '#2563EB',
   gradientEnd: '#3B82F6',
   gradientAlt: ['#2563EB', '#3B82F6', '#60A5FA'],
 
   success: '#10B981',
+  successLight: 'rgba(16, 185, 129, 0.12)',
   error: '#EF4444',
+  danger: '#EF4444',
+  dangerHover: '#DC2626',
+  dangerLight: 'rgba(239, 68, 68, 0.12)',
   warning: '#F59E0B',
+  warningLight: 'rgba(245, 158, 11, 0.12)',
   info: '#3B82F6',
+  infoLight: 'rgba(59, 130, 246, 0.12)',
 
   shadow: '#2563EB',
   overlay: 'rgba(17, 24, 39, 0.4)',
   tabBar: 'rgba(255, 255, 255, 0.95)',
   inputBg: '#FFFFFF',
   inputBorder: 'rgba(37, 99, 235, 0.2)',
+  shimmerHighlight: '#F8FAFC',
 };
 
 /**

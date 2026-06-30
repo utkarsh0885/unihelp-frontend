@@ -61,12 +61,17 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+import { useTheme } from '../context/ThemeContext';
+
 // Fallback loader for lazy screens
-const ScreenLoader = () => (
-  <View style={{ flex: 1, backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center' }}>
-    <ActivityIndicator size="large" color="#667eea" />
-  </View>
-);
+const ScreenLoader = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+};
 
 // ── Define wrapped lazy components outside render to preserve reference stability ──
 const wrapLazyComponent = (Component, screenName) => {

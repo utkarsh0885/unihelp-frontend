@@ -24,6 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 
 const NotificationItem = ({ item, onRead, colors, shadows }) => {
+  const itemStyles = React.useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const scale = React.useRef(new Animated.Value(1)).current;
   const onPressIn = () => {
     Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, tension: 120, friction: 10 }).start();
@@ -36,8 +37,8 @@ const NotificationItem = ({ item, onRead, colors, shadows }) => {
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
         style={[
-          styles.card, 
-          !item.read && styles.cardUnread,
+          itemStyles.card, 
+          !item.read && itemStyles.cardUnread,
           { backgroundColor: item.read ? colors.surface : colors.surfaceSubtle }
         ]}
         activeOpacity={1}
@@ -45,16 +46,16 @@ const NotificationItem = ({ item, onRead, colors, shadows }) => {
         onPressOut={onPressOut}
         onPress={() => onRead(item)}
       >
-        <View style={[styles.iconWrap, { backgroundColor: item.color + '15' }]}>
+        <View style={[itemStyles.iconWrap, { backgroundColor: item.color + '15' }]}>
           <Ionicons name={item.icon} size={18} color={item.color} />
         </View>
-        <View style={styles.notifContent}>
-          <Text style={[styles.notifText, !item.read && styles.notifTextBold, { color: item.read ? colors.textSecondary : colors.textPrimary }]}>
+        <View style={itemStyles.notifContent}>
+          <Text style={[itemStyles.notifText, !item.read && itemStyles.notifTextBold, { color: item.read ? colors.textSecondary : colors.textPrimary }]}>
             {item.text}
           </Text>
-          <Text style={styles.notifTime}>{item.time}</Text>
+          <Text style={itemStyles.notifTime}>{item.time}</Text>
         </View>
-        {!item.read && <View style={styles.unreadDot} />}
+        {!item.read && <View style={itemStyles.unreadDot} />}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -181,20 +182,15 @@ const NotificationsScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors, shadows) => StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 16, padding: 16, marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    borderWidth: 1, borderColor: colors.border,
+    ...shadows,
   },
   cardUnread: { 
-    borderColor: 'rgba(30, 58, 138, 0.15)',
-    shadowOpacity: 0.15,
+    borderColor: colors.primary,
   },
   iconWrap: { 
     width: 44, height: 44, borderRadius: 12, 
@@ -204,11 +200,8 @@ const styles = StyleSheet.create({
   notifContent: { flex: 1 },
   notifText: { fontSize: 15, lineHeight: 21 },
   notifTextBold: { fontWeight: '700' },
-  notifTime: { fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 4, fontWeight: '600' },
-  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB', marginLeft: 12 },
-});
-
-const createStyles = (colors, shadows) => StyleSheet.create({
+  notifTime: { fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: '600' },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginLeft: 12 },
   screen: { flex: 1, backgroundColor: colors.background },
   appBarContainer: {
     backgroundColor: colors.surface,

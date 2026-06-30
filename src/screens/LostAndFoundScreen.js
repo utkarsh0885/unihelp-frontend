@@ -144,7 +144,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 14,
     borderRadius: 14, ...shadows.glow
   },
-  emptyBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14, textTransform: 'uppercase' },
+  emptyBtnText: { color: colors.textOnPrimary, fontWeight: '900', fontSize: 14, textTransform: 'uppercase' },
 });
 
 export default LostAndFoundScreen;

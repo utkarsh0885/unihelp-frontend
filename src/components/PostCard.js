@@ -98,9 +98,9 @@ const PostCard = ({ post, onLike }) => {
           <Ionicons
             name={bookmarked ? 'bookmark' : 'bookmark-outline'}
             size={18}
-            color={bookmarked ? '#2563EB' : colors.textTertiary}
+            color={bookmarked ? colors.primary : colors.textTertiary}
           />
-          <Text style={[styles.actionLabel, bookmarked && { color: '#2563EB' }]}>
+          <Text style={[styles.actionLabel, bookmarked && { color: colors.primary }]}>
             {bookmarked ? 'Saved' : 'Save'}
           </Text>
         </TouchableOpacity>

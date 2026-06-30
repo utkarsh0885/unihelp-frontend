@@ -247,7 +247,7 @@ const ExploreScreen = ({ navigation }) => {
       title: 'Lost & Found',
       description: 'Report lost items or browse found belongings',
       icon: 'search-outline',
-      color: '#8B5CF6',
+      color: colors.accentPurple,
       screen: 'LostAndFound',
     },
   ], [colors]);

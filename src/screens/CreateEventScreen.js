@@ -434,7 +434,7 @@ const createStyles = (colors, shadows, isDark) => StyleSheet.create({
   },
   categoryLabel: { fontSize: 14, fontWeight: '800', color: colors.primary },
   errorText: {
-    color: '#ff6b6b',
+    color: colors.error,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 6,

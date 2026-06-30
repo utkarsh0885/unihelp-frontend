@@ -261,7 +261,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   },
   categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   categoryLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-  categoryLabelActive: { color: '#FFFFFF' },
+  categoryLabelActive: { color: colors.textOnPrimary },
   removeBtn: { 
     width: 44, height: 44, borderRadius: 12, 
     backgroundColor: colors.accent + '10', 

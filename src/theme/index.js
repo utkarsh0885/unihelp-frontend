@@ -16,6 +16,7 @@ import SIZES from './sizes';
 
 export {
   getColors,
+  DARK_COLORS as COLORS,
   DARK_COLORS,
   LIGHT_COLORS,
   SPACING,
