@@ -63,8 +63,6 @@ const ProfileScreen = ({ navigation }) => {
   
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [notifsEnabled, setNotifsEnabled] = useState(true);
-  const [emailSummaries, setEmailSummaries] = useState(true);
-  const [isPublicProfile, setIsPublicProfile] = useState(true);
 
   const elevation = useMemo(() => getElevation(isDark), [isDark]);
   const styles = useMemo(() => createStyles(colors, elevation, isDark), [colors, elevation, isDark]);
@@ -74,7 +72,6 @@ const ProfileScreen = ({ navigation }) => {
   const onLogoutPressOut = () => Animated.spring(logoutScale, { toValue: 1, useNativeDriver: true, tension: 120, friction: 10 }).start();
 
   const handleLogout = async () => {
-    // ── Web: Execute logout directly without prompt to ensure it fires ──
     if (Platform.OS === 'web') {
       try {
         console.log('[ProfileScreen] LOGOUT CLICKED');
@@ -86,7 +83,6 @@ const ProfileScreen = ({ navigation }) => {
       return;
     }
 
-    // ── Native: use Alert.alert ───────────────────────────────────────────────
     Alert.alert(
       'Sign Out of UniHelp',
       'Are you sure you want to sign out of your official university account?',
@@ -111,13 +107,18 @@ const ProfileScreen = ({ navigation }) => {
     setIsEditVisible(true);
   };
 
-  const handleGenericOption = (title) => {
-    showToast(`${title} preferences saved`, 'info');
-  };
-
   const displayName = user?.name || 'Student';
   const specialisation = user?.specialisation || 'General Campus Member';
-  const avatarLetter = displayName.charAt(0).toUpperCase();
+  
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  const avatarInitials = getInitials(displayName);
 
   return (
     <View style={styles.screen}>
@@ -128,7 +129,7 @@ const ProfileScreen = ({ navigation }) => {
         <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}>
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.appBarTitle}>University Identity</Text>
+        <Text style={styles.appBarTitle}>Profile</Text>
         <View style={{ width: SIZES.layout.minTouchTarget }} />
       </View>
 
@@ -147,7 +148,7 @@ const ProfileScreen = ({ navigation }) => {
                   {user?.avatarUrl ? (
                     <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.avatarText}>{avatarLetter}</Text>
+                    <Text style={styles.avatarText}>{avatarInitials}</Text>
                   )}
                 </View>
               </View>
@@ -156,17 +157,19 @@ const ProfileScreen = ({ navigation }) => {
                 <View style={styles.nameRow}>
                   <Text style={styles.displayName} numberOfLines={1}>{displayName}</Text>
                   <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
                   </View>
                 </View>
-                <Text style={styles.specialisationText} numberOfLines={1}>{specialisation}</Text>
+                <View style={styles.campusMemberBadge}>
+                  <Text style={styles.campusMemberText}>Campus Member</Text>
+                </View>
                 <Text style={styles.emailText} numberOfLines={1}>{user?.email || 'student@unihelp.edu'}</Text>
               </View>
             </View>
 
             <View style={styles.identityActions}>
               <Pressable
-                style={({ pressed }) => [styles.editProfileBtn, pressed && { opacity: 0.8 }]}
+                style={({ pressed }) => [styles.editProfileBtn, pressed && { opacity: 0.85 }]}
                 onPress={handleEditProfile}
               >
                 <Ionicons name="pencil" size={16} color={colors.textOnPrimary} />
@@ -175,9 +178,9 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Academic Activity Summary */}
+          {/* Published Posts & Saved Items */}
           <View style={styles.sectionGroup}>
-            <Text style={styles.sectionHeader}>Campus Activity</Text>
+            <Text style={styles.sectionHeader}>Activity</Text>
             <View style={styles.activityGrid}>
               <Pressable 
                 style={({ pressed }) => [styles.activityCard, pressed && { opacity: 0.75 }]}
@@ -205,7 +208,7 @@ const ProfileScreen = ({ navigation }) => {
 
           {/* Grouped Settings — Account */}
           <View style={styles.sectionGroup}>
-            <Text style={styles.sectionHeader}>Account & Identity</Text>
+            <Text style={styles.sectionHeader}>Account</Text>
             <View style={styles.sectionCard}>
               <SettingItem
                 icon="person-outline"
@@ -229,9 +232,9 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Grouped Settings — Appearance */}
+          {/* Grouped Settings — Preferences */}
           <View style={styles.sectionGroup}>
-            <Text style={styles.sectionHeader}>Appearance</Text>
+            <Text style={styles.sectionHeader}>Preferences</Text>
             <View style={styles.sectionCard}>
               <SettingItem
                 icon="moon-outline"
@@ -242,72 +245,20 @@ const ProfileScreen = ({ navigation }) => {
                 colors={colors}
                 styles={styles}
               />
-            </View>
-          </View>
-
-          {/* Grouped Settings — Privacy & Notifications */}
-          <View style={styles.sectionGroup}>
-            <Text style={styles.sectionHeader}>Privacy & Notifications</Text>
-            <View style={styles.sectionCard}>
-              <SettingItem
-                icon="shield-checkmark-outline"
-                label="Public Directory Profile"
-                subtitle="Visible to verified university students"
-                color={colors.success}
-                right={<AnimatedSwitch value={isPublicProfile} onValueChange={setIsPublicProfile} activeColor={colors.success} />}
-                colors={colors}
-                styles={styles}
-              />
               <View style={styles.divider} />
               <SettingItem
                 icon="notifications-outline"
                 label="Push Notifications"
                 subtitle="Marketplace reserves, comments & chat alerts"
-                color={colors.warning}
+                color={colors.primary}
                 right={<AnimatedSwitch value={notifsEnabled} onValueChange={setNotifsEnabled} activeColor={colors.primary} />}
                 colors={colors}
                 styles={styles}
               />
-              <View style={styles.divider} />
-              <SettingItem
-                icon="mail-outline"
-                label="Weekly Campus Digest"
-                subtitle="Summary of top polls and academic notes"
-                color={colors.info}
-                right={<AnimatedSwitch value={emailSummaries} onValueChange={setEmailSummaries} activeColor={colors.info} />}
-                colors={colors}
-                styles={styles}
-              />
             </View>
           </View>
 
-          {/* Grouped Settings — Support & About */}
-          <View style={styles.sectionGroup}>
-            <Text style={styles.sectionHeader}>Support & About</Text>
-            <View style={styles.sectionCard}>
-              <SettingItem
-                icon="help-buoy-outline"
-                label="University Help Center"
-                subtitle="Guides and campus FAQ"
-                color={colors.textSecondary}
-                onPress={() => handleGenericOption('Help Center')}
-                colors={colors}
-                styles={styles}
-              />
-              <View style={styles.divider} />
-              <SettingItem
-                icon="document-text-outline"
-                label="Community Guidelines"
-                subtitle="Academic integrity and marketplace policies"
-                color={colors.textSecondary}
-                onPress={() => handleGenericOption('Community Guidelines')}
-                colors={colors}
-                styles={styles}
-              />
-            </View>
-          </View>
-
-          {/* Danger Zone — Logout */}
+          {/* Danger Zone — Sign Out */}
           <View style={styles.sectionGroup}>
             <Text style={styles.sectionHeader}>Session</Text>
             <Animated.View style={{ transform: [{ scale: logoutScale }] }}>
@@ -319,14 +270,13 @@ const ProfileScreen = ({ navigation }) => {
               >
                 <Ionicons name="log-out-outline" size={20} color={colors.danger} />
                 <View style={styles.logoutTextWrap}>
-                  <Text style={styles.logoutTitle}>Sign Out of UniHelp</Text>
-                  <Text style={styles.logoutSubtitle}>Require credentials to access campus tools</Text>
+                  <Text style={styles.logoutTitle}>Sign Out</Text>
+                  <Text style={styles.logoutSubtitle}>Sign out of your official campus account</Text>
                 </View>
               </Pressable>
             </Animated.View>
           </View>
 
-          <Text style={styles.versionText}>UNIHELP OFFICIAL MOBILE CLIENT v1.0.0</Text>
           <View style={{ height: SPACING.xxxl }} />
 
         </ResponsiveContainer>
@@ -391,18 +341,19 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   avatarRing: {
     width: 84,
     height: 84,
-    borderRadius: RADIUS.full,
+    borderRadius: 9999,
     borderWidth: 2,
     borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
+    ...elevation.xs,
   },
   avatarBox: {
     width: 76,
     height: 76,
-    borderRadius: RADIUS.full,
-    backgroundColor: colors.primaryLight,
+    borderRadius: 9999,
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -412,8 +363,10 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     height: '100%',
   },
   avatarText: {
-    ...TYPOGRAPHY.h1,
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.primary,
+    letterSpacing: 1,
   },
   identityInfo: {
     flex: 1,
@@ -431,6 +384,21 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   verifiedBadge: {
     justifyContent: 'center',
   },
+  campusMemberBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  campusMemberText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.3,
+  },
   specialisationText: {
     ...TYPOGRAPHY.bodySmall,
     color: colors.textSecondary,
@@ -440,7 +408,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   emailText: {
     ...TYPOGRAPHY.caption,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: 2,
   },
   identityActions: {
     marginTop: SPACING.lg,
@@ -463,7 +431,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     color: colors.textOnPrimary,
   },
   sectionGroup: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   sectionHeader: {
     ...TYPOGRAPHY.caption,
@@ -509,7 +477,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.large,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -519,9 +487,9 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 14,
-    minHeight: SIZES.layout.minTouchTarget + 6,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 16,
+    minHeight: SIZES.layout.minTouchTarget + 8,
   },
   settingLeft: {
     flexDirection: 'row',
