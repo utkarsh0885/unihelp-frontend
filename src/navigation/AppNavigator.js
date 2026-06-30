@@ -182,7 +182,6 @@ const AppNavigator = () => {
           <Stack.Screen name="Profile" component={LazyProfile} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="PostDetail" component={LazyPostDetail} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Chat" component={LazyChat} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="Messages" component={LazyMessages} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="ChatList" component={LazyMessages} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Notifications" component={LazyNotifications} options={{ animation: 'slide_from_right' }} />
 

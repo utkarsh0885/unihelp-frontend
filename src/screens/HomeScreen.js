@@ -508,7 +508,6 @@ const HomeScreen = ({ navigation }) => {
     refreshData,
     deletePost,
     unreadCount,
-    unreadChatCount
   } = useData();
 
   // Filter out placeholder 'Google User' posts
@@ -814,18 +813,6 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.appName}>UniHelp</Text>
           </View>
           <View style={styles.appBarRight}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.appBarIconBtn,
-                pressed && styles.appBarIconBtnPressed,
-              ]}
-              onPress={() => navigation.navigate('Messages')}
-              accessibilityRole="button"
-              accessibilityLabel="Messages"
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={SIZES.icons.md} color={colors.textPrimary} />
-              {unreadChatCount > 0 && <View style={styles.badgeDot} />}
-            </Pressable>
             <Pressable
               style={({ pressed }) => [
                 styles.appBarIconBtn,
