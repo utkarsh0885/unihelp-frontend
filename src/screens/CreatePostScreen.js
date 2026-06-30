@@ -334,7 +334,8 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <ResponsiveContainer maxWidth={650} withCardStyle={false}>
-          <View style={styles.card}>
+          <View style={styles.formContainer}>
+            <View style={styles.card}>
             <View style={styles.authorRow}>
               <View style={styles.avatarRing}>
                 <View style={styles.avatar}><Text style={styles.avatarText}>{avatarLetter}</Text></View>
@@ -379,11 +380,13 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                 {/* Event Date (Required) */}
                 <Text style={styles.label}>📅 Event Date (Required)</Text>
                 {Platform.OS === 'web' ? (
-                  <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
+                  <View style={styles.webInputWrapper}>
                     <input
                       type="date"
                       style={{
                         width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
                         padding: '12px 14px',
                         borderRadius: `${RADIUS.medium || 12}px`,
                         border: `1px solid ${!eventDate ? (colors.danger || '#EF4444') : colors.border}`,
@@ -392,6 +395,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box',
+                        display: 'block',
                       }}
                       value={eventDateRaw}
                       onChange={(e) => {
@@ -410,14 +414,14 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                         }
                       }}
                     />
-                  </div>
+                  </View>
                 ) : (
                   <Pressable
                     style={[styles.eventPickerRow, !eventDate && { borderColor: colors.danger || '#EF4444' }]}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                    <Text style={[styles.eventPickerText, !eventDate && { color: colors.textDisabled }]}>
+                    <Text style={[styles.eventPickerText, !eventDate && { color: colors.textDisabled }]} numberOfLines={1}>
                       {eventDate || 'Select Event Date'}
                     </Text>
                   </Pressable>
@@ -429,11 +433,13 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                 {/* Event Time (Optional) */}
                 <Text style={styles.label}>🕒 Event Time (Optional)</Text>
                 {Platform.OS === 'web' ? (
-                  <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
+                  <View style={styles.webInputWrapper}>
                     <input
                       type="time"
                       style={{
                         width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
                         padding: '12px 14px',
                         borderRadius: `${RADIUS.medium || 12}px`,
                         border: `1px solid ${colors.border}`,
@@ -442,6 +448,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box',
+                        display: 'block',
                       }}
                       value={eventTimeRaw}
                       onChange={(e) => {
@@ -461,14 +468,14 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
                         }
                       }}
                     />
-                  </div>
+                  </View>
                 ) : (
                   <Pressable
                     style={styles.eventPickerRow}
                     onPress={() => setShowTimePicker(true)}
                   >
                     <Ionicons name="time-outline" size={20} color={colors.primary} />
-                    <Text style={[styles.eventPickerText, !eventTime && { color: colors.textDisabled }]}>
+                    <Text style={[styles.eventPickerText, !eventTime && { color: colors.textDisabled }]} numberOfLines={1}>
                       {eventTime || 'Select Event Time'}
                     </Text>
                   </Pressable>
@@ -672,21 +679,33 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
             onPress={handleSubmit}
             loading={loading}
             disabled={category === 'Events' && !eventDate}
-            style={{ marginHorizontal: SPACING.md, marginTop: SPACING.lg }}
+            style={styles.submitButton}
           />
-        </ResponsiveContainer>
+        </View>
+      </ResponsiveContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
 const createStyles = (colors, elevation, isDark) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box', overflowX: 'hidden' } : {}),
+  },
   appBarContainer: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     zIndex: 10,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   header: {
     flexDirection: 'row',
@@ -694,6 +713,10 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     height: 56,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   closeBtn: {
     width: SIZES.layout.minTouchTarget,
@@ -705,19 +728,50 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  screenTitle: { ...TYPOGRAPHY.title, color: colors.textPrimary },
-  scroll: { flexGrow: 1, paddingBottom: SPACING.xxxl },
+  screenTitle: {
+    ...TYPOGRAPHY.title,
+    color: colors.textPrimary,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xxxl,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
+  formContainer: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    paddingHorizontal: SPACING.md,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
   card: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     backgroundColor: colors.surface,
     borderRadius: RADIUS.large,
-    marginHorizontal: SPACING.md,
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: colors.border,
     ...elevation.sm,
     marginTop: SPACING.md,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
-  authorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   avatarRing: {
     width: 44,
     height: 44,
@@ -727,6 +781,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.sm,
+    flexShrink: 0,
   },
   avatar: {
     width: 38,
@@ -737,9 +792,9 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold, fontSize: 16 },
-  authorName: { ...TYPOGRAPHY.subtitle, color: colors.textPrimary },
-  visRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
-  visibility: { ...TYPOGRAPHY.caption, color: colors.textMuted },
+  authorName: { ...TYPOGRAPHY.subtitle, color: colors.textPrimary, flexShrink: 1 },
+  visRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4, flexWrap: 'wrap' },
+  visibility: { ...TYPOGRAPHY.caption, color: colors.textMuted, flexShrink: 1 },
   label: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
@@ -750,18 +805,51 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     marginTop: SPACING.sm,
     marginBottom: SPACING.xs,
   },
-  titleWrapper: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle, paddingBottom: 4, marginBottom: SPACING.xs },
-  titleInput: { ...TYPOGRAPHY.h3, color: colors.textPrimary, paddingVertical: SPACING.xs },
+  titleWrapper: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    paddingBottom: 4,
+    marginBottom: SPACING.xs,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
+  titleInput: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...TYPOGRAPHY.h3,
+    color: colors.textPrimary,
+    paddingVertical: SPACING.xs,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box', outlineStyle: 'none' } : {}),
+  },
   textArea: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     minHeight: 120,
     ...TYPOGRAPHY.body,
     lineHeight: 24,
     color: colors.textPrimary,
     paddingTop: SPACING.sm,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box', outlineStyle: 'none' } : {}),
   },
-  categoryScroll: { marginHorizontal: -SPACING.lg, marginBottom: SPACING.md },
-  categoryContent: { paddingHorizontal: SPACING.lg, gap: SPACING.xs, paddingVertical: 4 },
+  categoryScroll: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    marginBottom: SPACING.md,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
+  categoryContent: {
+    gap: SPACING.xs,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -771,16 +859,47 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     minHeight: 36,
+    flexShrink: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   categoryChipInactive: { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderSubtle },
   categoryLabel: { ...TYPOGRAPHY.caption, fontWeight: FONT_WEIGHTS.semibold, color: colors.textSecondary },
   categoryLabelActive: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHTS.bold },
-  imagePreviewWrap: { position: 'relative', marginTop: SPACING.md, borderRadius: RADIUS.large, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  imagePreview: { width: '100%', height: 200, borderRadius: RADIUS.large, backgroundColor: colors.surfaceSubtle },
+  imagePreviewWrap: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    position: 'relative',
+    marginTop: SPACING.md,
+    borderRadius: RADIUS.large,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
+  imagePreview: {
+    width: '100%',
+    maxWidth: '100%',
+    height: 200,
+    borderRadius: RADIUS.large,
+    backgroundColor: colors.surfaceSubtle,
+  },
   removeImageBtn: { position: 'absolute', top: SPACING.xs, right: SPACING.xs, backgroundColor: colors.surface, borderRadius: RADIUS.full },
-  linkInputRow: { marginTop: SPACING.sm },
+  linkInputRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    marginTop: SPACING.sm,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
   linkInput: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     backgroundColor: colors.surfaceSubtle,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
@@ -789,9 +908,11 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     height: SIZES.layout.minTouchTarget,
     ...TYPOGRAPHY.body,
     color: colors.textPrimary,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', boxSizing: 'border-box' } : {}),
   },
   linkBadge: {
+    maxWidth: '100%',
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -800,13 +921,34 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderRadius: RADIUS.medium,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
-  linkBadgeText: { flex: 1, ...TYPOGRAPHY.caption, color: colors.info, fontWeight: FONT_WEIGHTS.semibold },
-  progressRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm, gap: SPACING.sm },
+  linkBadgeText: { flex: 1, minWidth: 0, ...TYPOGRAPHY.caption, color: colors.info, fontWeight: FONT_WEIGHTS.semibold },
+  progressRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
+  },
   progressTrack: { flex: 1, height: 4, borderRadius: RADIUS.pill, backgroundColor: colors.surfaceSubtle, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: RADIUS.pill },
   charCount: { ...TYPOGRAPHY.caption, fontSize: 11, color: colors.textMuted, fontWeight: FONT_WEIGHTS.semibold, minWidth: 28, textAlign: 'right' },
-  attachRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.borderSubtle, marginTop: SPACING.md, paddingTop: SPACING.md, gap: SPACING.sm },
+  attachRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    gap: SPACING.sm,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
   attachBtn: {
     width: SIZES.layout.minTouchTarget,
     height: SIZES.layout.minTouchTarget,
@@ -818,6 +960,10 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderColor: colors.borderSubtle,
   },
   progressContainer: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     marginBottom: SPACING.md,
     marginTop: SPACING.sm,
   },
@@ -838,10 +984,19 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     textAlign: 'center',
   },
   marketplaceFields: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   priceInput: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     backgroundColor: colors.surfaceSubtle,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
@@ -851,9 +1006,18 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     ...TYPOGRAPHY.body,
     color: colors.textPrimary,
     marginBottom: SPACING.sm,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', boxSizing: 'border-box' } : {}),
   },
-  conditionRow: { flexDirection: 'row', gap: SPACING.xs, marginBottom: SPACING.md, flexWrap: 'wrap' },
+  conditionRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
+    flexWrap: 'wrap',
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
   conditionChip: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
@@ -868,6 +1032,10 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   conditionChipText: { ...TYPOGRAPHY.caption, color: colors.textSecondary, fontWeight: FONT_WEIGHTS.semibold },
   conditionChipTextActive: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold },
   eventDetailsBox: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,
     padding: SPACING.md,
@@ -875,6 +1043,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     borderWidth: 1,
     borderColor: colors.border,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box', overflow: 'hidden' } : {}),
   },
   eventSectionTitle: {
     ...TYPOGRAPHY.h3,
@@ -882,7 +1051,19 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     marginBottom: SPACING.sm,
     fontWeight: FONT_WEIGHTS.bold,
   },
+  webInputWrapper: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    marginBottom: 10,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
+  },
   eventPickerRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -893,8 +1074,11 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderColor: colors.border,
     marginBottom: SPACING.sm,
     gap: SPACING.sm,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   eventPickerText: {
+    flex: 1,
+    minWidth: 0,
     ...TYPOGRAPHY.body,
     color: colors.textPrimary,
   },
@@ -906,6 +1090,10 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     fontWeight: FONT_WEIGHTS.medium,
   },
   eventInputRow: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -914,16 +1102,22 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderColor: colors.border,
     marginBottom: SPACING.sm,
     height: SIZES.layout.minTouchTarget + 6,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   eventInput: {
     flex: 1,
+    minWidth: 0,
     height: '100%',
     paddingRight: SPACING.md,
     ...TYPOGRAPHY.body,
     color: colors.textPrimary,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', boxSizing: 'border-box' } : {}),
   },
   eventPosterBtn: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -936,11 +1130,22 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     borderStyle: 'dashed',
     gap: SPACING.sm,
     marginTop: SPACING.xs,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   eventPosterText: {
+    flexShrink: 1,
+    minWidth: 0,
+    textAlign: 'center',
     ...TYPOGRAPHY.bodySmall,
     color: colors.primary,
     fontWeight: FONT_WEIGHTS.semibold,
+  },
+  submitButton: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
+    marginTop: SPACING.lg,
   },
 });
 

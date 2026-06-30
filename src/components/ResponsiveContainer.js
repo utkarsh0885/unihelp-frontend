@@ -44,10 +44,16 @@ const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
     width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
   innerContainer: {
     flex: 1,
     width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    ...(Platform.OS === 'web' ? { boxSizing: 'border-box' } : {}),
   },
 });
 
