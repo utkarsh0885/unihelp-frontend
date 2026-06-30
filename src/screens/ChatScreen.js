@@ -667,9 +667,13 @@ const ChatScreen = ({ navigation, route = {} }) => {
           </Pressable>
           <View style={styles.headerInfo}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {recipient?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </Text>
+              {recipient?.avatar ? (
+                <Image source={{ uri: recipient.avatar }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {recipient?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </Text>
+              )}
             </View>
             <View style={styles.headerTextWrap}>
               <Text style={styles.headerTitle} numberOfLines={1}>{recipient?.name || 'UniHelp Student'}</Text>
@@ -825,16 +829,18 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: RADIUS.full,
-    backgroundColor: colors.primaryLight,
+    borderRadius: 9999,
+    backgroundColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
   },
   avatarText: {
-    ...TYPOGRAPHY.subtitle,
-    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   messageList: {
     padding: SPACING.md,

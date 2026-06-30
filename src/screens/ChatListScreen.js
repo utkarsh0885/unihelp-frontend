@@ -154,10 +154,10 @@ const ChatListScreen = ({ navigation }) => {
       >
         <View style={styles.avatarContainer}>
           {recipient?.avatar ? (
-            <Image source={{ uri: recipient.avatar }} style={styles.avatar} />
+            <Image source={{ uri: recipient.avatar }} style={styles.avatar} resizeMode="cover" />
           ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
                 {recipient?.name?.charAt(0).toUpperCase() || 'U'}
               </Text>
             </View>
@@ -257,18 +257,27 @@ const styles = StyleSheet.create({
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 9999,
+    backgroundColor: '#DBEAFE',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
   },
   avatarPlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 9999,
+    backgroundColor: '#DBEAFE',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
   },
   avatarText: {
     fontSize: 20,
     fontWeight: '700',
+    color: '#2563EB',
   },
   onlineBadge: {
     position: 'absolute',

@@ -84,7 +84,7 @@ const ConversationCard = React.memo(({
     >
       <View style={styles.avatarContainer}>
         {recipient?.avatar ? (
-          <Image source={{ uri: recipient.avatar }} style={styles.avatar} />
+          <Image source={{ uri: recipient.avatar }} style={styles.avatar} resizeMode="cover" />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarText}>
@@ -424,41 +424,51 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative',
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: RADIUS.full,
-    backgroundColor: colors.surfaceSubtle,
+    width: 56,
+    height: 56,
+    borderRadius: 9999,
+    backgroundColor: '#DBEAFE',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
   },
   avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: RADIUS.full,
-    backgroundColor: colors.primaryLight,
+    width: 56,
+    height: 56,
+    borderRadius: 9999,
+    backgroundColor: '#DBEAFE',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
   },
   avatarText: {
-    ...TYPOGRAPHY.h3,
-    color: colors.primary,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   onlineDot: {
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: RADIUS.full,
-    backgroundColor: colors.accent,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.accent || '#10B981',
     borderWidth: 2,
     borderColor: colors.surface,
   },
   chatInfo: {
     flex: 1,
     marginLeft: SPACING.md,
+    justifyContent: 'center',
   },
   chatHeader: {
     flexDirection: 'row',
@@ -468,16 +478,20 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   },
   chatName: {
     ...TYPOGRAPHY.subtitle,
+    fontSize: 16,
+    fontWeight: FONT_WEIGHTS.bold || '700',
     color: colors.textPrimary,
     flex: 1,
     marginRight: SPACING.sm,
   },
   chatNameUnread: {
-    fontWeight: FONT_WEIGHTS.bold,
+    fontWeight: '800',
   },
   chatTime: {
     ...TYPOGRAPHY.caption,
+    fontSize: 12,
     color: colors.textMuted,
+    textAlign: 'right',
   },
   chatTimeUnread: {
     color: colors.primary,
@@ -491,7 +505,8 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   },
   lastMessage: {
     ...TYPOGRAPHY.bodySmall,
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: colors.textMuted,
     flex: 1,
   },
   lastMessageUnread: {
@@ -502,7 +517,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     minWidth: 22,
     height: 22,
     borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
+    backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
@@ -511,7 +526,7 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: FONT_WEIGHTS.bold,
-    color: colors.textOnPrimary,
+    color: '#FFFFFF',
   },
   emptyContainer: {
     alignItems: 'center',
