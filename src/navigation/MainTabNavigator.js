@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -33,11 +33,11 @@ const MainTabNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: true,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: styles.tabBar,
+        tabBarItemStyle: styles.tabItem,
         tabBarIcon: ({ focused }) => {
           const icons = TAB_ICONS[route.name] || { active: 'ellipse', inactive: 'ellipse-outline' };
           const showBadge = route.name === 'Messages' && unreadChatCount > 0;
@@ -45,8 +45,8 @@ const MainTabNavigator = () => {
             <View style={focused ? styles.activeIconWrap : styles.inactiveIconWrap}>
               <Ionicons
                 name={focused ? icons.active : icons.inactive}
-                size={22}
-                color={focused ? colors.primary : colors.textTertiary}
+                size={focused ? 27 : 23}
+                color={focused ? colors.primary : colors.textSecondary}
               />
               {showBadge && <View style={styles.badgeDot} />}
             </View>
@@ -64,45 +64,46 @@ const MainTabNavigator = () => {
 const createStyles = (colors, shadows) => StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    bottom: 16,
+    bottom: Platform.OS === 'ios' ? 24 : 16,
     left: 20,
     right: 20,
-    height: 68,
+    height: 64,
     backgroundColor: colors.surface || '#FFFFFF',
-    borderRadius: 34,
+    borderRadius: 32,
     borderTopWidth: 0,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingBottom: 8,
-    paddingTop: 8,
+    paddingBottom: 0,
+    paddingTop: 0,
     elevation: 12,
     shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
   },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: 0.2,
+  tabItem: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 0,
   },
   activeIconWrap: {
-    padding: 4,
-    position: 'relative',
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   inactiveIconWrap: {
-    padding: 4,
-    position: 'relative',
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   badgeDot: {
     position: 'absolute',
-    top: 2,
-    right: 0,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,
