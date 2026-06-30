@@ -79,7 +79,7 @@ const ExpandableFAB = ({ onPost, onEvent, onPoll }) => {
 
 
       {/* Expanded items */}
-      <Animated.View style={[styles.actionBtn, makeActionStyle(-180)]}>
+      <Animated.View style={[styles.actionBtn, makeActionStyle(-170)]}>
         <TouchableOpacity onPress={() => handleAction(onPoll)} style={styles.actionTouchable} activeOpacity={0.7}>
           <View style={[styles.gradientInner, { backgroundColor: '#F59E0B' }]}>
             <Ionicons name="bar-chart" size={20} color="#FFFFFF" />
@@ -87,7 +87,7 @@ const ExpandableFAB = ({ onPost, onEvent, onPoll }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      <Animated.View style={[styles.actionBtn, makeActionStyle(-120)]}>
+      <Animated.View style={[styles.actionBtn, makeActionStyle(-114)]}>
         <TouchableOpacity onPress={() => handleAction(onEvent)} style={styles.actionTouchable} activeOpacity={0.7}>
           <View style={[styles.gradientInner, { backgroundColor: '#10B981' }]}>
             <Ionicons name="calendar-sharp" size={20} color="#FFFFFF" />
@@ -95,7 +95,7 @@ const ExpandableFAB = ({ onPost, onEvent, onPoll }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      <Animated.View style={[styles.actionBtn, makeActionStyle(-60)]}>
+      <Animated.View style={[styles.actionBtn, makeActionStyle(-58)]}>
         <TouchableOpacity onPress={() => handleAction(onPost)} style={styles.actionTouchable} activeOpacity={0.7}>
           <View style={[styles.gradientInner, { backgroundColor: colors.primary }]}>
             <Ionicons name="create" size={20} color="#FFFFFF" />
@@ -112,7 +112,7 @@ const ExpandableFAB = ({ onPost, onEvent, onPoll }) => {
       >
         <Animated.View style={[styles.mainBtn, rotation, { backgroundColor: isOpen ? (isDark ? colors.surfaceElevated : '#111827') : colors.primary }]}>
           <View style={styles.mainGradientInner}>
-            <Ionicons name="add" size={40} color="#FFFFFF" />
+            <Ionicons name="add" size={32} color="#FFFFFF" />
           </View>
         </Animated.View>
       </TouchableOpacity>
@@ -124,7 +124,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   container: {
     position: 'absolute',
     right: 20,
-    bottom: 30,
+    bottom: 114,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
@@ -132,9 +132,9 @@ const createStyles = (colors, shadows) => StyleSheet.create({
 
   actionBtn: {
     position: 'absolute',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     overflow: 'hidden',
     ...shadows.medium,
     elevation: 6,
@@ -151,9 +151,9 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     height: '100%',
   },
   mainBtn: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: 'hidden',
     ...shadows.glow,
     elevation: 15,
