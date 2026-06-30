@@ -44,7 +44,7 @@ const DiscoverEventsScreen = ({ navigation }) => {
     const list = [];
     posts.forEach((p) => {
       if (p.category === 'Events' || p.category === 'Calender') {
-        const isScheduledEvent = !!(p.date || p.time || p.location);
+        const isScheduledEvent = !!(p.date || p.time || p.location || p.eventDate || p.eventTime || p.eventLocation);
         list.push({
           ...p,
           isGenericPost: !isScheduledEvent,
@@ -97,12 +97,12 @@ const DiscoverEventsScreen = ({ navigation }) => {
           
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.metaText}>{item.date || 'TBA'} · {item.time || 'Time TBA'}</Text>
+            <Text style={styles.metaText}>{item.eventDate || item.date || 'TBA'} · {item.eventTime || item.time || 'Time TBA'}</Text>
           </View>
           
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.metaText} numberOfLines={1}>{item.location || 'Campus Main Hall'}</Text>
+            <Text style={styles.metaText} numberOfLines={1}>{item.eventLocation || item.location || 'Campus Main Hall'}</Text>
           </View>
 
           <View style={styles.eventFooter}>

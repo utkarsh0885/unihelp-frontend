@@ -153,6 +153,28 @@ const createStyles = (colors, isDark) => {
       textTransform: 'uppercase',
       letterSpacing: 0.3,
     },
+    eventBadgeCard: {
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.06)',
+      borderRadius: RADIUS.medium,
+      padding: SPACING.sm,
+      marginVertical: SPACING.xs,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.15)',
+      gap: 6,
+    },
+    eventBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    eventBadgeIcon: {
+      fontSize: 14,
+    },
+    eventBadgeText: {
+      ...TYPOGRAPHY.bodySmall,
+      color: colors.primary,
+      fontWeight: FONT_WEIGHTS.semibold,
+    },
     webModalOverlay: {
       position: 'absolute',
       top: 0,
@@ -710,6 +732,28 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
               </Text>
             </View>
           )}
+        </View>
+      )}
+
+      {/* Event Details if Events category */}
+      {(post.category === 'Events' || post.eventDate) && (
+        <View style={styles.eventBadgeCard}>
+          <View style={styles.eventBadgeRow}>
+            <Text style={styles.eventBadgeIcon}>📅</Text>
+            <Text style={styles.eventBadgeText}>{post.eventDate || post.date || 'Date TBA'}</Text>
+          </View>
+          {(post.eventTime || post.time) ? (
+            <View style={styles.eventBadgeRow}>
+              <Text style={styles.eventBadgeIcon}>🕒</Text>
+              <Text style={styles.eventBadgeText}>{post.eventTime || post.time}</Text>
+            </View>
+          ) : null}
+          {(post.eventLocation || post.location) ? (
+            <View style={styles.eventBadgeRow}>
+              <Text style={styles.eventBadgeIcon}>📍</Text>
+              <Text style={styles.eventBadgeText}>{post.eventLocation || post.location}</Text>
+            </View>
+          ) : null}
         </View>
       )}
 

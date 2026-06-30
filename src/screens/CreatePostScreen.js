@@ -36,6 +36,28 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { SPACING, TYPOGRAPHY, RADIUS, SIZES, FONT_WEIGHTS } from '../theme';
 import { getElevation } from '../theme/elevation';
 
+let DateTimePicker = null;
+if (Platform.OS !== 'web') {
+  try {
+    DateTimePicker = require('@react-native-community/datetimepicker').default;
+  } catch (e) {}
+}
+
+const formatReadableDate = (date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const formatReadableTime = (date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
 const MAX_LENGTH = 500;
 
 const CreatePostScreen = ({ navigation, route = {} }) => {
@@ -66,6 +88,17 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
   // Marketplace states
   const [price, setPrice] = useState(existingPost?.price || '');
   const [condition, setCondition] = useState(existingPost?.condition || 'Good');
+
+  // Event Details states
+  const [eventDate, setEventDate] = useState(existingPost?.eventDate || existingPost?.date || '');
+  const [eventDateRaw, setEventDateRaw] = useState(existingPost?.eventDateRaw || '');
+  const [eventTime, setEventTime] = useState(existingPost?.eventTime || existingPost?.time || '');
+  const [eventTimeRaw, setEventTimeRaw] = useState(existingPost?.eventTimeRaw || '');
+  const [eventLocation, setEventLocation] = useState(existingPost?.eventLocation || existingPost?.location || '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [dateObj, setDateObj] = useState(existingPost?.eventDateRaw ? new Date(existingPost.eventDateRaw) : new Date());
+  const [timeObj, setTimeObj] = useState(new Date());
 
   const CATEGORIES = [
     { id: 'General', icon: 'apps-outline', label: 'General' },
@@ -140,6 +173,12 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         return;
       }
     }
+    if (category === 'Events') {
+      if (!eventDate || !String(eventDate).trim()) {
+        Alert.alert('Missing Date', 'Please select an event date.');
+        return;
+      }
+    }
 
     if (uploadingImage) {
       Alert.alert('Please Wait', 'Please wait for the image upload to complete.');
@@ -188,6 +227,14 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           imageUrl,
           price: category === 'Buy/Sell' ? parseFloat(String(price).replace(/[$₹\s]/g, '')) : null,
           condition: category === 'Buy/Sell' ? condition : null,
+          eventDate: category === 'Events' ? eventDate : null,
+          eventDateRaw: category === 'Events' ? eventDateRaw : null,
+          eventTime: category === 'Events' ? eventTime : null,
+          eventTimeRaw: category === 'Events' ? eventTimeRaw : null,
+          eventLocation: category === 'Events' ? eventLocation.trim() : null,
+          date: category === 'Events' ? eventDate : null,
+          time: category === 'Events' ? eventTime : null,
+          location: category === 'Events' ? eventLocation.trim() : null,
         });
         showToast('Post updated successfully! ✨', 'success');
 
@@ -200,6 +247,11 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setUploadingImage(false);
         setPrice('');
         setCondition('Good');
+        setEventDate('');
+        setEventDateRaw('');
+        setEventTime('');
+        setEventTimeRaw('');
+        setEventLocation('');
 
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Main', { screen: 'Home' });
@@ -213,6 +265,14 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
           imageUrl,
           price: category === 'Buy/Sell' ? parseFloat(String(price).replace(/[$₹\s]/g, '')) : null,
           condition: category === 'Buy/Sell' ? condition : null,
+          eventDate: category === 'Events' ? eventDate : null,
+          eventDateRaw: category === 'Events' ? eventDateRaw : null,
+          eventTime: category === 'Events' ? eventTime : null,
+          eventTimeRaw: category === 'Events' ? eventTimeRaw : null,
+          eventLocation: category === 'Events' ? eventLocation.trim() : null,
+          date: category === 'Events' ? eventDate : null,
+          time: category === 'Events' ? eventTime : null,
+          location: category === 'Events' ? eventLocation.trim() : null,
         });
         showToast('Post created successfully! 🎉', 'success');
 
@@ -225,6 +285,11 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
         setUploadingImage(false);
         setPrice('');
         setCondition('Good');
+        setEventDate('');
+        setEventDateRaw('');
+        setEventTime('');
+        setEventTimeRaw('');
+        setEventLocation('');
 
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Main', { screen: 'Home' });
@@ -305,6 +370,170 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
               onChangeText={setContent}
               textAlignVertical="top"
             />
+
+            {/* Event Details Section (rendered immediately if Events category selected) */}
+            {category === 'Events' && (
+              <View style={styles.eventDetailsBox}>
+                <Text style={styles.eventSectionTitle}>Event Details</Text>
+
+                {/* Event Date (Required) */}
+                <Text style={styles.label}>📅 Event Date (Required)</Text>
+                {Platform.OS === 'web' ? (
+                  <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
+                    <input
+                      type="date"
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: `${RADIUS.medium || 12}px`,
+                        border: `1px solid ${!eventDate ? (colors.danger || '#EF4444') : colors.border}`,
+                        backgroundColor: colors.surfaceSubtle,
+                        color: colors.textPrimary,
+                        fontSize: '14px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                      value={eventDateRaw}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          const parts = val.split('-');
+                          if (parts.length === 3) {
+                            const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+                            setDateObj(dt);
+                            setEventDate(formatReadableDate(dt));
+                            setEventDateRaw(val);
+                          }
+                        } else {
+                          setEventDate('');
+                          setEventDateRaw('');
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <Pressable
+                    style={[styles.eventPickerRow, !eventDate && { borderColor: colors.danger || '#EF4444' }]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.eventPickerText, !eventDate && { color: colors.textDisabled }]}>
+                      {eventDate || 'Select Event Date'}
+                    </Text>
+                  </Pressable>
+                )}
+                {!eventDate && (
+                  <Text style={styles.eventValidationText}>Please select an event date.</Text>
+                )}
+
+                {/* Event Time (Optional) */}
+                <Text style={styles.label}>🕒 Event Time (Optional)</Text>
+                {Platform.OS === 'web' ? (
+                  <div style={{ position: 'relative', width: '100%', marginBottom: 10 }}>
+                    <input
+                      type="time"
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: `${RADIUS.medium || 12}px`,
+                        border: `1px solid ${colors.border}`,
+                        backgroundColor: colors.surfaceSubtle,
+                        color: colors.textPrimary,
+                        fontSize: '14px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                      value={eventTimeRaw}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          const parts = val.split(':');
+                          if (parts.length >= 2) {
+                            const dt = new Date();
+                            dt.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10));
+                            setTimeObj(dt);
+                            setEventTime(formatReadableTime(dt));
+                            setEventTimeRaw(val);
+                          }
+                        } else {
+                          setEventTime('');
+                          setEventTimeRaw('');
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <Pressable
+                    style={styles.eventPickerRow}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Ionicons name="time-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.eventPickerText, !eventTime && { color: colors.textDisabled }]}>
+                      {eventTime || 'Select Event Time'}
+                    </Text>
+                  </Pressable>
+                )}
+
+                {/* Event Location (Optional) */}
+                <Text style={styles.label}>📍 Event Location (Optional)</Text>
+                <View style={styles.eventInputRow}>
+                  <Ionicons name="location-outline" size={20} color={colors.primary} style={{ marginLeft: 12, marginRight: 8 }} />
+                  <TextInput
+                    style={styles.eventInput}
+                    placeholder="Enter venue or location"
+                    placeholderTextColor={colors.textDisabled}
+                    value={eventLocation}
+                    onChangeText={setEventLocation}
+                  />
+                </View>
+
+                {/* Event Poster (Optional) */}
+                <Text style={styles.label}>🖼 Event Poster (Optional)</Text>
+                <Pressable
+                  style={styles.eventPosterBtn}
+                  onPress={handlePickImage}
+                >
+                  <Ionicons name="image-outline" size={20} color={selectedImage ? colors.accent : colors.primary} />
+                  <Text style={styles.eventPosterText}>
+                    {selectedImage ? 'Event Poster Attached (Tap to Change)' : 'Attach Event Poster'}
+                  </Text>
+                </Pressable>
+
+                {/* Native Date / Time Pickers */}
+                {Platform.OS !== 'web' && DateTimePicker && showDatePicker && (
+                  <DateTimePicker
+                    value={dateObj}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(evt, selected) => {
+                      setShowDatePicker(Platform.OS === 'ios');
+                      if (selected) {
+                        setDateObj(selected);
+                        setEventDate(formatReadableDate(selected));
+                        setEventDateRaw(selected.toISOString().split('T')[0]);
+                      }
+                    }}
+                  />
+                )}
+                {Platform.OS !== 'web' && DateTimePicker && showTimePicker && (
+                  <DateTimePicker
+                    value={timeObj}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(evt, selected) => {
+                      setShowTimePicker(Platform.OS === 'ios');
+                      if (selected) {
+                        setTimeObj(selected);
+                        setEventTime(formatReadableTime(selected));
+                        const hours = String(selected.getHours()).padStart(2, '0');
+                        const mins = String(selected.getMinutes()).padStart(2, '0');
+                        setEventTimeRaw(`${hours}:${mins}`);
+                      }
+                    }}
+                  />
+                )}
+              </View>
+            )}
 
             {/* Category Selector */}
             <Text style={styles.label}>Select Category</Text>
@@ -442,6 +671,7 @@ const CreatePostScreen = ({ navigation, route = {} }) => {
             title={loading ? (isEdit ? 'Updating…' : 'Posting…') : (isEdit ? 'Save Changes' : 'Post to Campus')}
             onPress={handleSubmit}
             loading={loading}
+            disabled={category === 'Events' && !eventDate}
             style={{ marginHorizontal: SPACING.md, marginTop: SPACING.lg }}
           />
         </ResponsiveContainer>
@@ -637,6 +867,81 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
   conditionChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
   conditionChipText: { ...TYPOGRAPHY.caption, color: colors.textSecondary, fontWeight: FONT_WEIGHTS.semibold },
   conditionChipTextActive: { color: colors.primary, fontWeight: FONT_WEIGHTS.bold },
+  eventDetailsBox: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.large,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  eventSectionTitle: {
+    ...TYPOGRAPHY.h3,
+    color: colors.primary,
+    marginBottom: SPACING.sm,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
+  eventPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: SPACING.md,
+    height: SIZES.layout.minTouchTarget + 6,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  eventPickerText: {
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+  },
+  eventValidationText: {
+    ...TYPOGRAPHY.caption,
+    color: colors.danger,
+    marginTop: -4,
+    marginBottom: SPACING.sm,
+    fontWeight: FONT_WEIGHTS.medium,
+  },
+  eventInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: SPACING.sm,
+    height: SIZES.layout.minTouchTarget + 6,
+  },
+  eventInput: {
+    flex: 1,
+    height: '100%',
+    paddingRight: SPACING.md,
+    ...TYPOGRAPHY.body,
+    color: colors.textPrimary,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+  },
+  eventPosterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  eventPosterText: {
+    ...TYPOGRAPHY.bodySmall,
+    color: colors.primary,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
 });
 
 export default CreatePostScreen;

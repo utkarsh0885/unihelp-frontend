@@ -17,13 +17,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SIZES, GRADIENTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
-const GradientButton = ({ title, onPress, loading = false, style, gradientColors }) => {
+const GradientButton = ({ title, onPress, loading = false, disabled = false, style, gradientColors }) => {
   const { colors, shadows } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => {
+    if (loading || disabled) return;
     Animated.spring(scale, {
       toValue: 0.96,
       useNativeDriver: true,
@@ -33,6 +34,7 @@ const GradientButton = ({ title, onPress, loading = false, style, gradientColors
   };
 
   const onPressOut = () => {
+    if (loading || disabled) return;
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
@@ -47,15 +49,15 @@ const GradientButton = ({ title, onPress, loading = false, style, gradientColors
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        disabled={loading}
+        disabled={loading || disabled}
         activeOpacity={1}
         style={[styles.wrapper, style]}
       >
         <LinearGradient
-          colors={[colors.primary, colors.primary]}
+          colors={disabled ? [colors.textDisabled || '#9CA3AF', colors.textDisabled || '#9CA3AF'] : [colors.primary, colors.primary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.inner, loading && { opacity: 0.7 }]}
+          style={[styles.inner, (loading || disabled) && { opacity: 0.6 }]}
           pointerEvents="none"
         >
           {loading ? (
