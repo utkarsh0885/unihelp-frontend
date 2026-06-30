@@ -43,11 +43,6 @@ const QUICK_ACTIONS = [
 
 const CATEGORIES = ['All', 'Buy/Sell', 'Events', 'Polls', 'Lost & Found'];
 
-const HERO_MESSAGES = [
-  { title: "🚀 Campus Super App Live!", tip: "💡 Daily Tip: Tap Trending Notes below to check out top exam study guides." },
-  { title: "🌟 Midterm Prep & Tech Fest!", tip: "💡 Daily Tip: Join campus study groups or check upcoming events this week." },
-  { title: "🎓 Discover & Share Knowledge", tip: "💡 Daily Tip: Create a poll to ask peers for instant advice and feedback." }
-];
 
 // ── Skeleton Shimmer Component ──────────────────────────────────────────────────────
 const SkeletonPulse = React.memo(({ styles: s }) => {
@@ -125,7 +120,6 @@ const HomeScreen = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [heroMsgIndex, setHeroMsgIndex] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -240,59 +234,8 @@ const HomeScreen = ({ navigation }) => {
   const displayName = user?.name || user?.displayName || 'Utkarsh';
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
-  const currentHero = HERO_MESSAGES[heroMsgIndex % HERO_MESSAGES.length];
-
   const ListHeader = useMemo(() => (
     <View style={{ backgroundColor: colors.background }}>
-      {/* ── HERO BANNER (Rounded 24px, large blue gradient card) ── */}
-      <View style={styles.heroCard}>
-        {/* Decorative background circles */}
-        <View style={styles.heroCircleTopRight} />
-        <View style={styles.heroCircleBottomLeft} />
-
-        {/* Top Row: Live Feed Indicator */}
-        <View style={[styles.heroTopRow, { justifyContent: 'flex-end' }]}>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Live Feed</Text>
-          </View>
-        </View>
-
-        {/* Headline & Daily Tip */}
-        <Text style={styles.heroTitle}>{currentHero.title}</Text>
-        <Text style={styles.heroTip}>{currentHero.tip}</Text>
-
-        {/* Bottom Interactive Pills */}
-        <View style={styles.heroPillRow}>
-          <TouchableOpacity
-            style={styles.heroPillBtn}
-            onPress={() => navigation.navigate('ShareNotes', {})}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="document-text" size={14} color="#FFFFFF" />
-            <Text style={styles.heroPillText}>Trending Notes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.heroPillBtn}
-            onPress={() => navigation.navigate('Calendar', {})}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="calendar" size={14} color="#FFFFFF" />
-            <Text style={styles.heroPillText}>Upcoming Events</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.heroPillBtn, styles.heroPillBtnSecondary]}
-            onPress={() => setHeroMsgIndex(prev => prev + 1)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="bulb" size={14} color="#FFFFFF" />
-            <Text style={styles.heroPillText}>Daily Tip</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* ── QUICK ACTIONS (Circular premium icons, white background, blue icon) ── */}
       <View style={styles.quickActionsSection}>
         <Text style={styles.sectionTitle}>Explore Campus</Text>
@@ -400,7 +343,7 @@ const HomeScreen = ({ navigation }) => {
         </Text>
       </View>
     </View>
-  ), [currentHero, heroMsgIndex, trendingPosts, selectedCategory, styles, navigation, colors, fadeAnim, handleComment, greeting, displayName]);
+  ), [trendingPosts, selectedCategory, styles, navigation, colors, fadeAnim, handleComment, greeting, displayName]);
 
   const EmptyState = useMemo(() => (
     <View style={styles.emptyContainer}>
@@ -683,116 +626,10 @@ const createStyles = (colors, isDark, isDesktop) => StyleSheet.create({
     borderColor: colors.surface,
   },
 
-  // ── Hero Banner (Rounded 24px, large blue gradient card) ──
-  heroCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
-    borderRadius: 24,
-    backgroundColor: '#2563EB',
-    padding: 22,
-    overflow: 'hidden',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  heroCircleTopRight: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  heroCircleBottomLeft: {
-    position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  highlightBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  highlightBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
-  },
-  liveText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: -0.4,
-  },
-  heroTip: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 18,
-    marginBottom: 18,
-  },
-  heroPillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  heroPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  heroPillBtnSecondary: {
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-  },
-  heroPillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
   // ── Quick Actions (Circular premium icons, white background, blue icon) ──
   quickActionsSection: {
     paddingHorizontal: 16,
+    marginTop: 16,
     marginBottom: 24,
   },
   sectionTitle: {
