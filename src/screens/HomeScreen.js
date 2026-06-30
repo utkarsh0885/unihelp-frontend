@@ -112,6 +112,7 @@ const HomeScreen = ({ navigation }) => {
     refreshData,
     deletePost,
     unreadCount,
+    events = [],
   } = useData();
 
   // Filter out placeholder 'Google User' posts
