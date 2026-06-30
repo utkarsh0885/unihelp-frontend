@@ -90,8 +90,8 @@ const DiscoverEventsScreen = ({ navigation }) => {
         <View style={styles.eventInfo}>
           <View style={styles.eventHeaderRow}>
             <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
-            <View style={[styles.categoryBadge, { backgroundColor: (item.color || colors.primary) + '15' }]}>
-              <Text style={[styles.categoryBadgeText, { color: item.color || colors.primary }]}>Campus Event</Text>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>Campus Event</Text>
             </View>
           </View>
           
@@ -225,14 +225,18 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     flex: 1,
   },
   categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: RADIUS.pill,
+    height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
   },
   categoryBadgeText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 10,
-    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   metaRow: {

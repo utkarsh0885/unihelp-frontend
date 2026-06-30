@@ -96,16 +96,19 @@ const createStyles = (colors, isDark) => {
       padding: SPACING.xs,
     },
     categoryBadge: {
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: 3,
-      borderRadius: RADIUS.small,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
+      height: 26,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      backgroundColor: '#2563EB',
     },
     categoryBadgeText: {
-      fontSize: 10,
-      fontWeight: FONT_WEIGHTS.semibold,
-      letterSpacing: 0.5,
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
     },
     title: {
       ...TYPOGRAPHY.title,
@@ -679,21 +682,17 @@ const AnimatedPostCard = memo(({ post, onPress, onLike, onSave, onComment, onVot
         {/* Category Badge & More Options */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
           {post.category && (
-            <View style={[
-              styles.categoryBadge,
-              post.category === 'Buy/Sell'
-                ? { backgroundColor: '#2563EB', borderColor: '#2563EB' }
-                : { backgroundColor: isDark ? colors.surfaceElevated : colors.primaryLight }
-            ]}>
-              <Text style={[
-                styles.categoryBadgeText,
-                post.category === 'Buy/Sell'
-                  ? { color: '#FFFFFF', fontWeight: '800' }
-                  : { color: isDark ? colors.secondary : colors.primary }
-              ]}>
+            <Pressable
+              style={({ pressed, hovered }) => [
+                styles.categoryBadge,
+                hovered && { backgroundColor: '#1D4ED8' },
+                pressed && { backgroundColor: '#1E40AF' }
+              ]}
+            >
+              <Text style={styles.categoryBadgeText}>
                 {post.category.toUpperCase()}
               </Text>
-            </View>
+            </Pressable>
           )}
           
           {isOwner && (onEdit || onDelete) && (

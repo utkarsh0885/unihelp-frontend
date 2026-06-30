@@ -162,8 +162,8 @@ const CalendarScreen = ({ navigation }) => {
                     <View style={styles.agendaDetails}>
                       <View style={styles.agendaHeaderRow}>
                         <Text style={styles.agendaTitle}>{item.title}</Text>
-                        <View style={[styles.categoryPill, { backgroundColor: (item.color || colors.primary) + '15' }]}>
-                          <Text style={[styles.categoryText, { color: item.color || colors.primary }]}>{item.category || 'Event'}</Text>
+                        <View style={styles.categoryPill}>
+                          <Text style={styles.categoryText}>{item.category || 'Event'}</Text>
                         </View>
                       </View>
                       
@@ -318,14 +318,18 @@ const createStyles = (colors, elevation, isDark) => StyleSheet.create({
     flex: 1,
   },
   categoryPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: RADIUS.pill,
+    height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
   },
   categoryText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 10,
-    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   agendaMetaRow: {
